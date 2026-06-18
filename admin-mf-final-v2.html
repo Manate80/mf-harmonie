@@ -1400,10 +1400,16 @@ function goSection(id,btn){
   if(id==='pilotage'){renderDashboard();renderNotifs();}
 }
 function goStab(prefix,sub,btn){
-  const container=btn.closest('.spage,.section');
-  if(!container)return;
-  const pages=container.querySelectorAll('[id^="'+prefix+'-"].spage');
-  const btns=container.querySelectorAll('.stab');
+  // Trouver le conteneur parent direct qui contient les stabs de CE niveau
+  // On cherche le parent le plus proche qui a un enfant avec l'id prefix-*
+  let container = btn.parentElement;
+  while(container && !container.querySelector('[id^="'+prefix+'-"]')) {
+    container = container.parentElement;
+    if(!container || container.tagName === 'BODY') break;
+  }
+  if(!container) return;
+  const pages = container.querySelectorAll(':scope > [id^="'+prefix+'-"].spage, [id^="'+prefix+'-"].spage');
+  const btns = btn.closest('.stabs') ? btn.closest('.stabs').querySelectorAll('.stab') : container.querySelectorAll(':scope > .stabs .stab');
   pages.forEach(p=>p.classList.remove('on'));
   btns.forEach(b=>b.classList.remove('on'));
   const el=document.getElementById(prefix+'-'+sub);
