@@ -36,9 +36,10 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 /* NAV PRINCIPALE (5 sections) */
 .main-nav{display:flex;background:#0f0d08;border-bottom:2px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
 @media(min-width:600px){#hlink-site,#hlink-eleve,#hlink-prof{display:inline-block !important;}}
-.main-btn{flex-shrink:0;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:13px 12px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .2s;}
+.main-btn{flex-shrink:0;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:13px 8px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .2s;}
 .main-btn:hover{color:var(--blanc);}
 .main-btn.on{color:var(--orL);border-bottom-color:var(--or);background:rgba(201,146,42,.05);}
+@media(min-width:600px){.main-btn{font-size:10px;letter-spacing:1px;padding:13px 12px;}}
 
 /* SECTIONS */
 .section{display:none;}
