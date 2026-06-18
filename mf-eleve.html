@@ -101,6 +101,18 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 .chanson-arrow.open{transform:rotate(90deg);}
 .chanson-body{display:none;border-top:1px solid var(--border);padding:16px;}
 .chanson-body.open{display:block;}
+/* ══ PLEIN ÉCRAN PAROLES ══ */
+.fullscreen-overlay{display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9000;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.fullscreen-overlay.open{display:block;}
+.fullscreen-header{position:sticky;top:0;background:#0a0a0a;border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:1;}
+.fullscreen-titre{font-family:Georgia,serif;font-size:16px;color:var(--orL);font-weight:700;}
+.fullscreen-close{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 14px;font-size:12px;cursor:pointer;border-radius:4px;font-family:inherit;}
+.fullscreen-content{padding:20px 16px 40px;}
+.fullscreen-content .paroles-text{font-size:clamp(15px,4vw,20px);line-height:2.2;}
+.fullscreen-content .trad-text{font-size:clamp(14px,3.5vw,18px);line-height:2.0;}
+.fullscreen-content .acc-btn{font-size:clamp(16px,4vw,22px);padding:12px 20px;}
+.btn-fullscreen{display:inline-flex;align-items:center;gap:6px;background:rgba(201,146,42,.1);border:1px solid rgba(201,146,42,.3);color:var(--orL);font-size:11px;font-weight:700;padding:6px 12px;cursor:pointer;border-radius:20px;margin-bottom:10px;font-family:inherit;}
+.btn-fullscreen:hover{background:rgba(201,146,42,.2);}
 .media-section{margin-bottom:16px;}
 .media-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;}
 .media-frame{width:100%;border:none;border-radius:4px;background:#111;}
@@ -198,6 +210,16 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 .fret.mute{color:var(--rouge);font-size:11px;border:none;}
 
 /* Guide frappes */
+.dossier-rythme{margin-bottom:12px;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.dossier-head{display:flex;align-items:center;padding:12px 14px;background:var(--card2);cursor:pointer;gap:10px;transition:background .2s;}
+.dossier-head:hover{background:rgba(201,146,42,.08);}
+.dossier-ico{font-size:1.4rem;flex-shrink:0;}
+.dossier-nom{font-family:Georgia,serif;font-size:13px;color:var(--orL);font-weight:700;flex:1;}
+.dossier-nb{font-size:10px;color:var(--muted);background:var(--card);padding:2px 8px;border-radius:10px;}
+.dossier-arrow{color:var(--muted);font-size:14px;transition:transform .3s;}
+.dossier-arrow.open{transform:rotate(90deg);}
+.dossier-body{display:none;padding:8px;}
+.dossier-body.open{display:block;}
 .rythm-card{background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:12px;}
 .rythm-name{font-family:Georgia,serif;font-size:15px;color:var(--orL);margin-bottom:10px;font-weight:700;}
 .rythm-pattern{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
@@ -329,25 +351,44 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
     <div id="page-studio" class="page on">
       <div class="studio-layout">
 
-        <!-- BIBLIOTHÈQUE GLOBALE -->
+        <!-- BIBLIOTHÈQUE -->
         <div>
           <div class="card card-or" style="margin-bottom:14px;">
-            <div class="card-title">📚 Bibliothèque globale <span id="nb-biblio">0 chanson(s)</span></div>
+            <div class="card-title">📚 Ma Bibliothèque <span id="nb-biblio">0 chanson(s)</span></div>
+
+            <!-- BARRE RECHERCHE -->
             <div class="search-bar">
-              <input class="search-input" id="search-input" type="text" placeholder="Rechercher titre, artiste…" oninput="filterBiblio(this.value)">
+              <input class="search-input" id="search-input" type="text" placeholder="Rechercher titre, artiste, rythme…" oninput="filterBiblio(this.value)">
               <span class="search-icon">🔍</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-              <span style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Trier par</span>
-              <select id="tri-select" onchange="filterBiblio(document.getElementById('search-input').value)" style="flex:1;padding:8px 10px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:12px;outline:none;border-radius:4px;">
-                <option value="titre">🎵 Nom de la chanson (A→Z)</option>
-                <option value="artiste">🎤 Artiste (A→Z)</option>
-                <option value="rythme">🥁 Rythme / Type</option>
-                <option value="niveau">📊 Niveau</option>
-                <option value="nouveaute">✨ Nouveautés en premier</option>
-              </select>
+
+            <!-- TABS : PAR RYTHME / TOUT / ARTISTE -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;" id="biblio-tabs">
+              <button class="tool-tab on" onclick="setBiblioView('rythmes',this)">🥁 Par rythme</button>
+              <button class="tool-tab" onclick="setBiblioView('tous',this)">🎵 Tous</button>
+              <button class="tool-tab" onclick="setBiblioView('artiste',this)">🎤 Par artiste</button>
             </div>
-            <div id="biblio-liste"></div>
+
+            <!-- VUE PAR RYTHME (dossiers) -->
+            <div id="view-rythmes" class="biblio-view">
+              <div id="dossiers-rythmes"></div>
+            </div>
+
+            <!-- VUE TOUS -->
+            <div id="view-tous" class="biblio-view" style="display:none;">
+              <div id="biblio-liste"></div>
+            </div>
+
+            <!-- VUE PAR ARTISTE -->
+            <div id="view-artiste" class="biblio-view" style="display:none;">
+              <div id="biblio-artiste"></div>
+            </div>
+
+            <!-- MESSAGE SI VIDE -->
+            <div id="biblio-vide" style="display:none;text-align:center;padding:30px 0;">
+              <div style="font-size:2rem;margin-bottom:12px;">🎵</div>
+              <div style="color:var(--muted);font-size:13px;line-height:1.6;">Aucune chanson disponible pour le moment.<br>Votre professeur vous assignera bientôt du contenu.</div>
+            </div>
           </div>
         </div>
 
@@ -600,6 +641,15 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 
 </div><!-- /app -->
 
+<!-- ══ OVERLAY PLEIN ÉCRAN PAROLES ══ -->
+<div class="fullscreen-overlay" id="fullscreen-overlay">
+  <div class="fullscreen-header">
+    <div class="fullscreen-titre" id="fs-titre">—</div>
+    <button class="fullscreen-close" onclick="fermerPleinEcran()">✕ Fermer</button>
+  </div>
+  <div class="fullscreen-content" id="fs-content"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- ═══ FIREBASE SDK ═══ -->
@@ -657,6 +707,11 @@ window.chargerConfigDepuisFirestore = async function() {
     const coachSnap = await getDoc(doc(db, 'config', 'coaching_videos'));
     if (coachSnap.exists() && coachSnap.data().list) {
       localStorage.setItem('mfhi5_coaching_videos', JSON.stringify(coachSnap.data().list));
+    }
+    // Charger fréquences accordeur
+    const freqSnap = await getDoc(doc(db, 'config', 'accordeur'));
+    if (freqSnap.exists()) {
+      localStorage.setItem('mfhi5_freqs_accordeur', JSON.stringify(freqSnap.data()));
     }
   } catch(e) { console.warn('chargerConfigDepuisFirestore:', e); }
 };
@@ -796,18 +851,40 @@ function showPage(id, btn) {
 }
 
 // ══ STUDIO ══
+var biblioView = 'rythmes';
+
 function chargerStudio() {
-  const chansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
-  chargerBibliotheque(chansons);
+  // Filtrer : seulement chansons validées ET (chansonsVisibles=true OU assignées à l'élève)
+  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const chansonsEleve = eleveActif && eleveActif.chansonsVisibles ? toutesChansons :
+    toutesChansons.filter(c => {
+      if (eleveActif && eleveActif.chansons && eleveActif.chansons.includes(c.id)) return true;
+      if (eleveActif && eleveActif.chansons && eleveActif.chansons.includes(String(c.id))) return true;
+      return false;
+    });
+  chargerBibliotheque(chansonsEleve);
   chargerCoursSemaine();
 }
+
+function setBiblioView(view, btn) {
+  biblioView = view;
+  document.querySelectorAll('#biblio-tabs .tool-tab').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  document.querySelectorAll('.biblio-view').forEach(v => v.style.display = 'none');
+  const el = document.getElementById('view-' + view);
+  if (el) el.style.display = 'block';
+  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const chansonsEleve = eleveActif && eleveActif.chansonsVisibles ? toutesChansons :
+    toutesChansons.filter(c => eleveActif && eleveActif.chansons && (eleveActif.chansons.includes(c.id) || eleveActif.chansons.includes(String(c.id))));
+  chargerBibliotheque(chansonsEleve);
+}
+
+const RYTHMES_ORDRE = ['Hula','Aparima','Tamure','Himene','Valse','Boléro','Kaina','Reggae','Bossa Nova','Autre'];
+const RYTHMES_ICONES = {'Hula':'🌺','Aparima':'🌊','Tamure':'🔥','Himene':'🎶','Valse':'💃','Boléro':'🎸','Kaina':'🥁','Reggae':'🎵','Bossa Nova':'🎻','Autre':'🎼'};
 
 function chargerBibliotheque(chansons, filtre) {
   const nb = document.getElementById('nb-biblio');
   if (nb) nb.textContent = chansons.length + ' chanson(s)';
-  const container = document.getElementById('biblio-liste');
-  if (!container) return;
-  const tri = (document.getElementById('tri-select') || {value:'titre'}).value;
 
   let liste = filtre ? chansons.filter(c =>
     (c.titre || '').toLowerCase().includes(filtre.toLowerCase()) ||
@@ -815,69 +892,81 @@ function chargerBibliotheque(chansons, filtre) {
     (c.type || '').toLowerCase().includes(filtre.toLowerCase())
   ) : [...chansons];
 
-  // Tri selon sélection
-  if (tri === 'titre') {
-    liste.sort((a, b) => (a.titre || '').localeCompare(b.titre || '', 'fr'));
-  } else if (tri === 'artiste') {
-    liste.sort((a, b) => (a.auteur || '').localeCompare(b.auteur || '', 'fr'));
-  } else if (tri === 'rythme') {
-    liste.sort((a, b) => (a.type || '').localeCompare(b.type || '', 'fr') || (a.titre || '').localeCompare(b.titre || '', 'fr'));
-  } else if (tri === 'niveau') {
-    const niv = { 'Débutant': 1, 'Intermédiaire': 2, 'Avancé': 3 };
-    liste.sort((a, b) => (niv[a.niv] || 9) - (niv[b.niv] || 9));
-  } else if (tri === 'nouveaute') {
-    liste.sort((a, b) => (b.id || 0) - (a.id || 0));
+  const vide = document.getElementById('biblio-vide');
+  if (!liste.length) { if (vide) vide.style.display = 'block'; return; }
+  if (vide) vide.style.display = 'none';
+
+  // VUE PAR RYTHMES (dossiers)
+  const dossiersContainer = document.getElementById('dossiers-rythmes');
+  if (dossiersContainer && biblioView === 'rythmes') {
+    const groupes = {};
+    liste.forEach(c => { const r = c.type || 'Autre'; if (!groupes[r]) groupes[r] = []; groupes[r].push(c); });
+    const ordre = [...RYTHMES_ORDRE.filter(r => groupes[r]), ...Object.keys(groupes).filter(r => !RYTHMES_ORDRE.includes(r)).sort()];
+    dossiersContainer.innerHTML = '';
+    ordre.forEach(rythme => {
+      const chList = groupes[rythme];
+      const ico = RYTHMES_ICONES[rythme] || '🎵';
+      const div = document.createElement('div'); div.className = 'dossier-rythme';
+      div.innerHTML =
+        '<div class="dossier-head" onclick="toggleDossier(this)">' +
+        '<span class="dossier-ico">' + ico + '</span>' +
+        '<span class="dossier-nom">' + rythme + '</span>' +
+        '<span class="dossier-nb">' + chList.length + ' chanson' + (chList.length > 1 ? 's' : '') + '</span>' +
+        '<span class="dossier-arrow">›</span>' +
+        '</div>' +
+        '<div class="dossier-body">' +
+        chList.sort((a,b)=>(a.titre||'').localeCompare(b.titre||'')).map(c => creerCarteChangonHTML(c)).join('') +
+        '</div>';
+      dossiersContainer.appendChild(div);
+    });
   }
 
-  if (!liste.length) { container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;">Aucune chanson trouvée.</p>'; return; }
+  // VUE TOUS
+  const listeTous = document.getElementById('biblio-liste');
+  if (listeTous && biblioView === 'tous') {
+    const triee = [...liste].sort((a,b)=>(a.titre||'').localeCompare(b.titre||'','fr'));
+    listeTous.innerHTML = triee.map(c => creerCarteChangonHTML(c)).join('');
+    listeTous.querySelectorAll('.chanson-head').forEach(h => h.addEventListener('click', () => toggleChanson(h)));
+  }
 
-  // Grouper par rythme si tri=rythme, sinon par lettre
-  if (tri === 'rythme') {
-    const groupes = {};
-    liste.forEach(c => {
-      const r = c.type || 'Autre';
-      if (!groupes[r]) groupes[r] = [];
-      groupes[r].push(c);
-    });
-    container.innerHTML = '';
-    Object.keys(groupes).sort().forEach(rythme => {
-      const sec = document.createElement('div'); sec.className = 'alpha-section';
-      sec.innerHTML = '<div class="alpha-letter">🥁 ' + rythme + '</div>';
-      groupes[rythme].forEach(c => sec.appendChild(creerCarteChangon(c)));
-      container.appendChild(sec);
-    });
-  } else if (tri === 'artiste') {
-    const groupes = {};
-    liste.forEach(c => {
-      const a = (c.auteur || '?')[0].toUpperCase();
-      if (!groupes[a]) groupes[a] = [];
-      groupes[a].push(c);
-    });
-    container.innerHTML = '';
-    Object.keys(groupes).sort().forEach(lettre => {
-      const sec = document.createElement('div'); sec.className = 'alpha-section';
-      sec.innerHTML = '<div class="alpha-letter">' + lettre + '</div>';
-      groupes[lettre].forEach(c => sec.appendChild(creerCarteChangon(c)));
-      container.appendChild(sec);
-    });
-  } else {
-    // Titre, niveau, nouveauté → liste simple sans groupes
-    container.innerHTML = '';
-    liste.forEach(c => container.appendChild(creerCarteChangon(c)));
+  // VUE PAR ARTISTE
+  const listeArtiste = document.getElementById('biblio-artiste');
+  if (listeArtiste && biblioView === 'artiste') {
+    const groupesA = {};
+    liste.forEach(c => { const a = (c.auteur||'Inconnu'); if (!groupesA[a]) groupesA[a] = []; groupesA[a].push(c); });
+    listeArtiste.innerHTML = Object.keys(groupesA).sort().map(artiste =>
+      '<div class="alpha-section"><div class="alpha-letter">🎤 ' + artiste + '</div>' +
+      groupesA[artiste].sort((a,b)=>(a.titre||'').localeCompare(b.titre||'')).map(c => creerCarteChangonHTML(c)).join('') +
+      '</div>'
+    ).join('');
+    listeArtiste.querySelectorAll('.chanson-head').forEach(h => h.addEventListener('click', () => toggleChanson(h)));
+  }
+}
+
+function toggleDossier(head) {
+  const body = head.nextElementSibling;
+  const arrow = head.querySelector('.dossier-arrow');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (arrow) arrow.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    body.querySelectorAll('.chanson-head').forEach(h => h.addEventListener('click', () => toggleChanson(h)));
   }
 }
 
 function filterBiblio(val) {
-  const chansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
-  chargerBibliotheque(chansons, val);
+  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const chansonsEleve = eleveActif && eleveActif.chansonsVisibles ? toutesChansons :
+    toutesChansons.filter(c => eleveActif && eleveActif.chansons && (eleveActif.chansons.includes(c.id) || eleveActif.chansons.includes(String(c.id))));
+  chargerBibliotheque(chansonsEleve, val);
 }
 
-function creerCarteChangon(c) {
-  const div = document.createElement('div');div.className = 'chanson-card';
-  // Vérifier cache offline
-  const cache = localStorage.getItem('mfhi5_cache_' + c.id);
-  const isCached = !!cache;
-  div.innerHTML =
+function creerCarteChangonHTML(c) {
+  const isCached = !!localStorage.getItem('mfhi5_cache_' + c.id);
+  if (!isCached && (c.par || c.acc)) {
+    localStorage.setItem('mfhi5_cache_' + c.id, JSON.stringify({ titre: c.titre, auteur: c.auteur, par: c.par, trad: c.trad, pron: c.pron, acc: c.acc, ctx: c.ctx }));
+  }
+  return '<div class="chanson-card">' +
     '<div class="chanson-head" onclick="toggleChanson(this)">' +
     '<div class="chanson-ico">🎵</div>' +
     '<div class="chanson-info">' +
@@ -890,16 +979,21 @@ function creerCarteChangon(c) {
     '</div></div>' +
     '<span class="chanson-arrow">›</span>' +
     '</div>' +
-    '<div class="chanson-body">' + buildCorpsChanson(c) + '</div>';
-  // Mettre en cache les textes
-  if (!isCached && (c.par || c.acc)) {
-    localStorage.setItem('mfhi5_cache_' + c.id, JSON.stringify({ titre: c.titre, auteur: c.auteur, par: c.par, trad: c.trad, pron: c.pron, acc: c.acc, ctx: c.ctx }));
-  }
+    '<div class="chanson-body">' + buildCorpsChanson(c) + '</div>' +
+    '</div>';
+}
+
+function creerCarteChangon(c) {
+  const div = document.createElement('div'); div.className = 'chanson-card';
+  div.innerHTML = creerCarteChangonHTML(c).replace('<div class="chanson-card">','').replace(/<\/div>$/,'');
   return div;
 }
 
 function buildCorpsChanson(c) {
   let html = '';
+  // Bouton plein écran
+  const titreEsc = (c.titre||'').replace(/'/g,"\\'");
+  html += '<button class="btn-fullscreen" onclick="ouvrirPleinEcran(\'' + c.id + '\')">⛶ Plein écran</button>';
   if (c.acc && c.acc !== '—') {
     const accs = c.acc.split(/[,\s]+/).filter(Boolean);
     html += '<div class="media-section"><div class="media-label">🎸 Accords</div><div class="acc-grid">' +
@@ -924,6 +1018,42 @@ function buildCorpsChanson(c) {
 }
 
 function escHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ══ PLEIN ÉCRAN PAROLES ══
+function ouvrirPleinEcran(chansonId) {
+  const chansons = LS.getArr('chansons');
+  const c = chansons.find(x => x.id == chansonId || x.id === chansonId);
+  if (!c) return;
+  const overlay = document.getElementById('fullscreen-overlay');
+  const titre = document.getElementById('fs-titre');
+  const content = document.getElementById('fs-content');
+  if (!overlay || !content) return;
+  titre.textContent = (c.titre || 'Chanson') + (c.auteur ? ' — ' + c.auteur : '');
+  let html = '';
+  if (c.acc && c.acc !== '—') {
+    const accs = c.acc.split(/[,\s]+/).filter(Boolean);
+    html += '<div class="media-section"><div class="media-label">🎸 Accords</div><div class="acc-grid">' +
+      accs.map(a => '<button class="acc-btn" onclick="jouerNote(\'' + a + '\')">' + a + '</button>').join('') +
+      '</div></div>';
+  }
+  if (c.par) html += '<div class="media-section"><div class="media-label">📄 Paroles Reo Māohi</div><div class="paroles-text">' + escHtml(c.par) + '</div></div>';
+  if (c.trad) html += '<div class="media-section"><div class="media-label">🌍 Traduction</div><div class="trad-text">' + escHtml(c.trad) + '</div></div>';
+  if (c.pron) html += '<div class="media-section"><div class="media-label">🗣️ Prononciation</div><div class="pron-text">' + escHtml(c.pron) + '</div></div>';
+  if (!html) html = '<p style="color:var(--muted);text-align:center;padding:40px;font-style:italic;">Aucun contenu texte disponible.</p>';
+  content.innerHTML = html;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Tenter l'API fullscreen
+  try { if (overlay.requestFullscreen) overlay.requestFullscreen(); else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e) {}
+}
+function fermerPleinEcran() {
+  const overlay = document.getElementById('fullscreen-overlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  try { if (document.exitFullscreen) document.exitFullscreen(); else if (document.webkitExitFullscreen) document.webkitExitFullscreen(); } catch(e) {}
+}
+// Fermer avec la touche Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerPleinEcran(); });
 
 function toggleChanson(head) {
   const arrow = head.querySelector('.chanson-arrow');
@@ -1239,7 +1369,18 @@ function tick() {
   if (metroOpts.points) {
     document.querySelectorAll('.metro-beat').forEach((b, i) => { b.classList.remove('active', 'one'); if (i === metroBeat) b.classList.add(isOne ? 'one' : 'active'); });
   }
-  if (metroOpts.voix) { const vd = document.getElementById('metro-voix'); if (vd) vd.textContent = metroBeat + 1; }
+  if (metroOpts.voix) {
+    const vd = document.getElementById('metro-voix'); if (vd) vd.textContent = metroBeat + 1;
+    // Voix haute-parleur via speechSynthesis
+    try {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(metroBeat + 1));
+        u.lang = 'fr-FR'; u.rate = 1.8; u.pitch = isOne ? 1.3 : 1.0; u.volume = 1;
+        window.speechSynthesis.speak(u);
+      }
+    } catch(e) {}
+  }
   syncRythme();
   metroBeat = (metroBeat + 1) % metroMesure;
   metroTimer = setTimeout(tick, 60000 / metroBPM);
@@ -1303,6 +1444,24 @@ function toggleCoachingVideo(head) {
 }
 
 // ══ ACCORDEUR ══
+function getFrequences() {
+  const freqs = JSON.parse(localStorage.getItem('mfhi5_freqs_accordeur') || 'null');
+  return {
+    hawai: [
+      { corde: 'G', note: 'G4', freq: freqs?.hawai?.g || 392.00, label: '4e corde (Sol)' },
+      { corde: 'C', note: 'C4', freq: freqs?.hawai?.c || 261.63, label: '3e corde (Do)' },
+      { corde: 'E', note: 'E4', freq: freqs?.hawai?.e || 329.63, label: '2e corde (Mi)' },
+      { corde: 'A', note: 'A4', freq: freqs?.hawai?.a || 440.00, label: '1re corde (La)' }
+    ],
+    tahiti: [
+      { corde: 'G', note: 'G4', freq: freqs?.tahiti?.g || 392.00, label: '4e corde (Sol)' },
+      { corde: 'C', note: 'C4', freq: freqs?.tahiti?.c || 261.63, label: '3e corde (Do)' },
+      { corde: 'E', note: 'E4', freq: freqs?.tahiti?.e || 329.63, label: '2e corde (Mi)' },
+      { corde: 'A', note: 'A5', freq: freqs?.tahiti?.a || 880.00, label: '1re corde (La · octave haute)' }
+    ]
+  };
+}
+
 const ACCORDS_HAWAI = [
   { corde: 'G', note: 'G4', freq: 392.00, label: '4e corde (Sol)' },
   { corde: 'C', note: 'C4', freq: 261.63, label: '3e corde (Do)' },
@@ -1331,7 +1490,8 @@ function setTunerMode(mode, btn) {
 }
 
 function initAccordeur() {
-  const cordes = tunerMode === 'tahiti' ? ACCORDS_TAHITI : ACCORDS_HAWAI;
+  const freqs = getFrequences();
+  const cordes = tunerMode === 'tahiti' ? freqs.tahiti : freqs.hawai;
   const grid = document.getElementById('strings-grid'); if (!grid) return;
   const lbl = document.getElementById('tuner-accordage-label');
   if (lbl) lbl.textContent = 'Accordage : ' + cordes.map(c => c.note).join(' · ');

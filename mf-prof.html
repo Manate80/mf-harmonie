@@ -239,7 +239,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
     <div class="nav-desk-inner">
       <button class="nd-btn on" onclick="showPage('eleves',this)">👥 Mes Élèves</button>
       <button class="nd-btn" onclick="showPage('planning',this)">📅 Mon Planning</button>
-      <button class="nd-btn" onclick="showPage('outils',this)">🔧 Outils & Compta</button>
+      <button class="nd-btn" onclick="showPage('outils',this)">💰 Compta & Profil</button>
     </div>
   </div>
 
@@ -321,83 +321,27 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
         <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:8px;">Remise à zéro automatique le 1er du mois · 10 000 XPF/élève actif</div>
       </div>
 
-      <!-- OUTILS -->
-      <div class="tool-tabs">
-        <button class="tool-tab on" onclick="showTool('metro',this)">🎵 Métronome</button>
-        <button class="tool-tab" onclick="showTool('accordeur',this)">🎸 Accordeur</button>
-        <button class="tool-tab" onclick="showTool('accords',this)">📖 Accords</button>
-        <button class="tool-tab" onclick="showTool('profil',this)">👤 Profil</button>
-      </div>
-
-      <!-- MÉTRONOME -->
-      <div id="tool-metro" class="tool-page on">
-        <div class="card">
-          <div class="metro-beats" id="metro-beats"></div>
-          <div class="voix-display" id="metro-voix"></div>
-          <div class="metro-bpm" id="metro-bpm">80</div>
-          <div class="metro-label">BPM</div>
-          <input class="metro-slider" type="range" min="30" max="220" value="80" oninput="setBPM(this.value)" id="metro-slider">
-          <div class="metro-controls">
-            <button class="metro-btn" onclick="addBPM(-10)">−10</button>
-            <button class="metro-btn" onclick="addBPM(-1)">−</button>
-            <button class="metro-btn metro-btn-main" id="metro-start-btn" onclick="toggleMetro()">▶</button>
-            <button class="metro-btn" onclick="addBPM(1)">+</button>
-            <button class="metro-btn" onclick="addBPM(10)">+10</button>
-          </div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;">
-            <button class="tool-tab on" onclick="setMesure(2,this)">2/4</button>
-            <button class="tool-tab" onclick="setMesure(3,this)">3/4</button>
-            <button class="tool-tab" onclick="setMesure(4,this)">4/4</button>
-            <button class="tool-tab" onclick="setMesure(6,this)">6/8</button>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="opt-voix" style="accent-color:var(--cyan);"> 🗣️ Voix 1-2-3-4
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="opt-flash" checked style="accent-color:var(--cyan);"> 💡 Flash
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- ACCORDEUR -->
-      <div id="tool-accordeur" class="tool-page">
-        <div class="card">
-          <div class="tuner-modes">
-            <div class="tuner-mode on" onclick="setTunerMode('hawai',this)">🌺 Hawaïen</div>
-            <div class="tuner-mode" onclick="setTunerMode('tahiti',this)">🌴 Tahitien</div>
-          </div>
-          <div class="strings-grid" id="strings-grid-prof"></div>
-          <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px;" id="tuner-lbl-prof">G4 · C4 · E4 · A4</div>
-        </div>
-      </div>
-
-      <!-- DICTIONNAIRE -->
-      <div id="tool-accords" class="tool-page">
-        <div class="card">
-          <div class="card-title">📖 Accords ukulélé</div>
-          <div class="acc-grid-dict" id="acc-grid-dict"></div>
-        </div>
+      <!-- HISTORIQUE GAINS -->
+      <div class="card">
+        <div class="card-title">📊 Historique mensuel</div>
+        <div id="compta-historique" style="font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic;">Historique disponible après le premier mois complet.</div>
       </div>
 
       <!-- PROFIL -->
-      <div id="tool-profil" class="tool-page">
-        <div class="card">
-          <div class="card-title">👤 Mon profil</div>
-          <div class="fg"><label>Nom complet</label><input type="text" id="p-nom"></div>
-          <div class="fg"><label>Téléphone (Vini)</label><input type="tel" id="p-tel" placeholder="+689 87 XX XX XX"></div>
-          <div class="fg"><label>Email</label><input type="email" id="p-email"></div>
-          <div class="fg"><label>Zone d'intervention</label><input type="text" id="p-zone" readonly style="opacity:.5;"></div>
-          <button class="btn-save" onclick="sauvegarderProfil()">💾 Sauvegarder</button>
-        </div>
-        <div class="card">
-          <div class="card-title">🔑 Changer mon code</div>
-          <div class="fg"><label>Code actuel</label><input type="password" id="p-old"></div>
-          <div class="fg"><label>Nouveau code</label><input type="password" id="p-new"></div>
-          <div class="fg"><label>Confirmer</label><input type="password" id="p-confirm"></div>
-          <button class="btn-save" onclick="changerCode()">🔑 Changer</button>
-        </div>
+      <div class="card">
+        <div class="card-title">👤 Mon profil</div>
+        <div class="fg"><label>Nom complet</label><input type="text" id="p-nom"></div>
+        <div class="fg"><label>Téléphone (Vini)</label><input type="tel" id="p-tel" placeholder="+689 87 XX XX XX"></div>
+        <div class="fg"><label>Email</label><input type="email" id="p-email"></div>
+        <div class="fg"><label>Zone d'intervention</label><input type="text" id="p-zone" readonly style="opacity:.5;"></div>
+        <button class="btn-save" onclick="sauvegarderProfil()">💾 Sauvegarder</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🔑 Changer mon code</div>
+        <div class="fg"><label>Code actuel</label><input type="password" id="p-old"></div>
+        <div class="fg"><label>Nouveau code</label><input type="password" id="p-new"></div>
+        <div class="fg"><label>Confirmer</label><input type="password" id="p-confirm"></div>
+        <button class="btn-save" onclick="changerCode()">🔑 Changer</button>
       </div>
     </div>
 
@@ -412,7 +356,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
       <span class="nm-ico">📅</span><span class="nm-lbl">Planning</span>
     </button>
     <button class="nm-btn" id="nm-outils" onclick="showPage('outils',this)">
-      <span class="nm-ico">🔧</span><span class="nm-lbl">Outils</span>
+      <span class="nm-ico">💰</span><span class="nm-lbl">Compta</span>
     </button>
   </div>
 </div>

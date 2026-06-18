@@ -333,8 +333,58 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         </div>
         <button class="btn" onclick="saveOffre()">💾 Enregistrer l'offre promotionnelle</button>
       </div>
+
+      <!-- ═══ TÉMOIGNAGES ═══ -->
+      <div class="card" style="border-color:rgba(212,175,55,.4);">
+        <div class="card-title" style="color:var(--orL);">⭐ Témoignages (affichés sur l'accueil)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">6 témoignages maximum. Ils apparaissent sur la page d'accueil du site.</p>
+        <div id="list-temoignages" style="margin-bottom:14px;"></div>
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div class="card-title">Ajouter un témoignage</div>
+          <div class="fg"><label>Auteur *</label><input id="tem-auteur" placeholder="Hina Teriitahi · Tahiti"></div>
+          <div class="fg"><label>Formule / Type d'élève</label><input id="tem-formule" placeholder="Ex: Cours à domicile · 6 mois"></div>
+          <div class="fg"><label>Témoignage *</label><textarea id="tem-texte" placeholder="J'ai découvert le ukulélé grâce à MF Harmonie…" style="min-height:80px;"></textarea></div>
+          <button class="btn" onclick="addTemoignage()">✚ Ajouter ce témoignage</button>
+        </div>
+      </div>
+
+      <!-- ═══ HISTOIRE ═══ -->
+      <div class="card" style="border-color:rgba(212,175,55,.3);">
+        <div class="card-title" style="color:var(--orL);">📖 Notre histoire (section accueil)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Ce texte apparaît dans la section "L'origine de MF Harmonie des Îles" sur la page d'accueil. Laissez vide pour masquer la section.</p>
+        <div class="fg"><textarea id="histoire-texte-admin" placeholder="Racontez l'histoire de MF Harmonie des Îles, votre parcours musical, pourquoi vous avez créé cette école…" style="min-height:150px;line-height:1.7;"></textarea></div>
+        <button class="btn" onclick="saveHistoire()">💾 Enregistrer l'histoire</button>
+      </div>
+
+      <!-- ═══ ACCORDEUR CONFIGURABLE ═══ -->
+      <div class="card" style="border-color:rgba(0,188,212,.3);">
+        <div class="card-title" style="color:#00bcd4;">🎸 Accordeur — Fréquences des cordes</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Définissez les fréquences exactes pour l'accordeur de l'espace élève. Les valeurs s'affichent en Hz.</p>
+        <div style="font-size:11px;color:var(--orL);font-weight:700;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;">🌺 Ukulélé Hawaïen (standard)</div>
+        <div class="row2">
+          <div class="fg"><label>4e corde G (Sol)</label><input type="number" id="freq-hawai-g" value="392.00" step="0.01" placeholder="392.00"></div>
+          <div class="fg"><label>3e corde C (Do)</label><input type="number" id="freq-hawai-c" value="261.63" step="0.01" placeholder="261.63"></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label>2e corde E (Mi)</label><input type="number" id="freq-hawai-e" value="329.63" step="0.01" placeholder="329.63"></div>
+          <div class="fg"><label>1re corde A (La)</label><input type="number" id="freq-hawai-a" value="440.00" step="0.01" placeholder="440.00"></div>
+        </div>
+        <div style="font-size:11px;color:var(--cyanL);font-weight:700;margin:14px 0 10px;letter-spacing:1px;text-transform:uppercase;">🌴 Ukulélé Tahitien</div>
+        <div class="row2">
+          <div class="fg"><label>4e corde G (Sol)</label><input type="number" id="freq-tahiti-g" value="392.00" step="0.01" placeholder="392.00"></div>
+          <div class="fg"><label>3e corde C (Do)</label><input type="number" id="freq-tahiti-c" value="261.63" step="0.01" placeholder="261.63"></div>
+        </div>
+        <div class="row2">
+          <div class="fg"><label>2e corde E (Mi)</label><input type="number" id="freq-tahiti-e" value="329.63" step="0.01" placeholder="329.63"></div>
+          <div class="fg"><label>1re corde A (La) — Octave haute</label><input type="number" id="freq-tahiti-a" value="880.00" step="0.01" placeholder="880.00"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;padding:10px;background:rgba(0,188,212,.05);border:1px solid rgba(0,188,212,.1);border-radius:4px;line-height:1.7;">
+          💡 Référence : Do = 261.63 Hz · Ré = 293.66 · Mi = 329.63 · Fa = 349.23 · Sol = 392.00 · La = 440.00 Hz<br>
+          La corde A tahitienne est à 880 Hz (octave haute = ×2) au lieu de 440 Hz.
+        </div>
+        <button class="btn" onclick="saveFrequences()" style="margin-top:14px;">💾 Enregistrer les fréquences</button>
+      </div>
     </div>
-  </div>
 
   <!-- ═══════════════════════════════════════════
        SECTION 2 : UTILISATEURS
@@ -1380,7 +1430,7 @@ function closeModal(id){document.getElementById(id).classList.remove('on');}
 
 // ════ INIT ════
 function initApp(){
-  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();
+  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();renderTemoignages();loadHistoire();loadFrequences();
   const a=S.get('log');
   document.getElementById('activite').innerHTML=a.length?a.slice(0,10).map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px;"><span>'+x.msg+'</span><span style="color:var(--muted);font-size:10px;white-space:nowrap;">'+x.d+'</span></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucune activité.</p>';
 }
@@ -1772,15 +1822,94 @@ function saveRIB(){
   var bic=document.getElementById('rib-bic-admin').value.trim();
   if(iban)localStorage.setItem('mfhi5_rib_iban',iban);
   if(bic)localStorage.setItem('mfhi5_rib_bic',bic);
+  // Sync Firestore
+  if(window.saveConfigFirestore)window.saveConfigFirestore('rib',{iban,bic});
   toast('✔ RIB enregistré — affiché sur les fiches domicile/promo !');
 }
+
+// ════ TÉMOIGNAGES ════
+function renderTemoignages(){
+  var list=S.get('temoignages');
+  var el=document.getElementById('list-temoignages');if(!el)return;
+  if(!list.length){el.innerHTML='<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucun témoignage.</p>';return;}
+  el.innerHTML=list.map((t,i)=>
+    '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">'+
+    '<div style="flex:1;min-width:0;">'+
+    '<div style="font-weight:700;color:var(--orL);font-size:13px;">'+t.auteur+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(t.formule||'')+'</div>'+
+    '<div style="font-size:12px;color:var(--blanc);font-style:italic;line-height:1.6;">"'+(t.texte||'').substring(0,120)+(t.texte&&t.texte.length>120?'…':'')+ '"</div>'+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'+
+    '<span class="badge '+(t.actif!==false?'b-vert':'b-gris')+'">'+(t.actif!==false?'Visible':'Masqué')+'</span>'+
+    '<button class="btn-sm" onclick="toggleTemoignage('+i+')">'+( t.actif!==false?'Masquer':'Afficher')+'</button>'+
+    '<button class="danger" onclick="delTemoignage('+i+')">✕</button>'+
+    '</div></div>'
+  ).join('');
+}
+function addTemoignage(){
+  var auteur=(document.getElementById('tem-auteur').value||'').trim();
+  var texte=(document.getElementById('tem-texte').value||'').trim();
+  var formule=(document.getElementById('tem-formule').value||'').trim();
+  if(!auteur||!texte){toast('⚠ Auteur et témoignage requis');return;}
+  var list=S.get('temoignages');
+  if(list.length>=6){toast('⚠ Maximum 6 témoignages');return;}
+  list.push({id:Date.now(),auteur,texte,formule,actif:true});
+  S.set('temoignages',list);
+  saveTemoignagesFirestore(list);
+  ['tem-auteur','tem-texte','tem-formule'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderTemoignages();toast('✅ Témoignage ajouté !');
+}
+function toggleTemoignage(idx){var list=S.get('temoignages');if(!list[idx])return;list[idx].actif=!list[idx].actif;S.set('temoignages',list);saveTemoignagesFirestore(list);renderTemoignages();}
+function delTemoignage(idx){if(!confirm('Supprimer ce témoignage ?'))return;var list=S.get('temoignages');list.splice(idx,1);S.set('temoignages',list);saveTemoignagesFirestore(list);renderTemoignages();toast('Témoignage supprimé.');}
+function saveTemoignagesFirestore(list){if(window.saveConfigFirestore)window.saveConfigFirestore('params',{temoignages:list});}
+
+// ════ HISTOIRE ════
+function loadHistoire(){
+  var h=localStorage.getItem('mfhi5_histoire')||'';
+  var el=document.getElementById('histoire-texte-admin');if(el)el.value=h;
+}
+function saveHistoire(){
+  var texte=(document.getElementById('histoire-texte-admin').value||'').trim();
+  localStorage.setItem('mfhi5_histoire',texte);
+  if(window.saveConfigFirestore)window.saveConfigFirestore('params',{histoire:texte});
+  toast('✅ Histoire enregistrée !');
+}
+
+// ════ FRÉQUENCES ACCORDEUR ════
+function loadFrequences(){
+  var freqs=JSON.parse(localStorage.getItem('mfhi5_freqs_accordeur')||'null');
+  if(!freqs)return;
+  if(freqs.hawai){
+    if(document.getElementById('freq-hawai-g'))document.getElementById('freq-hawai-g').value=freqs.hawai.g||392;
+    if(document.getElementById('freq-hawai-c'))document.getElementById('freq-hawai-c').value=freqs.hawai.c||261.63;
+    if(document.getElementById('freq-hawai-e'))document.getElementById('freq-hawai-e').value=freqs.hawai.e||329.63;
+    if(document.getElementById('freq-hawai-a'))document.getElementById('freq-hawai-a').value=freqs.hawai.a||440;
+  }
+  if(freqs.tahiti){
+    if(document.getElementById('freq-tahiti-g'))document.getElementById('freq-tahiti-g').value=freqs.tahiti.g||392;
+    if(document.getElementById('freq-tahiti-c'))document.getElementById('freq-tahiti-c').value=freqs.tahiti.c||261.63;
+    if(document.getElementById('freq-tahiti-e'))document.getElementById('freq-tahiti-e').value=freqs.tahiti.e||329.63;
+    if(document.getElementById('freq-tahiti-a'))document.getElementById('freq-tahiti-a').value=freqs.tahiti.a||880;
+  }
+}
+function saveFrequences(){
+  var freqs={
+    hawai:{g:parseFloat(document.getElementById('freq-hawai-g').value)||392,c:parseFloat(document.getElementById('freq-hawai-c').value)||261.63,e:parseFloat(document.getElementById('freq-hawai-e').value)||329.63,a:parseFloat(document.getElementById('freq-hawai-a').value)||440},
+    tahiti:{g:parseFloat(document.getElementById('freq-tahiti-g').value)||392,c:parseFloat(document.getElementById('freq-tahiti-c').value)||261.63,e:parseFloat(document.getElementById('freq-tahiti-e').value)||329.63,a:parseFloat(document.getElementById('freq-tahiti-a').value)||880}
+  };
+  localStorage.setItem('mfhi5_freqs_accordeur',JSON.stringify(freqs));
+  if(window.saveConfigFirestore)window.saveConfigFirestore('accordeur',freqs);
+  toast('✅ Fréquences de l\'accordeur enregistrées !');
+}
 function toggleRecrutement(actif){
-  localStorage.setItem('mfhi5_recrutement',actif?'on':'off');
+  localStorage.setItem('mfhi5_recrutement_actif',actif?'1':'');
+  // Sync Firestore
+  if(window.saveConfigFirestore)window.saveConfigFirestore('params',{recrutement_actif:actif});
   toast(actif?'✅ Campagne recrutement activée sur le site !':'🚫 Campagne recrutement désactivée.');
 }
 function chargerRecrutementCheckbox(){
   var cb=document.getElementById('recrutement-actif');
-  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement')==='on';
+  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';
 }
 function saveOffre(){
   const lancEl=document.getElementById('t-lanc');const placesEl=document.getElementById('t-places');const msgEl=document.getElementById('t-msg');const statutEl=document.getElementById('t-statut');
