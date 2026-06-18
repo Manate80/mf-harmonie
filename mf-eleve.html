@@ -602,6 +602,72 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 
 <div class="toast" id="toast"></div>
 
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
+  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
+  projectId: "mf-harmonie-des-iles",
+  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
+  messagingSenderId: "312842405867",
+  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Chercher élève dans Firestore par identifiant
+window.getEleveFirestore = async function(identifiant) {
+  try {
+    const docRef = doc(db, 'eleves', identifiant);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return docSnap.data();
+    return null;
+  } catch(e) { console.warn('getEleveFirestore:', e); return null; }
+};
+
+// Sauvegarder progression élève dans Firestore
+window.saveProgressionFirestore = async function(identifiant, data) {
+  try {
+    await updateDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()});
+  } catch(e) { console.warn('saveProgressionFirestore:', e); }
+};
+
+// Charger config admin depuis Firestore
+window.chargerConfigDepuisFirestore = async function() {
+  try {
+    const tarifsSnap = await getDoc(doc(db, 'config', 'tarifs'));
+    if (tarifsSnap.exists()) {
+      const t = tarifsSnap.data();
+      Object.keys(t).forEach(k => localStorage.setItem('mfhi5_' + k, t[k]));
+    }
+    const paramSnap = await getDoc(doc(db, 'config', 'params'));
+    if (paramSnap.exists()) {
+      const p = paramSnap.data();
+      if (p.annonces) localStorage.setItem('mfhi5_annonces', JSON.stringify(p.annonces));
+      if (p.recrutement_actif !== undefined) localStorage.setItem('mfhi5_recrutement_actif', p.recrutement_actif ? '1' : '');
+    }
+    const chansonsSnap = await getDoc(doc(db, 'config', 'chansons'));
+    if (chansonsSnap.exists() && chansonsSnap.data().list) {
+      localStorage.setItem('mfhi5_chansons', JSON.stringify(chansonsSnap.data().list));
+    }
+    const coachSnap = await getDoc(doc(db, 'config', 'coaching_videos'));
+    if (coachSnap.exists() && coachSnap.data().list) {
+      localStorage.setItem('mfhi5_coaching_videos', JSON.stringify(coachSnap.data().list));
+    }
+  } catch(e) { console.warn('chargerConfigDepuisFirestore:', e); }
+};
+
+// Charger config au démarrage
+window.addEventListener('load', () => {
+  if (window.chargerConfigDepuisFirestore) window.chargerConfigDepuisFirestore();
+});
+
+</script>
+
 <script>
 // ══ DONNÉES ══
 const LS = {
@@ -633,15 +699,38 @@ function getAudioCtx() {
 }
 
 // ══ LOGIN ══
-function seConnecter() {
+async function seConnecter() {
   const id = (document.getElementById('l-id').value || '').trim().toUpperCase();
   const code = (document.getElementById('l-code').value || '').trim();
-  const eleves = LS.getArr('eleves');
-  const el = eleves.find(e => e.identifiant === id && (e.mdp === code || e.code === code) && e.actif !== false);
   document.getElementById('login-err').style.display = 'none';
   document.getElementById('login-pending').style.display = 'none';
-  if (!el) { document.getElementById('login-err').style.display = 'block'; return; }
+
+  let el = null;
+
+  // 1. Chercher dans Firestore (priorité)
+  if (window.getEleveFirestore) {
+    el = await window.getEleveFirestore(id);
+    if (el) {
+      // Mettre à jour localStorage avec les données Firestore
+      const eleves = LS.getArr('eleves');
+      const idx = eleves.findIndex(e => e.identifiant === id);
+      if (idx >= 0) eleves[idx] = el; else eleves.push(el);
+      LS.set('eleves', eleves);
+    }
+  }
+
+  // 2. Fallback localStorage si Firestore échoue
+  if (!el) {
+    const eleves = LS.getArr('eleves');
+    el = eleves.find(e => e.identifiant === id && e.actif !== false) || null;
+  }
+
+  if (!el || (el.mdp !== code && el.code !== code)) {
+    document.getElementById('login-err').style.display = 'block'; return;
+  }
+  if (el.actif === false) { document.getElementById('login-err').style.display = 'block'; return; }
   if (el.statut === 'En attente de confirmation') { document.getElementById('login-pending').style.display = 'block'; return; }
+
   eleveActif = el;
   localStorage.setItem(SESSION_KEY, JSON.stringify({ identifiant: id }));
   lancerApp();
@@ -954,16 +1043,29 @@ function setMetroMode(mode, btn) {
 
 function initVisuelPatterns() {
   const sel = document.getElementById('visuel-pattern-sel'); if (!sel) return;
-  if (!visuelPatternActif) visuelPatternActif = PATTERNS_VISUEL[0];
-  sel.innerHTML = PATTERNS_VISUEL.map((p, i) =>
-    '<button onclick="selectPatternVisuel(' + i + ',this)" style="padding:7px 12px;background:' +
+
+  // Fusionner patterns intégrés + patterns créés dans l'admin
+  const adminPatterns = LS.getArr('patterns_rythme').map(p => ({
+    nom: p.nom + ' ★',
+    pattern: p.pattern,
+    bpm: p.bpm
+  }));
+  const tousPatterns = [...PATTERNS_VISUEL, ...adminPatterns];
+
+  if (!visuelPatternActif) visuelPatternActif = tousPatterns[0];
+  sel.innerHTML = tousPatterns.map((p, i) =>
+    '<button onclick="selectPatternVisuel(' + i + ',this,tousPatterns)" style="padding:7px 12px;background:' +
     (p.nom === visuelPatternActif.nom ? 'rgba(201,146,42,.2);border:1px solid var(--or);color:var(--orL)' : 'var(--card2);border:1px solid var(--border);color:var(--muted)') +
     ';font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;font-family:inherit;">' + p.nom + '</button>'
   ).join('');
+
+  // Rendre tousPatterns accessible globalement pour le select
+  window._tousPatterns = tousPatterns;
 }
 
-function selectPatternVisuel(idx, btn) {
-  visuelPatternActif = PATTERNS_VISUEL[idx];
+function selectPatternVisuel(idx, btn, patterns) {
+  const liste = patterns || window._tousPatterns || PATTERNS_VISUEL;
+  visuelPatternActif = liste[idx];
   document.querySelectorAll('#visuel-pattern-sel button').forEach(b => {
     b.style.background = 'var(--card2)'; b.style.border = '1px solid var(--border)'; b.style.color = 'var(--muted)';
   });

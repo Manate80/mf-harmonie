@@ -213,6 +213,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <div class="header-sub">Administration</div>
     </div>
     <div class="header-right">
+    <button class="btn-sm" onclick="if(window.syncFirestore)window.syncFirestore();" style="border-color:rgba(39,174,96,.5);color:#2ecc71;font-size:10px;">🔄 Sync</button>
       <a href="index.html" class="hlink">← Site</a>
       <a href="mf-eleve.html" class="hlink">🎓 Élève</a>
       <a href="mf-prof.html" class="hlink">👨‍🏫 Prof</a>
@@ -281,6 +282,25 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div class="fg"><label>BIC</label><input type="text" id="rib-bic-admin" placeholder="BPFPPFPP"></div>
         </div>
         <button class="btn" onclick="saveRIB()">💾 Enregistrer le RIB</button>
+      </div>
+      <div class="card" style="border-color:rgba(0,188,212,.3);">
+        <div class="card-title" style="color:#00bcd4;">🌍 Visibilité — Abonnements en ligne</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Contrôle si la section abonnements en ligne est visible sur le site public. Désactivez pendant votre phase de test local.</p>
+        <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:4px;margin-bottom:10px;">
+          <label class="toggle-switch" style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
+            <input type="checkbox" id="abo-visible-toggle" onchange="toggleAboVisible(this.checked)" style="opacity:0;width:0;height:0;">
+            <span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border-radius:28px;transition:.3s;" id="abo-toggle-bg">
+              <span style="position:absolute;height:20px;width:20px;left:4px;bottom:4px;background:#fff;border-radius:50%;transition:.3s;" id="abo-toggle-knob"></span>
+            </span>
+          </label>
+          <div>
+            <div style="font-weight:700;font-size:13px;" id="abo-visible-lbl">🔴 Masqué — Non visible sur le site public</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Vos élèves domicile ne verront pas les tarifs en ligne</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6;padding:10px;background:rgba(0,188,212,.05);border:1px solid rgba(0,188,212,.15);border-radius:4px;">
+          💡 Astuce : Gardez masqué pendant votre crash-test. Activez uniquement quand vous êtes prêt à ouvrir au public international.
+        </div>
       </div>
       <div class="card">
         <div class="card-title">Tarifs abonnements en ligne</div>
@@ -501,8 +521,10 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     <div class="stabs">
       <button class="stab on" onclick="goStab('stu','chansons',this)">🎵 Chansons</button>
       <button class="stab" onclick="goStab('stu','generateur',this)">⚡ Générateur</button>
+      <button class="stab" onclick="goStab('stu','patterns',this);initPatternEditor()">🥁 Patterns</button>
+      <button class="stab" onclick="goStab('stu','diagrammes',this);renderDiagrammes()">🎸 Diagrammes</button>
       <button class="stab" onclick="goStab('stu','bibliotheque',this)">📚 Bibliothèque</button>
-      <button class="stab" onclick="goStab('stu','boite',this)">🎸 Boîte</button>
+      <button class="stab" onclick="goStab('stu','boite',this)">🎼 Boîte</button>
     </div>
 
     <!-- CHANSONS -->
@@ -523,7 +545,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
             </select>
           </div>
           <div class="fg"><label>Type / Rythme</label>
-            <select id="ch-type">
+            <select id="ch-type" onchange="syncCustom('ch-type','ch-type-custom')">
               <optgroup label="🌺 Polynésien">
                 <option>Tamure</option>
                 <option>Aparima</option>
@@ -551,6 +573,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
                 <option>Autre</option>
               </optgroup>
             </select>
+            <input id="ch-type-custom" placeholder="Ou tapez votre propre rythme…" style="width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:12px;outline:none;margin-top:4px;" oninput="if(this.value)document.getElementById('ch-type').value=''">
           </div>
         </div>
         <div class="row2">
@@ -579,8 +602,19 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
               </optgroup>
               <option>Autre</option>
             </select>
+            <input id="ch-cat-custom" placeholder="Ou tapez votre propre catégorie…" style="width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:12px;outline:none;margin-top:4px;" oninput="if(this.value)document.getElementById('ch-cat').value=''">
           </div>
-          <div class="fg"><label>Origine</label><select id="ch-orig"><option>Tahiti</option><option>Nouvelle-Zélande (Maori)</option><option>Hawaï</option><option>Tuamotu</option><option>Marquises</option><option>Australes</option></select></div>
+          <div class="fg"><label>Origine</label>
+            <select id="ch-orig">
+              <option>Tahiti</option>
+              <option>Nouvelle-Zélande (Maori)</option>
+              <option>Hawaï</option>
+              <option>Tuamotu</option>
+              <option>Marquises</option>
+              <option>Australes</option>
+            </select>
+            <input id="ch-orig-custom" placeholder="Ou tapez votre propre origine…" style="width:100%;padding:7px 10px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:12px;outline:none;margin-top:4px;" oninput="if(this.value)document.getElementById('ch-orig').value=''">
+          </div>
         </div>
         <div class="row2">
           <div class="fg"><label>Niveau</label><select id="ch-niv"><option>Débutant</option><option>Intermédiaire</option><option>Avancé</option></select></div>
@@ -635,6 +669,16 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           Tapez vos paroles avec les accords entre crochets.<br>
           Exemple : <span style="color:var(--orL);font-family:monospace;">[C]Pa-[Am]pa, ai-[F]to no te fe-[G7]nua</span>
         </div>
+
+        <!-- IMPORT PDF -->
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">📄 Importer un PDF</div>
+          <div class="upload-zone" style="margin-bottom:0;" id="pdf-zone">
+            <input type="file" accept=".pdf,.txt" onchange="importerPDF(this.files[0])">
+            <p id="pdf-txt">Appuyez pour importer un PDF ou fichier texte — le texte sera extrait automatiquement</p>
+          </div>
+        </div>
+
         <div class="fg">
           <label>Titre de la chanson</label>
           <input id="gen-titre" placeholder="Titre affiché sur la fiche…">
@@ -642,6 +686,29 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div class="fg">
           <label>Paroles avec accords entre crochets</label>
           <textarea class="gen-input" id="gen-input" placeholder="[C]Pa-[Am]pa, ai-[F]to no te fe-[G7]nua&#10;[C]Arii no to'u [Am]here&#10;[F]Arii no to'u [G7]a'au&#10;[C]To'u papa" oninput="genApercu()"></textarea>
+        </div>
+
+        <!-- COULEURS PAR SECTION -->
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">🎨 Coloriser une section</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;">Sélectionnez du texte dans le champ paroles, puis cliquez sur une couleur :</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+          <button onclick="coloriserSelection('rouge')" style="padding:6px 12px;background:rgba(231,76,60,.2);border:1px solid var(--rouge);color:#e74c3c;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🔴 Refrain</button>
+          <button onclick="coloriserSelection('vert')" style="padding:6px 12px;background:rgba(39,174,96,.2);border:1px solid #27ae60;color:#2ecc71;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🟢 Couplet</button>
+          <button onclick="coloriserSelection('bleu')" style="padding:6px 12px;background:rgba(52,152,219,.2);border:1px solid #2980b9;color:#3498db;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🔵 Fin tahitienne</button>
+          <button onclick="coloriserSelection('or')" style="padding:6px 12px;background:rgba(201,146,42,.2);border:1px solid var(--or);color:var(--orL);font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🟡 Titre</button>
+          <button onclick="coloriserSelection('violet')" style="padding:6px 12px;background:rgba(155,89,182,.2);border:1px solid #8e44ad;color:#9b59b6;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🟣 Bridge</button>
+          <button onclick="coloriserSelection('orange')" style="padding:6px 12px;background:rgba(230,126,34,.2);border:1px solid #e67e22;color:#e67e22;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🟠 Transition</button>
+          <button onclick="coloriserSelection('cyan')" style="padding:6px 12px;background:rgba(0,188,212,.2);border:1px solid #00bcd4;color:#00bcd4;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🩵 Choeur</button>
+          <button onclick="coloriserSelection('blanc')" style="padding:6px 12px;background:rgba(255,255,255,.1);border:1px solid #666;color:#ccc;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">⚪ Normal</button>
+        </div>
+
+        <!-- TRANSPOSITION -->
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">🎵 Transposition</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+          <button class="gen-font-btn" onclick="transposer(-1)">♭ −1 demi-ton</button>
+          <span id="gen-transpose-lbl" style="font-size:12px;color:var(--orL);min-width:60px;text-align:center;">Tonalité 0</span>
+          <button class="gen-font-btn" onclick="transposer(1)">♯ +1 demi-ton</button>
+          <button class="gen-font-btn" onclick="resetTranspose()" style="border-color:#666;color:#888;">↺ Reset</button>
         </div>
 
         <!-- CONTRÔLES PERSONNALISATION -->
@@ -662,6 +729,12 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           </select>
         </div>
 
+        <!-- MODE CLAIR/SOMBRE -->
+        <div style="display:flex;gap:8px;margin:10px 0;">
+          <button id="gen-mode-sombre" onclick="setGenMode('sombre',this)" style="flex:1;padding:8px;background:rgba(0,0,0,.5);border:1px solid var(--or);color:var(--orL);font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🌙 Mode sombre</button>
+          <button id="gen-mode-clair" onclick="setGenMode('clair',this)" style="flex:1;padding:8px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">☀️ Mode clair</button>
+        </div>
+
         <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;margin-top:6px;">Aperçu en direct</div>
         <div style="border:1px solid var(--border);overflow:hidden;">
           <div style="background:#1a1200;padding:8px 14px;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Aperçu — tel qu'il apparaîtra dans l'espace élève</div>
@@ -680,6 +753,144 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Uploader dans une chanson existante</div>
           <div class="fg"><select id="gen-chanson-select" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;"><option value="">— Sélectionner une chanson —</option></select></div>
         </div>
+      </div>
+
+      <!-- GÉNÉRATEUR AUDIO MULTI-PISTES -->
+      <div class="card" style="border-color:rgba(0,188,212,.25);">
+        <div class="card-title" style="color:#00bcd4;">🎵 Générateur Audio multi-pistes</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Associez jusqu'à 4 pistes audio séparées à une chanson. L'élève pourra activer/désactiver chaque instrument en temps réel.</p>
+        <div class="fg"><label>Chanson cible</label>
+          <select id="audio-chanson-sel" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;">
+            <option value="">— Sélectionner une chanson —</option>
+          </select>
+        </div>
+        <div class="fg"><label>🌴 Piste Ukulélé (lien Google Drive /preview)</label><input id="audio-uke" placeholder="https://drive.google.com/file/d/XXXX/preview"></div>
+        <div class="fg"><label>🎤 Piste Chant (lien Google Drive /preview)</label><input id="audio-chant" placeholder="https://drive.google.com/file/d/XXXX/preview"></div>
+        <div class="fg"><label>🥁 Piste Percussion (lien Google Drive /preview)</label><input id="audio-perc" placeholder="https://drive.google.com/file/d/XXXX/preview"></div>
+        <div class="fg"><label>🎸 Piste Basse (lien Google Drive /preview)</label><input id="audio-basse" placeholder="https://drive.google.com/file/d/XXXX/preview"></div>
+        <button class="btn" onclick="saveAudioPistes()">💾 Enregistrer les pistes audio</button>
+      </div>
+
+      <!-- GÉNÉRATEUR VIDÉO -->
+      <div class="card" style="border-color:rgba(155,89,182,.25);">
+        <div class="card-title" style="color:#9b59b6;">🎬 Générateur Vidéo</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Associez une vidéo Vimeo ou Google Drive à une chanson.</p>
+        <div class="fg"><label>Chanson cible</label>
+          <select id="video-chanson-sel" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;">
+            <option value="">— Sélectionner une chanson —</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>🎬 Lien Vimeo (embed) ou Google Drive (/preview)</label>
+          <input id="video-url" placeholder="https://player.vimeo.com/video/XXXX ou https://drive.google.com/file/d/XXXX/preview">
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">Vimeo : Share → Embed → copier le lien src. Drive : remplacer /view par /preview</div>
+        </div>
+        <button class="btn" onclick="saveVideoUrl()">💾 Enregistrer la vidéo</button>
+      </div>
+    </div>
+
+    <!-- ÉDITEUR DE PATTERNS RYTHMIQUES -->
+    <div id="stu-patterns" class="spage">
+      <div class="card" style="border-color:rgba(201,146,42,.3);">
+        <div class="card-title">🥁 Éditeur de patterns rythmiques</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Créez vos patterns en cliquant sur les cases au rythme du BPM. Les flèches ↓ (bas) et ↑ (haut) seront envoyées dans le métronome visuel de l'espace élève.</p>
+
+        <!-- Nom et BPM -->
+        <div class="row2">
+          <div class="fg"><label>Nom du pattern *</label><input id="pat-nom" placeholder="Ex: Tamure classique, Hula doux…"></div>
+          <div class="fg"><label>Rythme associé</label>
+            <select id="pat-rythme">
+              <option>Tamure</option><option>Aparima</option><option>Himene</option>
+              <option>Kaina</option><option>Hula</option><option>Valse</option>
+              <option>Boléro</option><option>Reggae</option><option>Autre</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--muted);">BPM :</span>
+          <button onclick="patBPM(-5)" style="padding:5px 12px;background:var(--card2);border:1px solid var(--border);color:var(--orL);cursor:pointer;font-family:inherit;border-radius:4px;">−</button>
+          <span id="pat-bpm-lbl" style="font-family:Georgia,serif;font-size:22px;color:var(--orL);min-width:50px;text-align:center;">80</span>
+          <button onclick="patBPM(5)" style="padding:5px 12px;background:var(--card2);border:1px solid var(--border);color:var(--orL);cursor:pointer;font-family:inherit;border-radius:4px;">+</button>
+          <input type="range" min="40" max="180" value="80" oninput="patSetBPM(parseInt(this.value))" style="flex:1;accent-color:var(--or);">
+          <select id="pat-mesure" onchange="patSetMesure(parseInt(this.value))" style="padding:7px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;outline:none;border-radius:4px;">
+            <option value="4">4 temps</option>
+            <option value="8">8 temps</option>
+            <option value="6">6 temps (valse)</option>
+            <option value="16">16 temps</option>
+          </select>
+        </div>
+
+        <!-- Grille de patterns -->
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Cliquez sur chaque temps pour définir la frappe :</div>
+        <div style="display:flex;gap:4px;align-items:center;margin-bottom:8px;">
+          <div style="width:28px;height:28px;background:linear-gradient(135deg,var(--or),var(--orD));border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;">↓</div>
+          <span style="font-size:11px;color:var(--muted);margin-right:12px;">= Frappe bas</span>
+          <div style="width:28px;height:28px;background:linear-gradient(135deg,#00bcd4,#0097A7);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;">↑</div>
+          <span style="font-size:11px;color:var(--muted);margin-right:12px;">= Frappe haut</span>
+          <div style="width:28px;height:28px;background:var(--card2);border:1px dashed var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);">—</div>
+          <span style="font-size:11px;color:var(--muted);">= Silence</span>
+        </div>
+        <div id="pat-grille" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:4px;min-height:60px;"></div>
+
+        <!-- Métronome de preview -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
+          <button id="pat-metro-btn" onclick="togglePatMetro()" style="flex:1;padding:10px;background:linear-gradient(135deg,var(--or),var(--orD));border:none;color:#000;font-weight:700;font-size:13px;cursor:pointer;border-radius:4px;font-family:inherit;">▶ Écouter le pattern</button>
+          <div id="pat-beat-indicator" style="width:40px;height:40px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">—</div>
+        </div>
+
+        <!-- Assigner à une chanson -->
+        <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Assigner à une chanson (optionnel)</div>
+          <div class="fg">
+            <select id="pat-chanson-sel" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;">
+              <option value="">— Sans chanson spécifique —</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn" onclick="sauvegarderPattern()">💾 Sauvegarder ce pattern</button>
+      </div>
+
+      <!-- LISTE DES PATTERNS -->
+      <div class="card">
+        <div class="card-title">Patterns enregistrés (<span id="nb-patterns">0</span>)</div>
+        <div id="list-patterns"></div>
+      </div>
+    </div>
+
+    <!-- DIAGRAMMES PERSONNALISÉS -->
+    <div id="stu-diagrammes" class="spage">
+      <div class="card" style="border-color:rgba(201,146,42,.3);">
+        <div class="card-title">🎸 Ma bibliothèque de diagrammes d'accords</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Uploadez vos propres diagrammes (PNG, JPG, SVG). Ils seront utilisés en priorité dans les pop-ups de l'espace élève quand l'élève clique sur un accord.</p>
+        <div class="row2">
+          <div class="fg"><label>Nom de l'accord *</label><input id="diag-nom" placeholder="C, Am, F, G7, Do, Ré…"></div>
+          <div class="fg"><label>Instrument</label>
+            <select id="diag-instrument">
+              <option value="uku-tahiti">🌴 Ukulélé Tahitien</option>
+              <option value="uku-hawai">🌺 Ukulélé Hawaïen</option>
+              <option value="guitare">🎸 Guitare</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg"><label>Image du diagramme (PNG, JPG, SVG)</label>
+          <div class="upload-zone" id="diag-zone">
+            <input type="file" accept="image/*,.svg" onchange="loadDiagramme(this.files[0])">
+            <p id="diag-txt">Appuyez pour choisir votre image de diagramme</p>
+          </div>
+          <div id="diag-preview" style="display:none;margin-top:10px;text-align:center;"><img id="diag-img" style="max-width:150px;max-height:200px;border:1px solid var(--border);border-radius:4px;"></div>
+        </div>
+        <button class="btn" onclick="addDiagramme()">✚ Ajouter ce diagramme</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Diagrammes enregistrés (<span id="nb-diagrammes">0</span>)</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <button onclick="filtrerDiag('tous',this)" style="padding:6px 12px;background:rgba(201,146,42,.2);border:1px solid var(--or);color:var(--orL);font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;font-family:inherit;">Tous</button>
+          <button onclick="filtrerDiag('uku-tahiti',this)" style="padding:6px 12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;font-family:inherit;">🌴 Tahitien</button>
+          <button onclick="filtrerDiag('uku-hawai',this)" style="padding:6px 12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;font-family:inherit;">🌺 Hawaïen</button>
+          <button onclick="filtrerDiag('guitare',this)" style="padding:6px 12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;border-radius:20px;font-family:inherit;">🎸 Guitare</button>
+        </div>
+        <div id="list-diagrammes" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
       </div>
     </div>
 
@@ -722,8 +933,42 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
   <div id="section-comms" class="section">
     <div class="stabs">
       <button class="stab on" onclick="goStab('com','annonces',this)">📢 Annonces</button>
+      <button class="stab" onclick="goStab('com','notifs-prof',this);renderNotifsProf()">🔔 Notifs Prof</button>
       <button class="stab" onclick="goStab('com','coaching',this);renderCoachingVideos()">📺 Vidéos coaching</button>
       <button class="stab" onclick="goStab('com','contrats',this)">📄 Contrats</button>
+    </div>
+
+    <!-- NOTIFICATIONS PROF -->
+    <div id="com-notifs-prof" class="spage">
+      <div class="card" style="border-color:rgba(201,146,42,.3);">
+        <div class="card-title">🔔 Envoyer une notification à un professeur</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Le professeur verra cette notification dans son espace dès sa prochaine connexion.</p>
+        <div class="fg"><label>Professeur destinataire</label>
+          <select id="notif-prof-dest" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;">
+            <option value="">— Choisir un professeur —</option>
+          </select>
+        </div>
+        <div class="fg"><label>Type de notification</label>
+          <select id="notif-prof-type">
+            <option value="info">📋 Information générale</option>
+            <option value="eleve">🎓 Concernant un élève</option>
+            <option value="cours">📅 Changement de planning</option>
+            <option value="urgent">🔴 Urgent</option>
+            <option value="pdf">📄 Liste de travail</option>
+          </select>
+        </div>
+        <div class="fg"><label>Message *</label>
+          <textarea id="notif-prof-msg" placeholder="Ex: Merci de travailler les accords Do Ré Mi avec Tearii cette semaine…" style="min-height:90px;"></textarea>
+        </div>
+        <div class="fg"><label>Pièce jointe — Liste de travail (texte)</label>
+          <textarea id="notif-prof-pdf" placeholder="Ex:&#10;Semaine du 17 juin&#10;• Tearii : Accords C Am F G7&#10;• Hina : Rythme Tamure&#10;• Moana : Chanson Papa — paroles complètes" style="min-height:100px;font-family:'Courier New',monospace;font-size:12px;"></textarea>
+        </div>
+        <button class="btn" onclick="envoyerNotifProf()">📨 Envoyer la notification</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Historique des notifications envoyées</div>
+        <div id="list-notifs-prof"></div>
+      </div>
     </div>
 
     <!-- ANNONCES -->
@@ -929,6 +1174,130 @@ Date : ________________________</div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
+  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
+  projectId: "mf-harmonie-des-iles",
+  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
+  messagingSenderId: "312842405867",
+  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ═══ SYNC FIRESTORE → localStorage (pour compatibilité avec le code existant) ═══
+
+// Charger tous les élèves depuis Firestore et mettre à jour localStorage
+async function syncElevesFirestore() {
+  try {
+    const snapshot = await getDocs(collection(db, 'eleves'));
+    const eleves = [];
+    snapshot.forEach(doc => eleves.push(doc.data()));
+    localStorage.setItem('mfhi5_eleves', JSON.stringify(eleves));
+    // Rafraîchir l'affichage si la fonction existe
+    if (typeof renderEleves === 'function') renderEleves();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    console.log('Élèves sync Firestore:', eleves.length);
+  } catch(e) { console.warn('Sync élèves Firestore:', e); }
+}
+
+// Charger tous les profs depuis Firestore
+async function syncProfsFirestore() {
+  try {
+    const snapshot = await getDocs(collection(db, 'profs'));
+    const profs = [];
+    snapshot.forEach(doc => profs.push(doc.data()));
+    localStorage.setItem('mfhi5_profs', JSON.stringify(profs));
+    if (typeof renderProfs === 'function') renderProfs();
+    console.log('Profs sync Firestore:', profs.length);
+  } catch(e) { console.warn('Sync profs Firestore:', e); }
+}
+
+// Charger notifications depuis Firestore
+async function syncNotifsFirestore() {
+  try {
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const notifs = [];
+    snapshot.forEach(doc => notifs.push({...doc.data(), _firestoreId: doc.id}));
+    localStorage.setItem('mfhi5_notifs', JSON.stringify(notifs));
+    if (typeof renderNotifs === 'function') renderNotifs();
+    console.log('Notifs sync Firestore:', notifs.length);
+  } catch(e) { console.warn('Sync notifs Firestore:', e); }
+}
+
+// Sauvegarder élève modifié dans Firestore
+window.saveEleveFirestore = async function(identifiant, data) {
+  try {
+    await updateDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()});
+    return true;
+  } catch(e) {
+    // Si le doc n'existe pas encore, créer
+    try { await setDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()}); return true; }
+    catch(e2) { console.error('saveEleveFirestore:', e2); return false; }
+  }
+};
+
+// Sauvegarder config (tarifs, RIB, params) dans Firestore
+window.saveConfigFirestore = async function(type, data) {
+  try {
+    await setDoc(doc(db, 'config', type), {...data, updatedAt: serverTimestamp()}, {merge: true});
+    return true;
+  } catch(e) { console.error('saveConfigFirestore:', e); return false; }
+};
+
+// Marquer notification comme lue
+window.marquerNotifLue = async function(firestoreId) {
+  if (!firestoreId) return;
+  try { await updateDoc(doc(db, 'notifications', firestoreId), {lu: true}); } catch(e) {}
+};
+
+// Écoute en temps réel des nouvelles inscriptions
+onSnapshot(collection(db, 'notifications'), (snapshot) => {
+  snapshot.docChanges().forEach(change => {
+    if (change.type === 'added') {
+      const notif = change.doc.data();
+      if (!notif.lu) {
+        // Mettre à jour le badge de notifications
+        const badge = document.getElementById('notif-badge');
+        if (badge) {
+          const current = parseInt(badge.textContent) || 0;
+          badge.textContent = current + 1;
+          badge.style.display = 'block';
+        }
+      }
+    }
+  });
+  // Resync
+  syncNotifsFirestore();
+});
+
+// Lancer la sync au chargement
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    syncElevesFirestore();
+    syncProfsFirestore();
+    syncNotifsFirestore();
+  }, 500);
+});
+
+// Exposer la fonction de sync pour l'admin
+window.syncFirestore = async function() {
+  await syncElevesFirestore();
+  await syncProfsFirestore();
+  await syncNotifsFirestore();
+  if (typeof toast === 'function') toast('🔄 Données synchronisées avec Firestore !');
+};
+
+</script>
+
 <script>
 // ════ DONNÉES ════
 const S={
@@ -1131,7 +1500,8 @@ function openEleve(id){
   const vs=document.getElementById('vacances-section');
   if(vs){const isDom=(el.paiement&&el.paiement>=10000)||(el.formule&&el.formule.toLowerCase().includes('domicile'));vs.style.display=isDom?'block':'none';}
 }
-function saveEleve(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;Object.assign(eleves[i],{nom:document.getElementById('e-nom').value.trim()||eleves[i].nom,mail:document.getElementById('e-mail').value,tel:document.getElementById('e-tel').value,adresse:document.getElementById('e-adr').value,paiement:parseFloat(document.getElementById('e-paie').value)||0,niveau:document.getElementById('e-niv').value,dateDebut:document.getElementById('e-date').value,statut:document.getElementById('e-statut').value,progression:parseInt(document.getElementById('e-prog').value)||0});S.set('eleves',eleves);log('Fiche modifiée : '+eleves[i].nom);renderEleves();renderDashboard();toast('✔ Sauvegardé !');}
+function saveEleve(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;Object.assign(eleves[i],{nom:document.getElementById('e-nom').value.trim()||eleves[i].nom,mail:document.getElementById('e-mail').value,tel:document.getElementById('e-tel').value,adresse:document.getElementById('e-adr').value,paiement:parseFloat(document.getElementById('e-paie').value)||0,niveau:document.getElementById('e-niv').value,dateDebut:document.getElementById('e-date').value,statut:document.getElementById('e-statut').value,progression:parseInt(document.getElementById('e-prog').value)||0});S.set('eleves',eleves);log('Fiche modifiée : '+eleves[i].nom);renderEleves();renderDashboard();toast('✔ Sauvegardé !');// Sync Firestore
+if(window.saveEleveFirestore&&eleves[i].identifiant){window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);}}
 function confirmerEl(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].statut='Actif';S.set('eleves',eleves);document.getElementById('e-statut').value='Actif';renderEleves();renderDashboard();toast('✅ Inscription confirmée !');}
 
 // ══ BASCULE VACANCES (domicile uniquement, admin exclusif) ══
@@ -1287,9 +1657,9 @@ function addChanson(){
     id:Date.now(),titre,
     auteur:document.getElementById('ch-auteur').value,
     format:document.getElementById('ch-format').value,
-    type:document.getElementById('ch-type').value,
-    cat:document.getElementById('ch-cat').value,
-    orig:document.getElementById('ch-orig').value,
+    type:getChTypeValue(),
+    cat:getChCatValue(),
+    orig:getChOrigValue(),
     niv:document.getElementById('ch-niv').value,
     acc:document.getElementById('ch-acc').value||'—',
     form:document.getElementById('ch-form').value,
@@ -1334,6 +1704,35 @@ function renderChansons(){
     '</div></div>').join(''):'<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;">Aucune chanson.</p>';
 }
 
+function toggleAboVisible(checked) {
+  localStorage.setItem('mfhi5_abo_visible', checked ? 'true' : 'false');
+  const lbl = document.getElementById('abo-visible-lbl');
+  const bg = document.getElementById('abo-toggle-bg');
+  const knob = document.getElementById('abo-toggle-knob');
+  if (checked) {
+    if (lbl) lbl.textContent = '✅ Visible — Abonnements en ligne affichés sur le site';
+    if (lbl) lbl.style.color = '#2ecc71';
+    if (bg) bg.style.background = '#27ae60';
+    if (knob) knob.style.left = '28px';
+  } else {
+    if (lbl) lbl.textContent = '🔴 Masqué — Non visible sur le site public';
+    if (lbl) lbl.style.color = 'var(--rouge)';
+    if (bg) bg.style.background = '#333';
+    if (knob) knob.style.left = '4px';
+  }
+  toast(checked ? '✅ Abonnements en ligne visibles sur le site !' : '🔴 Abonnements en ligne masqués du site.');
+}
+
+function chargerAboVisibleToggle() {
+  const val = localStorage.getItem('mfhi5_abo_visible');
+  const toggle = document.getElementById('abo-visible-toggle');
+  if (toggle) {
+    const isVisible = val === 'true';
+    toggle.checked = isVisible;
+    toggleAboVisible(isVisible);
+  }
+}
+
 // ════ TARIFS ════
 function calcMarge(){const d=parseInt(document.getElementById('t-dom').value)||14000;const p=parseInt(document.getElementById('t-prof').value)||10000;const el=document.getElementById('t-marge');if(el)el.textContent=fmt(d-p);}
 function loadTarifs(){
@@ -1354,6 +1753,8 @@ function loadTarifs(){
   if(elIban&&iban)elIban.value=iban;if(elBic&&bic)elBic.value=bic;
   // Charger checkbox recrutement
   chargerRecrutementCheckbox();
+  // Charger toggle abonnements visibles
+  chargerAboVisibleToggle();
 }
 function saveTarifsDom(){
   localStorage.setItem('mfhi5_t_dom',document.getElementById('t-dom').value);
@@ -1477,51 +1878,74 @@ function chargerBoite(cid){
 
 // ════ GÉNÉRATEUR ════
 function initGenSelect(){
-  const sel=document.getElementById('gen-chanson-select');if(!sel)return;
   const chansons=S.get('chansons');
-  sel.innerHTML='<option value="">— Sélectionner une chanson —</option>';
-  chansons.forEach(c=>{const opt=document.createElement('option');opt.value=String(c.id);opt.textContent=c.titre|'—';sel.appendChild(opt);});
+  const opts='<option value="">— Sélectionner une chanson —</option>'+chansons.map(c=>'<option value="'+String(c.id)+'">'+( c.titre||'—')+'</option>').join('');
+  ['gen-chanson-select','audio-chanson-sel','video-chanson-sel'].forEach(id=>{
+    const sel=document.getElementById(id);if(sel)sel.innerHTML=opts;
+  });
 }
 
-function parseLigne(ligne){
-  // Transformer [C]Pa-[Am]pa en blocs syllabe/accord
-  if(!ligne.trim())return'<div style="height:2em;"></div>';
-  const parts=[];let rest=ligne;const re=/\[([^\]]+)\]/g;let m;let last=0;
-  // Collecter les accords et leurs positions
-  const tokens=[];
-  while((m=re.exec(ligne))!==null){tokens.push({pos:m.index,accord:m[1],endPos:m.index+m[0].length});}
-  if(!tokens.length)return'<div style="margin:4px 0;line-height:2;">'+ligne+'</div>';
-  let html='<div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0;">';
-  for(let i=0;i<tokens.length;i++){
-    const t=tokens[i];const nextPos=i+1<tokens.length?tokens[i+1].pos:ligne.length;
-    const syllabes=ligne.slice(t.endPos,nextPos);
-    html+='<div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;">';
-    html+='<span style="color:#c9600a;font-weight:700;font-size:0.85em;line-height:1.2;white-space:nowrap;">'+t.accord+'</span>';
-    html+='<span style="white-space:pre;">'+( syllabes||' ')+'</span>';
-    html+='</div>';
+function parseLigne(ligne) {
+  if (!ligne.trim()) return '<div style="height:2em;"></div>';
+  // Gérer les marqueurs de couleur {{couleur|texte}}
+  const COULEURS = {rouge:'#e74c3c',vert:'#2ecc71',bleu:'#3498db',or:'#e8c96a',violet:'#9b59b6',orange:'#e67e22',cyan:'#00bcd4',blanc:''};
+  const ligneTraitee = ligne.replace(/\{\{([a-z]+)\|([^}]+)\}\}/g, (m, col, txt) => {
+    const c = COULEURS[col] || '';
+    return c ? '<COULEUR:' + c + ':>' + txt + '</COULEUR>' : txt;
+  });
+  const re = /\[([^\]]+)\]/g;
+  let m; const tokens = [];
+  while ((m = re.exec(ligneTraitee)) !== null) {
+    tokens.push({ pos: m.index, accord: transposerAccord(m[1], genTranspose), endPos: m.index + m[0].length });
   }
-  // Texte avant le premier accord
-  if(tokens[0].pos>0){html='<div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0;"><div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;"><span style="line-height:1.2;">&nbsp;</span><span>'+ligne.slice(0,tokens[0].pos)+'</span></div>'+html.replace('<div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0;">','');}
-  html+='</div>';
+  if (!tokens.length) {
+    return '<div style="margin:4px 0;line-height:2;">' + rendreCouleurs(ligneTraitee) + '</div>';
+  }
+  let html = '<div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0;">';
+  if (tokens[0].pos > 0) {
+    html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;"><span style="line-height:1.2;">&nbsp;</span><span>' + rendreCouleurs(ligneTraitee.slice(0, tokens[0].pos)) + '</span></div>';
+  }
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const nextPos = i + 1 < tokens.length ? tokens[i + 1].pos : ligneTraitee.length;
+    const syllabes = ligneTraitee.slice(t.endPos, nextPos);
+    html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;">';
+    html += '<span style="color:#c9600a;font-weight:700;font-size:0.85em;line-height:1.2;white-space:nowrap;">' + t.accord + '</span>';
+    html += '<span style="white-space:pre;">' + (rendreCouleurs(syllabes) || ' ') + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
   return html;
 }
 
-function genHTML(){
-  const texte=document.getElementById('gen-input').value;const titre=document.getElementById('gen-titre').value.trim();
-  const taille=genTaille;const police=document.getElementById('gen-font').value;
-  const lignes=texte.split('\n');
-  const corps=lignes.map(l=>parseLigne(l)).join('');
-  return'<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>'+(titre||'Chanson')+'</title><style>*{box-sizing:border-box;}body{background:#0a0a0a;color:#f5f0e8;font-family:'+police+';font-size:'+taille+'px;padding:20px;margin:0;}.titre{font-family:Georgia,serif;font-size:1.6em;color:#e8c96a;margin-bottom:20px;text-align:center;}.bloc{margin-bottom:8px;}</style></head><body>'+(titre?'<div class="titre">'+titre+'</div>':'')+'<div class="bloc">'+corps+'</div></body></html>';
+function rendreCouleurs(texte) {
+  return texte.replace(/<COULEUR:([^:]+):>([^<]*)<\/COULEUR>/g, (m, col, txt) =>
+    '<span style="color:' + col + ';font-weight:700;">' + txt + '</span>'
+  );
 }
 
-function genApercu(){
-  const texte=document.getElementById('gen-input').value;if(!texte.trim())return;
-  const taille=genTaille;const police=document.getElementById('gen-font').value;
-  const lignes=texte.split('\n');
-  const corps=lignes.map(l=>parseLigne(l)).join('');
-  const prev=document.getElementById('gen-preview');
-  prev.style.fontFamily=police;prev.style.fontSize=taille+'px';
-  prev.innerHTML='<div style="font-family:'+police+';font-size:'+taille+'px;color:#111;">'+corps+'</div>';
+function genHTML() {
+  const texte = document.getElementById('gen-input').value;
+  const titre = document.getElementById('gen-titre').value.trim();
+  const taille = genTaille;
+  const police = document.getElementById('gen-font').value;
+  const bg = genMode === 'clair' ? '#ffffff' : '#0a0a0a';
+  const color = genMode === 'clair' ? '#111111' : '#f5f0e8';
+  const lignes = texte.split('\n');
+  const corps = lignes.map(l => parseLigne(l)).join('');
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>' + (titre || 'Chanson') + '</title><style>*{box-sizing:border-box;}body{background:' + bg + ';color:' + color + ';font-family:' + police + ';font-size:' + taille + 'px;padding:20px;margin:0;}.titre{font-family:Georgia,serif;font-size:1.6em;color:#e8c96a;margin-bottom:20px;text-align:center;}.bloc{margin-bottom:8px;}</style></head><body>' + (titre ? '<div class="titre">' + titre + '</div>' : '') + '<div class="bloc">' + corps + '</div></body></html>';
+}
+
+function genApercu() {
+  const texte = document.getElementById('gen-input').value; if (!texte.trim()) return;
+  const taille = genTaille; const police = document.getElementById('gen-font').value;
+  const bg = genMode === 'clair' ? '#ffffff' : '#0a0a0a';
+  const color = genMode === 'clair' ? '#111' : '#f5f0e8';
+  const lignes = texte.split('\n');
+  const corps = lignes.map(l => parseLigne(l)).join('');
+  const prev = document.getElementById('gen-preview');
+  prev.style.background = bg;
+  prev.innerHTML = '<div style="font-family:' + police + ';font-size:' + taille + 'px;color:' + color + ';padding:10px;">' + corps + '</div>';
 }
 
 function changerTaille(delta){
@@ -1555,6 +1979,482 @@ function copierHTML(){
   const texte=document.getElementById('gen-input').value.trim();if(!texte){toast('⚠ Tapez des paroles');return;}
   const html=genHTML();
   if(navigator.clipboard)navigator.clipboard.writeText(html).then(()=>toast('✔ HTML copié !'));else toast('Utilisez Exporter à la place.');
+}
+
+// ════ GÉNÉRATEUR AMÉLIORÉ ════
+let genMode = 'sombre';
+let genTranspose = 0;
+let diagData = '';
+
+const NOTES_CHROMATIQUES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTES_ALT = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+
+function transposerAccord(acc, demi) {
+  if (!demi) return acc;
+  const estMineur = acc.includes('m') && !acc.includes('maj');
+  const estSeptieme = acc.includes('7');
+  const estMaj7 = acc.includes('maj7');
+  const estSus = acc.includes('sus');
+  // Extraire la note racine
+  let note = acc.match(/^[A-G][#b]?/);
+  if (!note) return acc;
+  note = note[0];
+  let idx = NOTES_CHROMATIQUES.indexOf(note);
+  if (idx < 0) idx = NOTES_ALT.indexOf(note);
+  if (idx < 0) return acc;
+  const nouvelIdx = ((idx + demi) % 12 + 12) % 12;
+  const nouvelleNote = NOTES_CHROMATIQUES[nouvelIdx];
+  const suffixe = acc.slice(note.length);
+  return nouvelleNote + suffixe;
+}
+
+function transposer(delta) {
+  genTranspose += delta;
+  const lbl = document.getElementById('gen-transpose-lbl');
+  if (lbl) lbl.textContent = 'Tonalité ' + (genTranspose > 0 ? '+' : '') + genTranspose;
+  genApercu();
+}
+
+function resetTranspose() {
+  genTranspose = 0;
+  const lbl = document.getElementById('gen-transpose-lbl');
+  if (lbl) lbl.textContent = 'Tonalité 0';
+  genApercu();
+}
+
+function setGenMode(mode, btn) {
+  genMode = mode;
+  document.querySelectorAll('#gen-mode-sombre,#gen-mode-clair').forEach(b => {
+    b.style.background = 'var(--card2)'; b.style.borderColor = 'var(--border)'; b.style.color = 'var(--muted)';
+  });
+  if (btn) { btn.style.background = mode === 'sombre' ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.9)'; btn.style.borderColor = 'var(--or)'; btn.style.color = mode === 'sombre' ? 'var(--orL)' : '#333'; }
+  genApercu();
+}
+
+// Couleurs pour les sections
+const COULEURS_SECTION = {
+  rouge: '#e74c3c', vert: '#2ecc71', bleu: '#3498db',
+  or: '#e8c96a', violet: '#9b59b6', orange: '#e67e22',
+  cyan: '#00bcd4', blanc: ''
+};
+
+function coloriserSelection(couleur) {
+  const textarea = document.getElementById('gen-input');
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  if (start === end) { toast('⚠ Sélectionnez du texte dans le champ paroles'); return; }
+  const texte = textarea.value;
+  const selection = texte.slice(start, end);
+  const couleurCode = COULEURS_SECTION[couleur];
+  let marque;
+  if (!couleurCode) {
+    // Enlever les marqueurs de couleur
+    marque = selection.replace(/\{\{[a-z]+\|([^}]+)\}\}/g, '$1');
+  } else {
+    marque = '{{' + couleur + '|' + selection + '}}';
+  }
+  textarea.value = texte.slice(0, start) + marque + texte.slice(end);
+  genApercu();
+  toast('✅ Section colorisée en ' + couleur);
+}
+
+// Import PDF
+async function importerPDF(file) {
+  if (!file) return;
+  const nom = file.name.toLowerCase();
+  if (nom.endsWith('.txt')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('gen-input').value = e.target.result;
+      document.getElementById('pdf-txt').innerHTML = '<strong style="color:var(--vert);">✓ ' + file.name + ' importé !</strong>';
+      genApercu();
+      toast('✅ Texte importé !');
+    };
+    reader.readAsText(file);
+    return;
+  }
+  if (nom.endsWith('.pdf')) {
+    // Lecture PDF via FileReader en base64 puis extraction basique
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        // Extraction texte basique depuis PDF (cherche les streams de texte)
+        const arr = new Uint8Array(e.target.result);
+        let str = '';
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i] > 31 && arr[i] < 127) str += String.fromCharCode(arr[i]);
+        }
+        // Extraire le texte entre parenthèses (format PDF)
+        const matches = str.match(/\(([^)]{2,})\)/g);
+        if (matches && matches.length > 5) {
+          const texte = matches.map(m => m.slice(1, -1)).filter(t => t.trim().length > 1 && !/^[0-9\s.]+$/.test(t)).join('\n');
+          document.getElementById('gen-input').value = texte;
+          document.getElementById('pdf-txt').innerHTML = '<strong style="color:var(--vert);">✓ ' + file.name + ' importé !</strong>';
+          genApercu();
+          toast('✅ PDF importé — vérifiez et ajustez le texte');
+        } else {
+          toast('⚠ PDF complexe — copiez-collez le texte manuellement');
+        }
+      } catch(err) { toast('⚠ Erreur lecture PDF — utilisez un fichier .txt'); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function syncCustom(selectId, customId) {
+  const custom = document.getElementById(customId);
+  if (custom) custom.value = '';
+}
+
+function getChTypeValue() {
+  const custom = (document.getElementById('ch-type-custom').value || '').trim();
+  return custom || document.getElementById('ch-type').value;
+}
+function getChCatValue() {
+  const custom = (document.getElementById('ch-cat-custom').value || '').trim();
+  return custom || document.getElementById('ch-cat').value;
+}
+function getChOrigValue() {
+  const custom = (document.getElementById('ch-orig-custom').value || '').trim();
+  return custom || document.getElementById('ch-orig').value;
+}
+
+// ════ DIAGRAMMES PERSONNALISÉS ════
+function loadDiagramme(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    diagData = e.target.result;
+    const prev = document.getElementById('diag-preview');
+    const img = document.getElementById('diag-img');
+    if (prev && img) { img.src = diagData; prev.style.display = 'block'; }
+    document.getElementById('diag-txt').innerHTML = '<strong style="color:var(--vert);">✓ ' + file.name + '</strong>';
+  };
+  reader.readAsDataURL(file);
+}
+
+function addDiagramme() {
+  const nom = (document.getElementById('diag-nom').value || '').trim().toUpperCase();
+  if (!nom) { toast('⚠ Nom de l\'accord requis'); return; }
+  if (!diagData) { toast('⚠ Uploadez une image'); return; }
+  const instrument = document.getElementById('diag-instrument').value;
+  const list = S.get('diagrammes');
+  // Remplacer si existe déjà
+  const idx = list.findIndex(d => d.nom === nom && d.instrument === instrument);
+  if (idx >= 0) list[idx].img = diagData;
+  else list.push({ nom, instrument, img: diagData, date: new Date().toLocaleDateString('fr-FR') });
+  S.set('diagrammes', list);
+  diagData = '';
+  document.getElementById('diag-nom').value = '';
+  document.getElementById('diag-preview').style.display = 'none';
+  document.getElementById('diag-txt').innerHTML = 'Appuyez pour choisir votre image de diagramme';
+  renderDiagrammes();
+  toast('✅ Diagramme ' + nom + ' enregistré !');
+}
+
+let diagFiltre = 'tous';
+function filtrerDiag(f, btn) {
+  diagFiltre = f;
+  document.querySelectorAll('#stu-diagrammes button[onclick^="filtrerDiag"]').forEach(b => {
+    b.style.background = 'var(--card2)'; b.style.borderColor = 'var(--border)'; b.style.color = 'var(--muted)';
+  });
+  if (btn) { btn.style.background = 'rgba(201,146,42,.2)'; btn.style.borderColor = 'var(--or)'; btn.style.color = 'var(--orL)'; }
+  renderDiagrammes();
+}
+
+function renderDiagrammes() {
+  const list = S.get('diagrammes');
+  const filtered = diagFiltre === 'tous' ? list : list.filter(d => d.instrument === diagFiltre);
+  const nb = document.getElementById('nb-diagrammes'); if (nb) nb.textContent = list.length;
+  const container = document.getElementById('list-diagrammes'); if (!container) return;
+  if (!filtered.length) { container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;grid-column:1/-1;">Aucun diagramme.</p>'; return; }
+  container.innerHTML = filtered.map(d =>
+    '<div style="background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:10px;text-align:center;">' +
+    '<img src="' + d.img + '" style="width:100%;max-height:120px;object-fit:contain;margin-bottom:6px;">' +
+    '<div style="font-family:Georgia,serif;font-size:14px;color:var(--orL);font-weight:700;">' + d.nom + '</div>' +
+    '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + (d.instrument === 'uku-tahiti' ? '🌴' : d.instrument === 'uku-hawai' ? '🌺' : '🎸') + '</div>' +
+    '<button class="danger" onclick="delDiagramme(\'' + d.nom + '\',\'' + d.instrument + '\')" style="margin-top:6px;width:100%;">✕ Supprimer</button>' +
+    '</div>'
+  ).join('');
+}
+
+function delDiagramme(nom, instrument) {
+  if (!confirm('Supprimer le diagramme ' + nom + ' ?')) return;
+  S.set('diagrammes', S.get('diagrammes').filter(d => !(d.nom === nom && d.instrument === instrument)));
+  renderDiagrammes();
+  toast('Diagramme supprimé.');
+}
+
+// ════ AUDIO MULTI-PISTES ════
+function saveAudioPistes() {
+  const cid = document.getElementById('audio-chanson-sel').value;
+  if (!cid) { toast('⚠ Sélectionnez une chanson'); return; }
+  const list = S.get('chansons');
+  const i = list.findIndex(c => String(c.id) === String(cid));
+  if (i < 0) return;
+  list[i].audioUke = document.getElementById('audio-uke').value.trim();
+  list[i].audioChant = document.getElementById('audio-chant').value.trim();
+  list[i].audioPerc = document.getElementById('audio-perc').value.trim();
+  list[i].audioBasse = document.getElementById('audio-basse').value.trim();
+  S.set('chansons', list);
+  log('Pistes audio ajoutées : ' + list[i].titre);
+  toast('✅ Pistes audio enregistrées pour ' + list[i].titre + ' !');
+}
+
+function saveVideoUrl() {
+  const cid = document.getElementById('video-chanson-sel').value;
+  if (!cid) { toast('⚠ Sélectionnez une chanson'); return; }
+  const url = document.getElementById('video-url').value.trim();
+  if (!url) { toast('⚠ Entrez un lien vidéo'); return; }
+  const list = S.get('chansons');
+  const i = list.findIndex(c => String(c.id) === String(cid));
+  if (i < 0) return;
+  list[i].video = url;
+  S.set('chansons', list);
+  log('Vidéo ajoutée : ' + list[i].titre);
+  toast('✅ Vidéo enregistrée pour ' + list[i].titre + ' !');
+}
+
+// ════ NOTIFICATIONS PROF ════
+function renderNotifsProf() {
+  // Remplir le select des profs
+  const profs = S.get('profs').filter(p => p.actif !== false);
+  const sel = document.getElementById('notif-prof-dest');
+  if (sel) sel.innerHTML = '<option value="">— Choisir un professeur —</option>' +
+    profs.map(p => '<option value="' + p.id + '">' + p.nom + ' (' + (p.identifiant || '') + ')</option>').join('');
+
+  // Afficher historique
+  const list = S.get('notifs_prof_histo');
+  const container = document.getElementById('list-notifs-prof');
+  if (!container) return;
+  if (!list.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucune notification envoyée.</p>';
+    return;
+  }
+  const profs2 = S.get('profs');
+  container.innerHTML = list.slice(0, 20).map(n => {
+    const prof = profs2.find(p => p.id === n.profId);
+    const typeColors = { info: 'b-or', eleve: 'b-bleu', cours: 'b-vert', urgent: 'b-rouge', pdf: 'b-violet' };
+    const typeLabels = { info: '📋 Info', eleve: '🎓 Élève', cours: '📅 Planning', urgent: '🔴 Urgent', pdf: '📄 Liste' };
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">' +
+      '<span class="badge ' + (typeColors[n.type] || 'b-or') + '">' + (typeLabels[n.type] || n.type) + '</span>' +
+      '<strong style="color:var(--orL);">' + (prof ? prof.nom : '—') + '</strong>' +
+      '<span style="font-size:10px;color:var(--muted);margin-left:auto;">' + (n.date || '') + '</span>' +
+      '</div>' +
+      '<div style="font-size:13px;line-height:1.6;color:var(--blanc);">' + (n.msg || '') + '</div>' +
+      (n.pdf ? '<div style="font-size:11px;color:var(--muted);background:var(--card2);padding:8px;border-radius:4px;margin-top:6px;font-family:monospace;white-space:pre-wrap;">' + n.pdf + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function envoyerNotifProf() {
+  const profId = parseInt(document.getElementById('notif-prof-dest').value);
+  const msg = (document.getElementById('notif-prof-msg').value || '').trim();
+  const type = document.getElementById('notif-prof-type').value;
+  const pdf = (document.getElementById('notif-prof-pdf').value || '').trim();
+  if (!profId) { toast('⚠ Choisissez un professeur'); return; }
+  if (!msg) { toast('⚠ Message requis'); return; }
+
+  const profs = S.get('profs');
+  const prof = profs.find(p => p.id === profId);
+  if (!prof) return;
+
+  // Stocker la notif dans la clé du prof (il la lira dans son espace)
+  const notifKey = 'notifs_prof_' + profId;
+  const notifs = S.get(notifKey);
+  const notif = {
+    id: Date.now(),
+    type, msg, pdf,
+    date: new Date().toLocaleString('fr-FR'),
+    lu: false
+  };
+  notifs.unshift(notif);
+  S.set(notifKey, notifs);
+
+  // Historique admin
+  const histo = S.get('notifs_prof_histo');
+  histo.unshift({ profId, type, msg, pdf, date: new Date().toLocaleString('fr-FR') });
+  if (histo.length > 50) histo.pop();
+  S.set('notifs_prof_histo', histo);
+
+  log('Notification envoyée à ' + prof.nom + ' : ' + msg.slice(0, 40));
+  document.getElementById('notif-prof-msg').value = '';
+  document.getElementById('notif-prof-pdf').value = '';
+  renderNotifsProf();
+  toast('✅ Notification envoyée à ' + prof.nom + ' !');
+}
+
+// ════ ÉDITEUR PATTERNS RYTHMIQUES ════
+let patBPMVal = 80;
+let patMesure = 4;
+let patGrille = []; // 'B' = bas, 'H' = haut, '—' = silence
+let patMetroOn = false;
+let patMetroTimer = null;
+let patBeatIdx = 0;
+
+function initPatternEditor() {
+  patMesure = 4; patBPMVal = 80; patBeatIdx = 0;
+  patGrille = Array(patMesure).fill('—');
+  renderPatGrille();
+  renderPatterns();
+  initPatChansonSel();
+  const bpmLbl = document.getElementById('pat-bpm-lbl');
+  if (bpmLbl) bpmLbl.textContent = patBPMVal;
+}
+
+function initPatChansonSel() {
+  const sel = document.getElementById('pat-chanson-sel'); if (!sel) return;
+  const chansons = S.get('chansons');
+  sel.innerHTML = '<option value="">— Sans chanson spécifique —</option>' +
+    chansons.map(c => '<option value="' + c.id + '">' + c.titre + '</option>').join('');
+}
+
+function patBPM(delta) {
+  patBPMVal = Math.max(40, Math.min(180, patBPMVal + delta));
+  const lbl = document.getElementById('pat-bpm-lbl'); if (lbl) lbl.textContent = patBPMVal;
+  if (patMetroOn) { stopPatMetro(); startPatMetro(); }
+}
+function patSetBPM(val) {
+  patBPMVal = val;
+  const lbl = document.getElementById('pat-bpm-lbl'); if (lbl) lbl.textContent = patBPMVal;
+  if (patMetroOn) { stopPatMetro(); startPatMetro(); }
+}
+function patSetMesure(n) {
+  patMesure = n;
+  // Adapter la grille
+  if (patGrille.length < n) {
+    while (patGrille.length < n) patGrille.push('—');
+  } else {
+    patGrille = patGrille.slice(0, n);
+  }
+  renderPatGrille();
+}
+
+function renderPatGrille() {
+  const container = document.getElementById('pat-grille'); if (!container) return;
+  container.innerHTML = patGrille.map((beat, i) => {
+    let bg, txt;
+    if (beat === 'B') { bg = 'linear-gradient(135deg,var(--or),var(--orD))'; txt = '↓'; }
+    else if (beat === 'H') { bg = 'linear-gradient(135deg,#00bcd4,#0097A7)'; txt = '↑'; }
+    else { bg = 'var(--card)'; txt = '—'; }
+    return '<div onclick="cyclerBeat(' + i + ')" style="width:50px;height:50px;background:' + bg + ';border:' + (beat === '—' ? '1px dashed var(--border)' : 'none') + ';border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:20px;font-weight:700;" id="pat-beat-' + i + '">' +
+      txt +
+      '<div style="font-size:9px;color:rgba(255,255,255,.5);margin-top:2px;">' + (i + 1) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function cyclerBeat(idx) {
+  const cycle = ['—', 'B', 'H'];
+  const current = patGrille[idx];
+  const next = cycle[(cycle.indexOf(current) + 1) % cycle.length];
+  patGrille[idx] = next;
+  renderPatGrille();
+  // Mettre en évidence le beat cliqué
+  const el = document.getElementById('pat-beat-' + idx);
+  if (el) { el.style.transform = 'scale(1.2)'; setTimeout(() => { if(el) el.style.transform = ''; }, 150); }
+}
+
+function togglePatMetro() {
+  if (patMetroOn) stopPatMetro(); else startPatMetro();
+}
+function startPatMetro() {
+  patMetroOn = true; patBeatIdx = 0;
+  const btn = document.getElementById('pat-metro-btn');
+  if (btn) { btn.textContent = '⏹ Arrêter'; btn.style.background = 'linear-gradient(135deg,var(--rouge),#c0392b)'; }
+  tickPatMetro();
+}
+function stopPatMetro() {
+  patMetroOn = false;
+  if (patMetroTimer) { clearTimeout(patMetroTimer); patMetroTimer = null; }
+  const btn = document.getElementById('pat-metro-btn');
+  if (btn) { btn.textContent = '▶ Écouter le pattern'; btn.style.background = 'linear-gradient(135deg,var(--or),var(--orD))'; }
+  const ind = document.getElementById('pat-beat-indicator');
+  if (ind) ind.textContent = '—';
+  // Retirer highlight
+  document.querySelectorAll('[id^="pat-beat-"]').forEach(el => el.style.boxShadow = '');
+}
+function tickPatMetro() {
+  if (!patMetroOn) return;
+  const beat = patGrille[patBeatIdx];
+  const ind = document.getElementById('pat-beat-indicator');
+  if (ind) ind.textContent = beat === 'B' ? '↓' : beat === 'H' ? '↑' : '—';
+  // Highlight beat actif
+  document.querySelectorAll('[id^="pat-beat-"]').forEach(el => el.style.boxShadow = '');
+  const el = document.getElementById('pat-beat-' + patBeatIdx);
+  if (el) el.style.boxShadow = '0 0 0 3px #fff';
+  // Son
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = beat === 'B' ? 800 : beat === 'H' ? 1200 : 0;
+    osc.type = 'square';
+    gain.gain.setValueAtTime(beat === '—' ? 0 : 0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
+  } catch(e) {}
+  patBeatIdx = (patBeatIdx + 1) % patGrille.length;
+  patMetroTimer = setTimeout(tickPatMetro, 60000 / patBPMVal);
+}
+
+function sauvegarderPattern() {
+  const nom = (document.getElementById('pat-nom').value || '').trim();
+  if (!nom) { toast('⚠ Donnez un nom à ce pattern'); return; }
+  if (!patGrille.some(b => b !== '—')) { toast('⚠ Ajoutez au moins une frappe'); return; }
+  const rythme = document.getElementById('pat-rythme').value;
+  const chansonId = document.getElementById('pat-chanson-sel').value;
+  const list = S.get('patterns_rythme');
+  list.unshift({
+    id: Date.now(),
+    nom, rythme,
+    pattern: [...patGrille],
+    bpm: patBPMVal,
+    mesure: patMesure,
+    chansonId: chansonId || null,
+    date: new Date().toLocaleDateString('fr-FR')
+  });
+  S.set('patterns_rythme', list);
+  log('Pattern créé : ' + nom);
+  renderPatterns();
+  toast('✅ Pattern "' + nom + '" sauvegardé !');
+}
+
+function renderPatterns() {
+  const list = S.get('patterns_rythme');
+  const nb = document.getElementById('nb-patterns'); if (nb) nb.textContent = list.length;
+  const container = document.getElementById('list-patterns'); if (!container) return;
+  if (!list.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun pattern enregistré.</p>';
+    return;
+  }
+  container.innerHTML = list.map(p =>
+    '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
+    '<strong style="color:var(--orL);">' + p.nom + '</strong>' +
+    '<span class="badge b-or">' + p.rythme + '</span>' +
+    '<span style="font-size:10px;color:var(--muted);">' + p.bpm + ' BPM · ' + p.mesure + ' temps</span>' +
+    '<span style="font-size:10px;color:var(--muted);margin-left:auto;">' + p.date + '</span>' +
+    '</div>' +
+    '<div style="display:flex;gap:4px;margin-bottom:8px;">' +
+    p.pattern.map(b => {
+      let bg = b === 'B' ? 'linear-gradient(135deg,var(--or),var(--orD))' : b === 'H' ? 'linear-gradient(135deg,#00bcd4,#0097A7)' : 'var(--card2)';
+      return '<div style="width:28px;height:28px;background:' + bg + ';border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;">' + b + '</div>';
+    }).join('') +
+    '</div>' +
+    '<button class="danger" onclick="delPattern(' + p.id + ')">✕ Supprimer</button>' +
+    '</div>'
+  ).join('');
+}
+
+function delPattern(id) {
+  if (!confirm('Supprimer ce pattern ?')) return;
+  S.set('patterns_rythme', S.get('patterns_rythme').filter(p => p.id !== id));
+  renderPatterns();
+  toast('Pattern supprimé.');
 }
 
 // ════ FERMER MODALES ════

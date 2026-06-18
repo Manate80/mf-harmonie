@@ -531,6 +531,124 @@ footer a{color:var(--or);text-decoration:none;}
 
 
 
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
+  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
+  projectId: "mf-harmonie-des-iles",
+  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
+  messagingSenderId: "312842405867",
+  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ═══ CHARGER CONFIG ADMIN DEPUIS FIRESTORE ═══
+async function chargerConfigAdmin() {
+  try {
+    const docRef = doc(db, 'config', 'tarifs');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const t = docSnap.data();
+      // Mettre en cache local pour accès synchrone
+      Object.keys(t).forEach(k => localStorage.setItem('mfhi5_' + k, t[k]));
+    }
+    const ribRef = doc(db, 'config', 'rib');
+    const ribSnap = await getDoc(ribRef);
+    if (ribSnap.exists()) {
+      const r = ribSnap.data();
+      if (r.iban) localStorage.setItem('mfhi5_rib_iban', r.iban);
+      if (r.bic)  localStorage.setItem('mfhi5_rib_bic', r.bic);
+    }
+    const paramRef = doc(db, 'config', 'params');
+    const paramSnap = await getDoc(paramRef);
+    if (paramSnap.exists()) {
+      const p = paramSnap.data();
+      if (p.offre_msg)    localStorage.setItem('mfhi5_offre_msg', p.offre_msg);
+      if (p.offre_statut) localStorage.setItem('mfhi5_offre_statut', p.offre_statut);
+      if (p.places)       localStorage.setItem('mfhi5_places', p.places);
+      if (p.recrutement_actif !== undefined) localStorage.setItem('mfhi5_recrutement_actif', p.recrutement_actif ? '1' : '');
+      if (p.annonces)     localStorage.setItem('mfhi5_annonces', JSON.stringify(p.annonces));
+    }
+    chargerTarifs();
+  } catch(e) {
+    console.warn('Firestore config non accessible, utilisation cache local', e);
+  }
+}
+
+// ═══ SAUVEGARDER ÉLÈVE DANS FIRESTORE ═══
+window.sauvegarderEleveFirestore = async function(eleve) {
+  try {
+    await setDoc(doc(db, 'eleves', eleve.identifiant), {
+      ...eleve,
+      dateCreation: serverTimestamp()
+    });
+    // Créer notification admin
+    await addDoc(collection(db, 'notifications'), {
+      nom: eleve.nom,
+      identifiant: eleve.identifiant,
+      formule: eleve.formule,
+      type: eleve.typeInscription,
+      needsValidation: eleve.statut !== 'Actif',
+      date: new Date().toLocaleDateString('fr-FR'),
+      lu: false,
+      createdAt: serverTimestamp()
+    });
+    console.log('Élève sauvegardé dans Firestore:', eleve.identifiant);
+    return true;
+  } catch(e) {
+    console.error('Erreur sauvegarde Firestore élève:', e);
+    return false;
+  }
+};
+
+// ═══ SAUVEGARDER PROF DANS FIRESTORE ═══
+window.sauvegarderProfFirestore = async function(prof) {
+  try {
+    await setDoc(doc(db, 'profs', prof.identifiant), {
+      ...prof,
+      dateCreation: serverTimestamp()
+    });
+    await addDoc(collection(db, 'notifications'), {
+      nom: prof.nom,
+      identifiant: prof.identifiant,
+      type: 'professeur',
+      formule: 'Candidature professeur',
+      needsValidation: true,
+      date: new Date().toLocaleDateString('fr-FR'),
+      lu: false,
+      createdAt: serverTimestamp()
+    });
+    console.log('Prof sauvegardé dans Firestore:', prof.identifiant);
+    return true;
+  } catch(e) {
+    console.error('Erreur sauvegarde Firestore prof:', e);
+    return false;
+  }
+};
+
+// ═══ VÉRIFIER DOUBLON IDENTIFIANT ═══
+window.verifierDoublon = async function(identifiant, collection_nom) {
+  try {
+    const docRef = doc(db, collection_nom, identifiant);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists();
+  } catch(e) {
+    // En cas d'erreur réseau, vérifier localStorage en fallback
+    const data = JSON.parse(localStorage.getItem('mfhi5_' + collection_nom) || '[]');
+    return data.some(x => x.identifiant === identifiant);
+  }
+};
+
+// Charger config au démarrage
+chargerConfigAdmin();
+
+</script>
 <script>
 // ═══ NAVIGATION ═══
 function showPage(id) {
@@ -700,7 +818,7 @@ function selectOpt(el) {
   el.classList.add('checked');
 }
 
-function soumettre() {
+async function soumettre() {
   var prenom  = (document.getElementById('i-prenom').value   || '').trim();
   var nom     = (document.getElementById('i-nom').value      || '').trim();
   var tel     = (document.getElementById('i-tel').value      || '').trim();
@@ -719,10 +837,21 @@ function soumettre() {
   // Identifiant = pseudo (nettoyé, sans espaces, en majuscules)
   var identifiant = pseudo.replace(/\s+/g, '_').toUpperCase();
 
-  // Vérifier doublon identifiant
-  var eleves = JSON.parse(localStorage.getItem('mfhi5_eleves') || '[]');
-  if (eleves.find(function(e) { return e.identifiant === identifiant && e.actif !== false; })) {
+  // Bouton en loading
+  var btnSub = document.querySelector('.submit-inscrip');
+  if (btnSub) { btnSub.disabled = true; btnSub.textContent = 'Envoi en cours...'; }
+
+  // Vérifier doublon identifiant (Firestore)
+  var doublon = false;
+  if (window.verifierDoublon) {
+    doublon = await window.verifierDoublon(identifiant, 'eleves');
+  } else {
+    var elevesLocal = JSON.parse(localStorage.getItem('mfhi5_eleves') || '[]');
+    doublon = elevesLocal.some(function(e) { return e.identifiant === identifiant && e.actif !== false; });
+  }
+  if (doublon) {
     alert('Ce pseudo est déjà utilisé. Veuillez en choisir un autre.');
+    if (btnSub) { btnSub.disabled = false; btnSub.textContent = 'Envoyer ma demande d\'inscription ✦'; }
     return;
   }
 
@@ -730,7 +859,7 @@ function soumettre() {
   var formule = '';
   if (typeInscription === 'en-ligne') {
     var checked = document.querySelector('.radio-opt.checked .opt-label');
-    if (!checked) { alert('Veuillez choisir une formule.'); return; }
+    if (!checked) { alert('Veuillez choisir une formule.'); if (btnSub) { btnSub.disabled = false; btnSub.textContent = 'Envoyer ma demande d\'inscription ✦'; } return; }
     formule = checked.textContent;
   } else if (typeInscription === 'domicile') {
     formule = document.getElementById('formule-fixe-nom').textContent + ' - ' + document.getElementById('formule-fixe-prix').textContent;
@@ -742,8 +871,7 @@ function soumettre() {
   var statutInscription = (typeInscription === 'en-ligne') ? 'Actif' : 'En attente de confirmation';
   var accesImmediat = (typeInscription === 'en-ligne');
 
-  // Sauvegarder
-  eleves.push({
+  var eleveData = {
     id: Date.now(), nom: prenom + ' ' + nom, prenom: prenom, pseudo: pseudo,
     actif: true, statut: statutInscription, inscritVia: 'site',
     identifiant: identifiant, mdp: code, code: code,
@@ -752,10 +880,16 @@ function soumettre() {
     formule: formule, typeInscription: typeInscription,
     dateInscription: new Date().toLocaleDateString('fr-FR'),
     progression: 0, parcours: [], chansons: [], notes: []
-  });
-  localStorage.setItem('mfhi5_eleves', JSON.stringify(eleves));
+  };
 
-  // Notification admin
+  // Sauvegarder dans Firestore (+ fallback localStorage)
+  if (window.sauvegarderEleveFirestore) {
+    await window.sauvegarderEleveFirestore(eleveData);
+  }
+  // Toujours garder en localStorage comme fallback
+  var eleves = JSON.parse(localStorage.getItem('mfhi5_eleves') || '[]');
+  eleves.push(eleveData);
+  localStorage.setItem('mfhi5_eleves', JSON.stringify(eleves));
   var notifs = JSON.parse(localStorage.getItem('mfhi5_notifs') || '[]');
   notifs.unshift({
     nom: prenom + ' ' + nom, identifiant: identifiant, pseudo: pseudo,
@@ -764,6 +898,7 @@ function soumettre() {
     date: new Date().toLocaleDateString('fr-FR'), lu: false
   });
   localStorage.setItem('mfhi5_notifs', JSON.stringify(notifs));
+  if (btnSub) { btnSub.disabled = false; btnSub.textContent = 'Envoyer ma demande d\'inscription ✦'; }
 
   // Afficher confirmation
   document.getElementById('div-form').style.display = 'none';
@@ -883,7 +1018,7 @@ function chargerAnnonces(){
 
 
 // ══ CANDIDATURE PROFESSEUR ══
-function soumettreProf(){
+async function soumettreProf(){
   var prenom=(document.getElementById('prof-prenom').value||'').trim();
   var nom=(document.getElementById('prof-nom').value||'').trim();
   var tel=(document.getElementById('prof-tel').value||'').trim();
@@ -901,14 +1036,17 @@ function soumettreProf(){
 
   var identifiant='PROF_'+pseudo.replace(/\s+/g,'_').toUpperCase();
 
-  // Vérifier doublon
-  var profs=JSON.parse(localStorage.getItem('mfhi5_profs')||'[]');
-  if(profs.find(function(p){return p.identifiant===identifiant;})){
-    alert('Ce pseudo est déjà utilisé. Choisissez-en un autre.');return;
+  // Vérifier doublon Firestore
+  var doublon = false;
+  if (window.verifierDoublon) {
+    doublon = await window.verifierDoublon(identifiant, 'profs');
+  } else {
+    var profsLocal=JSON.parse(localStorage.getItem('mfhi5_profs')||'[]');
+    doublon = profsLocal.some(function(p){return p.identifiant===identifiant;});
   }
+  if(doublon){alert('Ce pseudo est déjà utilisé. Choisissez-en un autre.');return;}
 
-  // Sauvegarder professeur
-  profs.push({
+  var profData = {
     id:Date.now(), nom:prenom+' '+nom, prenom:prenom,
     actif:true, statut:'En attente de validation', inscritVia:'site',
     identifiant:identifiant, pseudo:pseudo, mdp:code, code:code,
@@ -916,10 +1054,17 @@ function soumettreProf(){
     diplomes:diplomes, message:message,
     sal:10000, zone:'Tahiti',
     dateInscription:new Date().toLocaleDateString('fr-FR')
-  });
+  };
+
+  // Sauvegarder dans Firestore + fallback localStorage
+  if (window.sauvegarderProfFirestore) {
+    await window.sauvegarderProfFirestore(profData);
+  }
+  var profs=JSON.parse(localStorage.getItem('mfhi5_profs')||'[]');
+  profs.push(profData);
   localStorage.setItem('mfhi5_profs',JSON.stringify(profs));
 
-  // Notification admin
+  // Notification admin (localStorage fallback)
   var notifs=JSON.parse(localStorage.getItem('mfhi5_notifs')||'[]');
   notifs.unshift({
     nom:prenom+' '+nom, identifiant:identifiant,

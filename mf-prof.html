@@ -226,6 +226,9 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
       </div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
+      <button onclick="ouvrirNotifsProf()" style="position:relative;background:transparent;border:1px solid var(--border);padding:5px 10px;color:var(--muted);font-size:14px;cursor:pointer;border-radius:4px;">
+        🔔<span id="notif-prof-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--rouge);color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;" id="notif-prof-badge">0</span>
+      </button>
       <a href="index.html" style="color:var(--muted);font-size:10px;text-decoration:none;border:1px solid var(--border);padding:5px 10px;border-radius:2px;">← Site</a>
       <button class="btn-quit" onclick="seDeconnecter()">Quitter</button>
     </div>
@@ -415,6 +418,61 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
+  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
+  projectId: "mf-harmonie-des-iles",
+  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
+  messagingSenderId: "312842405867",
+  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Chercher prof dans Firestore
+window.getProfFirestore = async function(identifiant) {
+  try {
+    const docSnap = await getDoc(doc(db, 'profs', identifiant));
+    if (docSnap.exists()) return docSnap.data();
+    return null;
+  } catch(e) { console.warn('getProfFirestore:', e); return null; }
+};
+
+// Charger les élèves du prof depuis Firestore
+window.getElevesProf = async function(profId) {
+  try {
+    const { getDocs, collection, query, where } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const q = query(collection(db, 'eleves'), where('profId', '==', profId));
+    const snapshot = await getDocs(q);
+    const eleves = [];
+    snapshot.forEach(d => eleves.push(d.data()));
+    return eleves;
+  } catch(e) { return []; }
+};
+
+// Charger config chansons depuis Firestore
+window.chargerChansonsFirestore = async function() {
+  try {
+    const chansonsSnap = await getDoc(doc(db, 'config', 'chansons'));
+    if (chansonsSnap.exists() && chansonsSnap.data().list) {
+      localStorage.setItem('mfhi5_chansons', JSON.stringify(chansonsSnap.data().list));
+    }
+  } catch(e) {}
+};
+
+window.addEventListener('load', () => {
+  if (window.chargerChansonsFirestore) window.chargerChansonsFirestore();
+});
+
+</script>
+
 <script>
 // ══ DONNÉES ══
 const S = {
@@ -447,15 +505,37 @@ function getAudioCtx() {
 }
 
 // ══ LOGIN ══
-function seConnecter() {
+async function seConnecter() {
   const id = (document.getElementById('l-id').value || '').trim().toUpperCase();
   const code = (document.getElementById('l-code').value || '').trim();
-  const profs = S.getArr('profs');
-  const prof = profs.find(p => p.identifiant === id && (p.mdp === code || p.code === code) && p.actif !== false);
   document.getElementById('login-err').style.display = 'none';
   document.getElementById('login-pending').style.display = 'none';
-  if (!prof) { document.getElementById('login-err').style.display = 'block'; return; }
+
+  let prof = null;
+
+  // 1. Chercher dans Firestore (priorité)
+  if (window.getProfFirestore) {
+    prof = await window.getProfFirestore(id);
+    if (prof) {
+      const profs = S.getArr('profs');
+      const idx = profs.findIndex(p => p.identifiant === id);
+      if (idx >= 0) profs[idx] = prof; else profs.push(prof);
+      S.set('profs', profs);
+    }
+  }
+
+  // 2. Fallback localStorage
+  if (!prof) {
+    const profs = S.getArr('profs');
+    prof = profs.find(p => p.identifiant === id && p.actif !== false) || null;
+  }
+
+  if (!prof || (prof.mdp !== code && prof.code !== code)) {
+    document.getElementById('login-err').style.display = 'block'; return;
+  }
+  if (prof.actif === false) { document.getElementById('login-err').style.display = 'block'; return; }
   if (prof.statut === 'En attente de validation') { document.getElementById('login-pending').style.display = 'block'; return; }
+
   profActif = prof;
   localStorage.setItem(SESSION_KEY, JSON.stringify({ identifiant: id }));
   lancerApp();
@@ -496,6 +576,65 @@ function lancerApp() {
   initAccordeurProf();
   initDictAccords();
   chargerProfilForm();
+  verifierNotifsProf();
+}
+
+// ══ NOTIFICATIONS REÇUES DE L'ADMIN ══
+function verifierNotifsProf() {
+  if (!profActif) return;
+  const key = 'mfhi5_notifs_prof_' + profActif.id;
+  const notifs = JSON.parse(localStorage.getItem(key) || '[]');
+  const nonLues = notifs.filter(n => !n.lu);
+  const badge = document.getElementById('notif-prof-badge');
+  if (badge) {
+    if (nonLues.length > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = nonLues.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function ouvrirNotifsProf() {
+  if (!profActif) return;
+  const key = 'mfhi5_notifs_prof_' + profActif.id;
+  const notifs = JSON.parse(localStorage.getItem(key) || '[]');
+
+  // Marquer tout comme lu
+  notifs.forEach(n => n.lu = true);
+  localStorage.setItem(key, JSON.stringify(notifs));
+  verifierNotifsProf();
+
+  // Afficher popup
+  const old = document.getElementById('notif-prof-popup'); if (old) old.remove();
+  const popup = document.createElement('div');
+  popup.id = 'notif-prof-popup';
+  popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;';
+  popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+
+  const typeLabels = { info: '📋 Info', eleve: '🎓 Élève', cours: '📅 Planning', urgent: '🔴 Urgent', pdf: '📄 Liste de travail' };
+  const typeColors = { info: '#e8c96a', eleve: '#3498db', cours: '#2ecc71', urgent: '#e74c3c', pdf: '#9b59b6' };
+
+  popup.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px;width:100%;max-width:480px;margin-top:20px;" onclick="event.stopPropagation()">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+    '<div style="font-family:Georgia,serif;font-size:16px;color:var(--orL);">🔔 Mes notifications</div>' +
+    '<button onclick="document.getElementById(\'notif-prof-popup\').remove()" style="background:transparent;border:none;color:var(--muted);font-size:24px;cursor:pointer;">×</button>' +
+    '</div>' +
+    (notifs.length ? notifs.map(n =>
+      '<div style="padding:12px;background:var(--card2);border:1px solid var(--border);border-radius:4px;margin-bottom:10px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+      '<span style="font-size:11px;font-weight:700;color:' + (typeColors[n.type] || 'var(--orL)') + ';">' + (typeLabels[n.type] || n.type) + '</span>' +
+      '<span style="font-size:10px;color:var(--muted);margin-left:auto;">' + (n.date || '') + '</span>' +
+      '</div>' +
+      '<div style="font-size:13px;line-height:1.6;">' + (n.msg || '') + '</div>' +
+      (n.pdf ? '<div style="font-size:11px;color:var(--muted);background:var(--card);padding:10px;border-radius:4px;margin-top:8px;font-family:monospace;white-space:pre-wrap;line-height:1.8;">' + n.pdf + '</div>' : '') +
+      '</div>'
+    ).join('') : '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:20px;">Aucune notification pour le moment.</p>') +
+    '<button onclick="document.getElementById(\'notif-prof-popup\').remove()" style="width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;cursor:pointer;border-radius:4px;margin-top:8px;">Fermer</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
 }
 
 // ══ NAVIGATION ══
