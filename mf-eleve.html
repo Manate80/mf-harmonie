@@ -101,6 +101,18 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 .chanson-arrow.open{transform:rotate(90deg);}
 .chanson-body{display:none;border-top:1px solid var(--border);padding:16px;}
 .chanson-body.open{display:block;}
+/* ══ ONGLETS CHANSON ══ */
+.chanson-tabs{padding:0;}
+.chanson-tab-bar{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--border);background:var(--card2);}
+.chanson-otab{flex-shrink:0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 12px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:color .2s;}
+.chanson-otab:hover{color:var(--texte);}
+.chanson-otab.actif{color:var(--orL);border-bottom-color:var(--or);}
+.chanson-tab-page{padding:14px;}
+/* ══ PATTERN STRUMMING ══ */
+.pattern-visual{display:flex;flex-wrap:wrap;gap:6px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:4px;margin:10px 0;}
+.frappe-b{font-size:24px;font-weight:900;color:#e74c3c;line-height:1;}
+.frappe-h{font-size:24px;font-weight:900;color:#2ecc71;line-height:1;}
+.frappe-pause{font-size:20px;color:var(--muted);line-height:1;}
 /* ══ PLEIN ÉCRAN PAROLES ══ */
 .fullscreen-overlay{display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9000;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .fullscreen-overlay.open{display:block;}
@@ -990,31 +1002,117 @@ function creerCarteChangon(c) {
 }
 
 function buildCorpsChanson(c) {
-  let html = '';
-  // Bouton plein écran
-  const titreEsc = (c.titre||'').replace(/'/g,"\\'");
-  html += '<button class="btn-fullscreen" onclick="ouvrirPleinEcran(\'' + c.id + '\')">⛶ Plein écran</button>';
+  // Onglets dynamiques selon contenu disponible
+  const tabs = [];
+  const pages = [];
+
+  // ── Onglet Paroles & Accords ──
+  let parAcc = '';
+  parAcc += '<button class="btn-fullscreen" onclick="ouvrirPleinEcran(\'' + c.id + '\')">⛶ Plein écran paroles</button>';
   if (c.acc && c.acc !== '—') {
     const accs = c.acc.split(/[,\s]+/).filter(Boolean);
-    html += '<div class="media-section"><div class="media-label">🎸 Accords</div><div class="acc-grid">' +
+    parAcc += '<div class="media-section"><div class="media-label">🎸 Accords</div><div class="acc-grid">' +
       accs.map(a => '<button class="acc-btn" onclick="jouerNote(\'' + a + '\')">' + a + '</button>').join('') +
       '</div></div>';
   }
-  if (c.par) html += '<div class="media-section"><div class="media-label">📄 Paroles Reo Māohi</div><div class="paroles-text">' + escHtml(c.par) + '</div></div>';
-  if (c.trad) html += '<div class="media-section"><div class="media-label">🌍 Traduction</div><div class="trad-text">' + escHtml(c.trad) + '</div></div>';
-  if (c.pron) html += '<div class="media-section"><div class="media-label">🗣️ Prononciation</div><div class="pron-text">' + escHtml(c.pron) + '</div></div>';
-  if (c.video) html += '<div class="media-section"><div class="media-label">🎬 Vidéo (connexion requise)</div><iframe class="media-frame" src="' + c.video + '" height="200" allowfullscreen></iframe></div>';
-  if (c.audio) html += '<div class="media-section"><div class="media-label">🎵 Audio MP3 (connexion requise)</div><iframe class="media-frame" src="' + c.audio + '" height="80" allow="autoplay"></iframe></div>';
+  if (c.par) parAcc += '<div class="media-section"><div class="media-label">📄 Paroles</div><div class="paroles-text">' + escHtml(c.par) + '</div></div>';
+  tabs.push({id:'paroles',label:'🎵 Paroles'});
+  pages.push({id:'paroles',html:parAcc});
+
+  // ── Onglet Traduction ──
+  if (c.trad || c.pron) {
+    let tradHtml = '';
+    if (c.trad) tradHtml += '<div class="media-section"><div class="media-label">🌍 Traduction</div><div class="trad-text">' + escHtml(c.trad) + '</div></div>';
+    if (c.pron) tradHtml += '<div class="media-section"><div class="media-label">🗣️ Prononciation</div><div class="pron-text">' + escHtml(c.pron) + '</div></div>';
+    if (c.ctx) tradHtml += '<div class="media-section"><div class="media-label">📖 Contexte culturel</div><div class="pron-text">' + escHtml(c.ctx) + '</div></div>';
+    tabs.push({id:'trad',label:'🌍 Traduction'});
+    pages.push({id:'trad',html:tradHtml});
+  }
+
+  // ── Onglet Pattern Strumming ──
+  if (c.type || c.pattern) {
+    const rythme = c.type || '';
+    const pattern = c.pattern || '';
+    // Convertir pattern texte en flèches visuelles
+    const frappes = pattern ? pattern.split('').map(f => {
+      if(f==='B'||f==='b') return '<span class="frappe-b">↓</span>';
+      if(f==='H'||f==='h') return '<span class="frappe-h">↑</span>';
+      if(f==='-') return '<span class="frappe-pause">—</span>';
+      return '';
+    }).join('') : '';
+    let patHtml = '<div class="media-section">';
+    patHtml += '<div class="media-label">🥁 Pattern — ' + rythme + '</div>';
+    if (frappes) {
+      patHtml += '<div class="pattern-visual">' + frappes + '</div>';
+      patHtml += '<div style="font-size:11px;color:var(--muted);margin:8px 0 14px;"><span style="color:var(--rouge);">↓ B = Bas</span> &nbsp; <span style="color:var(--vert);">↑ H = Haut</span> &nbsp; — = Pause</div>';
+    }
+    // Lien vers métronome
+    patHtml += '<button class="btn-sm" style="width:100%;margin-top:8px;" onclick="showTool(\'metro\',document.querySelector(\'[onclick*=metro]\'))">🎵 Ouvrir le métronome</button>';
+    patHtml += '</div>';
+    tabs.push({id:'pattern',label:'✋ Pattern'});
+    pages.push({id:'pattern',html:patHtml});
+  }
+
+  // ── Onglet Vidéo ──
+  if (c.video) {
+    const isVimeo = c.video.includes('vimeo');
+    const vidHtml = '<div class="media-section"><div class="media-label">🎬 ' + (isVimeo ? 'Vidéo Vimeo' : 'Vidéo') + '</div>' +
+      '<iframe class="media-frame" src="' + c.video + '" height="220" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe></div>';
+    tabs.push({id:'video',label:'🎬 Vidéo'});
+    pages.push({id:'video',html:vidHtml});
+  }
+
+  // ── Onglet Audio / Pistes ──
+  const hasPistes = c.audio_uke || c.audio_chant || c.audio_perc || c.audio_basse;
+  if (c.audio || hasPistes) {
+    let audioHtml = '';
+    if (hasPistes) {
+      audioHtml += '<div class="media-section"><div class="media-label">🎚️ Pistes séparées</div>';
+      if (c.audio_uke)   audioHtml += '<div style="margin-bottom:10px;"><div style="font-size:11px;color:var(--orL);margin-bottom:4px;">🌴 Ukulélé</div><iframe src="' + c.audio_uke + '" height="60" style="width:100%;border:none;" allow="autoplay"></iframe></div>';
+      if (c.audio_chant) audioHtml += '<div style="margin-bottom:10px;"><div style="font-size:11px;color:var(--orL);margin-bottom:4px;">🎤 Chant</div><iframe src="' + c.audio_chant + '" height="60" style="width:100%;border:none;" allow="autoplay"></iframe></div>';
+      if (c.audio_perc)  audioHtml += '<div style="margin-bottom:10px;"><div style="font-size:11px;color:var(--orL);margin-bottom:4px;">🥁 Percussion</div><iframe src="' + c.audio_perc + '" height="60" style="width:100%;border:none;" allow="autoplay"></iframe></div>';
+      if (c.audio_basse) audioHtml += '<div style="margin-bottom:10px;"><div style="font-size:11px;color:var(--orL);margin-bottom:4px;">🎸 Basse</div><iframe src="' + c.audio_basse + '" height="60" style="width:100%;border:none;" allow="autoplay"></iframe></div>';
+      audioHtml += '</div>';
+    }
+    if (c.audio) audioHtml += '<div class="media-section"><div class="media-label">🎵 Audio complet</div><iframe class="media-frame" src="' + c.audio + '" height="80" allow="autoplay"></iframe></div>';
+    tabs.push({id:'audio',label:'🎵 Audio'});
+    pages.push({id:'audio',html:audioHtml});
+  }
+
+  // Fiche SVG
   if (c.svg) {
     const s = c.svg.trim();
+    let svgHtml = '';
     if (s.startsWith('<!DOCTYPE') || s.startsWith('<html')) {
-      html += '<div class="media-section"><div class="media-label">🎼 Fiche interactive</div><iframe srcdoc="' + s.replace(/"/g, '&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:300px;border:none;background:#fff;border-radius:4px;"></iframe></div>';
+      svgHtml = '<div class="media-section"><iframe srcdoc="' + s.replace(/"/g, '&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:300px;border:none;background:#fff;border-radius:4px;"></iframe></div>';
     } else if (s.startsWith('<svg')) {
-      html += '<div class="media-section"><div class="media-label">🎼 Fiche accords</div><div style="overflow-x:auto;">' + s + '</div></div>';
+      svgHtml = '<div class="media-section"><div style="overflow-x:auto;">' + s + '</div></div>';
     }
+    if (svgHtml) { tabs.push({id:'fiche',label:'🎼 Fiche'}); pages.push({id:'fiche',html:svgHtml}); }
   }
-  if (!html) html = '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:16px;">Aucun contenu disponible pour cette chanson.</p>';
+
+  if (!tabs.length) return '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:16px;">Aucun contenu disponible.</p>';
+
+  // Générer l'HTML avec onglets
+  const uid = 'ch' + (c.id || Math.random().toString(36).substr(2,5));
+  let html = '<div class="chanson-tabs"><div class="chanson-tab-bar">' +
+    tabs.map((t,i) => '<button class="chanson-otab' + (i===0?' actif':'') + '" onclick="switchChansonTab(this,\'' + uid + '\',\'' + t.id + '\')">' + t.label + '</button>').join('') +
+    '</div>';
+  pages.forEach((p,i) => {
+    html += '<div id="' + uid + '-' + p.id + '" class="chanson-tab-page' + (i===0?'':" style='display:none'") + '">' + p.html + '</div>';
+  });
+  html += '</div>';
   return html;
+}
+
+function switchChansonTab(btn, uid, tabId) {
+  const parent = btn.closest('.chanson-tabs');
+  if (!parent) return;
+  parent.querySelectorAll('.chanson-otab').forEach(b => b.classList.remove('actif'));
+  parent.querySelectorAll('.chanson-tab-page').forEach(p => p.style.display = 'none');
+  btn.classList.add('actif');
+  const page = document.getElementById(uid + '-' + tabId);
+  if (page) page.style.display = 'block';
 }
 
 function escHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
@@ -1029,21 +1127,25 @@ function ouvrirPleinEcran(chansonId) {
   const content = document.getElementById('fs-content');
   if (!overlay || !content) return;
   titre.textContent = (c.titre || 'Chanson') + (c.auteur ? ' — ' + c.auteur : '');
-  let html = '';
+  let html = '<div style="max-width:680px;margin:0 auto;">';
+  // Accords en premier
   if (c.acc && c.acc !== '—') {
     const accs = c.acc.split(/[,\s]+/).filter(Boolean);
-    html += '<div class="media-section"><div class="media-label">🎸 Accords</div><div class="acc-grid">' +
-      accs.map(a => '<button class="acc-btn" onclick="jouerNote(\'' + a + '\')">' + a + '</button>').join('') +
+    html += '<div style="margin-bottom:24px;"><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--orL);font-weight:700;margin-bottom:12px;">🎸 Accords</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;">' +
+      accs.map(a => '<button class="acc-btn" onclick="jouerNote(\'' + a + '\')" style="font-size:clamp(18px,5vw,28px);padding:14px 22px;">' + a + '</button>').join('') +
       '</div></div>';
   }
-  if (c.par) html += '<div class="media-section"><div class="media-label">📄 Paroles Reo Māohi</div><div class="paroles-text">' + escHtml(c.par) + '</div></div>';
-  if (c.trad) html += '<div class="media-section"><div class="media-label">🌍 Traduction</div><div class="trad-text">' + escHtml(c.trad) + '</div></div>';
-  if (c.pron) html += '<div class="media-section"><div class="media-label">🗣️ Prononciation</div><div class="pron-text">' + escHtml(c.pron) + '</div></div>';
-  if (!html) html = '<p style="color:var(--muted);text-align:center;padding:40px;font-style:italic;">Aucun contenu texte disponible.</p>';
+  // Paroles avec grande police
+  if (c.par) {
+    html += '<div><div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--orL);font-weight:700;margin-bottom:16px;">📄 Paroles</div>' +
+      '<div style="font-size:clamp(18px,5vw,26px);line-height:2.4;color:var(--texte);white-space:pre-wrap;font-family:Georgia,serif;">' + escHtml(c.par) + '</div></div>';
+  }
+  if (!c.acc && !c.par) html += '<p style="color:var(--muted);text-align:center;padding:40px;font-style:italic;">Aucune parole disponible.</p>';
+  html += '</div>';
   content.innerHTML = html;
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Tenter l'API fullscreen
   try { if (overlay.requestFullscreen) overlay.requestFullscreen(); else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e) {}
 }
 function fermerPleinEcran() {

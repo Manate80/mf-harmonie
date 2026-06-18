@@ -687,7 +687,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div class="row2">
           <div class="fg">
             <label>🎬 Lien Vidéo Google Drive</label>
-            <input id="ch-video" placeholder="https://drive.google.com/file/d/XXXX/preview">
+            <input id="ch-video" placeholder="https://player.vimeo.com/video/XXXX ou https://drive.google.com/file/d/XXXX/preview">
             <div style="font-size:10px;color:var(--muted);margin-top:4px;">Dans Drive : clic droit → Partager → Copier le lien, puis remplacer /view par /preview</div>
           </div>
           <div class="fg">
@@ -1595,6 +1595,11 @@ function addChanson(){
     ctx:document.getElementById('ch-ctx').value,
     video:document.getElementById('ch-video').value.trim(),
     audio:document.getElementById('ch-audio').value.trim(),
+    audio_uke:document.getElementById('audio-uke').value.trim(),
+    audio_chant:document.getElementById('audio-chant').value.trim(),
+    audio_perc:document.getElementById('audio-perc').value.trim(),
+    audio_basse:document.getElementById('audio-basse').value.trim(),
+    pattern:document.getElementById('ch-pattern')?document.getElementById('ch-pattern').value.trim():'',
     svg:svgData,statut,
     dateAjout:new Date().toLocaleDateString('fr-FR')
   });
@@ -1706,7 +1711,7 @@ function toggleRecrutement(actif){
 }
 function chargerRecrutementCheckbox(){
   var cb=document.getElementById('recrutement-actif');
-  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement')==='on';
+  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';
 }
 function saveOffre(){
   const lancEl=document.getElementById('t-lanc');const placesEl=document.getElementById('t-places');const msgEl=document.getElementById('t-msg');const statutEl=document.getElementById('t-statut');
@@ -2454,6 +2459,14 @@ function loadFrequences(){var freqs=JSON.parse(localStorage.getItem('mfhi5_freqs
 function saveFrequences(){var f={hawai:{g:parseFloat(document.getElementById('freq-hawai-g').value)||392,c:parseFloat(document.getElementById('freq-hawai-c').value)||261.63,e:parseFloat(document.getElementById('freq-hawai-e').value)||329.63,a:parseFloat(document.getElementById('freq-hawai-a').value)||440},tahiti:{g:parseFloat(document.getElementById('freq-tahiti-g').value)||392,c:parseFloat(document.getElementById('freq-tahiti-c').value)||261.63,e:parseFloat(document.getElementById('freq-tahiti-e').value)||329.63,a:parseFloat(document.getElementById('freq-tahiti-a').value)||880}};localStorage.setItem('mfhi5_freqs_accordeur',JSON.stringify(f));toast('Frequences enregistrees !');}
 function toggleRecrutement(actif){localStorage.setItem('mfhi5_recrutement_actif',actif?'1':'');toast(actif?'Recrutement active !':'Recrutement desactive.');}
 function chargerRecrutementCheckbox(){var cb=document.getElementById('recrutement-actif');if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';}
+function supprimerDefinitivement(id,col){
+  if(!confirm('Supprimer définitivement ? Cette action est irréversible.'))return;
+  if(!confirm('Dernière confirmation — supprimer définitivement ?'))return;
+  var list=S.get(col);
+  S.set(col,list.filter(function(x){return x.id!==id;}));
+  if(col==='eleves'){renderEleves();renderDashboard();toast('🗑 Élève supprimé définitivement.');}
+  else if(col==='profs'){renderProfs();toast('🗑 Prof supprimé définitivement.');}
+}
 
 </script>
 <script type="module">
