@@ -26,7 +26,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 #app{display:none;}
 
 /* HEADER */
-.header{background:#100d06;border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.header{background:#100d06;border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;overflow:hidden;}
 .header-title{font-family:Georgia,serif;font-size:14px;color:var(--orL);letter-spacing:2px;text-transform:uppercase;}
 .header-sub{font-size:10px;color:var(--muted);margin-top:1px;}
 .header-right{display:flex;gap:6px;align-items:center;flex-shrink:0;}
@@ -35,6 +35,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 
 /* NAV PRINCIPALE (5 sections) */
 .main-nav{display:flex;background:#0f0d08;border-bottom:2px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+@media(min-width:600px){#hlink-site,#hlink-eleve,#hlink-prof{display:inline-block !important;}}
 .main-btn{flex-shrink:0;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:13px 12px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .2s;}
 .main-btn:hover{color:var(--blanc);}
 .main-btn.on{color:var(--orL);border-bottom-color:var(--or);background:rgba(201,146,42,.05);}
@@ -213,10 +214,10 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <div class="header-sub">Administration</div>
     </div>
     <div class="header-right">
-    <button class="btn-sm" onclick="if(window.syncFirestore)window.syncFirestore();" style="border-color:rgba(39,174,96,.5);color:#2ecc71;font-size:10px;">🔄 Sync</button>
-      <a href="index.html" class="hlink">← Site</a>
-      <a href="mf-eleve.html" class="hlink">🎓 Élève</a>
-      <a href="mf-prof.html" class="hlink">👨‍🏫 Prof</a>
+      <button class="btn-sm" onclick="if(window.syncFirestore)window.syncFirestore();" style="border-color:rgba(39,174,96,.5);color:#2ecc71;font-size:10px;padding:5px 10px;">🔄 Sync</button>
+      <a href="index.html" class="hlink" style="display:none;" id="hlink-site">← Site</a>
+      <a href="mf-eleve.html" class="hlink" style="display:none;" id="hlink-eleve">🎓 Élève</a>
+      <a href="mf-prof.html" class="hlink" style="display:none;" id="hlink-prof">👨‍🏫 Prof</a>
       <button class="btn-logout" onclick="logout()">Déconnexion</button>
     </div>
   </div>
@@ -334,57 +335,50 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <button class="btn" onclick="saveOffre()">💾 Enregistrer l'offre promotionnelle</button>
       </div>
 
-      <!-- ═══ TÉMOIGNAGES ═══ -->
-      <div class="card" style="border-color:rgba(212,175,55,.4);">
-        <div class="card-title" style="color:var(--orL);">⭐ Témoignages (affichés sur l'accueil)</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">6 témoignages maximum. Ils apparaissent sur la page d'accueil du site.</p>
+      <!-- TÉMOIGNAGES -->
+      <div class="card" style="border-color:rgba(201,146,42,.4);">
+        <div class="card-title" style="color:var(--orL);">⭐ Témoignages (affichés sur l'accueil — max 6)</div>
         <div id="list-temoignages" style="margin-bottom:14px;"></div>
         <div style="border-top:1px solid var(--border);padding-top:14px;">
-          <div class="card-title">Ajouter un témoignage</div>
           <div class="fg"><label>Auteur *</label><input id="tem-auteur" placeholder="Hina Teriitahi · Tahiti"></div>
           <div class="fg"><label>Formule / Type d'élève</label><input id="tem-formule" placeholder="Ex: Cours à domicile · 6 mois"></div>
-          <div class="fg"><label>Témoignage *</label><textarea id="tem-texte" placeholder="J'ai découvert le ukulélé grâce à MF Harmonie…" style="min-height:80px;"></textarea></div>
+          <div class="fg"><label>Témoignage *</label><textarea id="tem-texte" placeholder="J'ai découvert le ukulélé..." style="min-height:80px;"></textarea></div>
           <button class="btn" onclick="addTemoignage()">✚ Ajouter ce témoignage</button>
         </div>
       </div>
 
-      <!-- ═══ HISTOIRE ═══ -->
-      <div class="card" style="border-color:rgba(212,175,55,.3);">
+      <!-- HISTOIRE -->
+      <div class="card">
         <div class="card-title" style="color:var(--orL);">📖 Notre histoire (section accueil)</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Ce texte apparaît dans la section "L'origine de MF Harmonie des Îles" sur la page d'accueil. Laissez vide pour masquer la section.</p>
-        <div class="fg"><textarea id="histoire-texte-admin" placeholder="Racontez l'histoire de MF Harmonie des Îles, votre parcours musical, pourquoi vous avez créé cette école…" style="min-height:150px;line-height:1.7;"></textarea></div>
+        <div class="fg"><textarea id="histoire-texte-admin" placeholder="Racontez l'histoire de MF Harmonie des Îles..." style="min-height:150px;line-height:1.7;"></textarea></div>
         <button class="btn" onclick="saveHistoire()">💾 Enregistrer l'histoire</button>
       </div>
 
-      <!-- ═══ ACCORDEUR CONFIGURABLE ═══ -->
+      <!-- ACCORDEUR -->
       <div class="card" style="border-color:rgba(0,188,212,.3);">
         <div class="card-title" style="color:#00bcd4;">🎸 Accordeur — Fréquences des cordes</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Définissez les fréquences exactes pour l'accordeur de l'espace élève. Les valeurs s'affichent en Hz.</p>
-        <div style="font-size:11px;color:var(--orL);font-weight:700;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;">🌺 Ukulélé Hawaïen (standard)</div>
+        <div style="font-size:11px;color:var(--orL);font-weight:700;margin-bottom:10px;">🌺 Ukulélé Hawaïen</div>
         <div class="row2">
-          <div class="fg"><label>4e corde G (Sol)</label><input type="number" id="freq-hawai-g" value="392.00" step="0.01" placeholder="392.00"></div>
-          <div class="fg"><label>3e corde C (Do)</label><input type="number" id="freq-hawai-c" value="261.63" step="0.01" placeholder="261.63"></div>
+          <div class="fg"><label>G Sol (Hz)</label><input type="number" id="freq-hawai-g" value="392.00" step="0.01"></div>
+          <div class="fg"><label>C Do (Hz)</label><input type="number" id="freq-hawai-c" value="261.63" step="0.01"></div>
         </div>
         <div class="row2">
-          <div class="fg"><label>2e corde E (Mi)</label><input type="number" id="freq-hawai-e" value="329.63" step="0.01" placeholder="329.63"></div>
-          <div class="fg"><label>1re corde A (La)</label><input type="number" id="freq-hawai-a" value="440.00" step="0.01" placeholder="440.00"></div>
+          <div class="fg"><label>E Mi (Hz)</label><input type="number" id="freq-hawai-e" value="329.63" step="0.01"></div>
+          <div class="fg"><label>A La (Hz)</label><input type="number" id="freq-hawai-a" value="440.00" step="0.01"></div>
         </div>
-        <div style="font-size:11px;color:var(--cyanL);font-weight:700;margin:14px 0 10px;letter-spacing:1px;text-transform:uppercase;">🌴 Ukulélé Tahitien</div>
+        <div style="font-size:11px;color:#00bcd4;font-weight:700;margin:14px 0 10px;">🌴 Ukulélé Tahitien</div>
         <div class="row2">
-          <div class="fg"><label>4e corde G (Sol)</label><input type="number" id="freq-tahiti-g" value="392.00" step="0.01" placeholder="392.00"></div>
-          <div class="fg"><label>3e corde C (Do)</label><input type="number" id="freq-tahiti-c" value="261.63" step="0.01" placeholder="261.63"></div>
+          <div class="fg"><label>G Sol (Hz)</label><input type="number" id="freq-tahiti-g" value="392.00" step="0.01"></div>
+          <div class="fg"><label>C Do (Hz)</label><input type="number" id="freq-tahiti-c" value="261.63" step="0.01"></div>
         </div>
         <div class="row2">
-          <div class="fg"><label>2e corde E (Mi)</label><input type="number" id="freq-tahiti-e" value="329.63" step="0.01" placeholder="329.63"></div>
-          <div class="fg"><label>1re corde A (La) — Octave haute</label><input type="number" id="freq-tahiti-a" value="880.00" step="0.01" placeholder="880.00"></div>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:10px;padding:10px;background:rgba(0,188,212,.05);border:1px solid rgba(0,188,212,.1);border-radius:4px;line-height:1.7;">
-          💡 Référence : Do = 261.63 Hz · Ré = 293.66 · Mi = 329.63 · Fa = 349.23 · Sol = 392.00 · La = 440.00 Hz<br>
-          La corde A tahitienne est à 880 Hz (octave haute = ×2) au lieu de 440 Hz.
+          <div class="fg"><label>E Mi (Hz)</label><input type="number" id="freq-tahiti-e" value="329.63" step="0.01"></div>
+          <div class="fg"><label>A La octave haute (Hz)</label><input type="number" id="freq-tahiti-a" value="880.00" step="0.01"></div>
         </div>
         <button class="btn" onclick="saveFrequences()" style="margin-top:14px;">💾 Enregistrer les fréquences</button>
       </div>
     </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════
        SECTION 2 : UTILISATEURS
@@ -1224,130 +1218,6 @@ Date : ________________________</div>
 </div>
 
 <div class="toast" id="toast"></div>
-
-<!-- ═══ FIREBASE SDK ═══ -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
-  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
-  projectId: "mf-harmonie-des-iles",
-  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
-  messagingSenderId: "312842405867",
-  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// ═══ SYNC FIRESTORE → localStorage (pour compatibilité avec le code existant) ═══
-
-// Charger tous les élèves depuis Firestore et mettre à jour localStorage
-async function syncElevesFirestore() {
-  try {
-    const snapshot = await getDocs(collection(db, 'eleves'));
-    const eleves = [];
-    snapshot.forEach(doc => eleves.push(doc.data()));
-    localStorage.setItem('mfhi5_eleves', JSON.stringify(eleves));
-    // Rafraîchir l'affichage si la fonction existe
-    if (typeof renderEleves === 'function') renderEleves();
-    if (typeof renderDashboard === 'function') renderDashboard();
-    console.log('Élèves sync Firestore:', eleves.length);
-  } catch(e) { console.warn('Sync élèves Firestore:', e); }
-}
-
-// Charger tous les profs depuis Firestore
-async function syncProfsFirestore() {
-  try {
-    const snapshot = await getDocs(collection(db, 'profs'));
-    const profs = [];
-    snapshot.forEach(doc => profs.push(doc.data()));
-    localStorage.setItem('mfhi5_profs', JSON.stringify(profs));
-    if (typeof renderProfs === 'function') renderProfs();
-    console.log('Profs sync Firestore:', profs.length);
-  } catch(e) { console.warn('Sync profs Firestore:', e); }
-}
-
-// Charger notifications depuis Firestore
-async function syncNotifsFirestore() {
-  try {
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    const notifs = [];
-    snapshot.forEach(doc => notifs.push({...doc.data(), _firestoreId: doc.id}));
-    localStorage.setItem('mfhi5_notifs', JSON.stringify(notifs));
-    if (typeof renderNotifs === 'function') renderNotifs();
-    console.log('Notifs sync Firestore:', notifs.length);
-  } catch(e) { console.warn('Sync notifs Firestore:', e); }
-}
-
-// Sauvegarder élève modifié dans Firestore
-window.saveEleveFirestore = async function(identifiant, data) {
-  try {
-    await updateDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()});
-    return true;
-  } catch(e) {
-    // Si le doc n'existe pas encore, créer
-    try { await setDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()}); return true; }
-    catch(e2) { console.error('saveEleveFirestore:', e2); return false; }
-  }
-};
-
-// Sauvegarder config (tarifs, RIB, params) dans Firestore
-window.saveConfigFirestore = async function(type, data) {
-  try {
-    await setDoc(doc(db, 'config', type), {...data, updatedAt: serverTimestamp()}, {merge: true});
-    return true;
-  } catch(e) { console.error('saveConfigFirestore:', e); return false; }
-};
-
-// Marquer notification comme lue
-window.marquerNotifLue = async function(firestoreId) {
-  if (!firestoreId) return;
-  try { await updateDoc(doc(db, 'notifications', firestoreId), {lu: true}); } catch(e) {}
-};
-
-// Écoute en temps réel des nouvelles inscriptions
-onSnapshot(collection(db, 'notifications'), (snapshot) => {
-  snapshot.docChanges().forEach(change => {
-    if (change.type === 'added') {
-      const notif = change.doc.data();
-      if (!notif.lu) {
-        // Mettre à jour le badge de notifications
-        const badge = document.getElementById('notif-badge');
-        if (badge) {
-          const current = parseInt(badge.textContent) || 0;
-          badge.textContent = current + 1;
-          badge.style.display = 'block';
-        }
-      }
-    }
-  });
-  // Resync
-  syncNotifsFirestore();
-});
-
-// Lancer la sync au chargement
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    syncElevesFirestore();
-    syncProfsFirestore();
-    syncNotifsFirestore();
-  }, 500);
-});
-
-// Exposer la fonction de sync pour l'admin
-window.syncFirestore = async function() {
-  await syncElevesFirestore();
-  await syncProfsFirestore();
-  await syncNotifsFirestore();
-  if (typeof toast === 'function') toast('🔄 Données synchronisées avec Firestore !');
-};
-
-</script>
-
 <script>
 // ════ DONNÉES ════
 const S={
@@ -1400,16 +1270,10 @@ function goSection(id,btn){
   if(id==='pilotage'){renderDashboard();renderNotifs();}
 }
 function goStab(prefix,sub,btn){
-  // Trouver le conteneur parent direct qui contient les stabs de CE niveau
-  // On cherche le parent le plus proche qui a un enfant avec l'id prefix-*
-  let container = btn.parentElement;
-  while(container && !container.querySelector('[id^="'+prefix+'-"]')) {
-    container = container.parentElement;
-    if(!container || container.tagName === 'BODY') break;
-  }
-  if(!container) return;
-  const pages = container.querySelectorAll(':scope > [id^="'+prefix+'-"].spage, [id^="'+prefix+'-"].spage');
-  const btns = btn.closest('.stabs') ? btn.closest('.stabs').querySelectorAll('.stab') : container.querySelectorAll(':scope > .stabs .stab');
+  const container=btn.closest('.spage,.section');
+  if(!container)return;
+  const pages=container.querySelectorAll('[id^="'+prefix+'-"].spage');
+  const btns=container.querySelectorAll('.stab');
   pages.forEach(p=>p.classList.remove('on'));
   btns.forEach(b=>b.classList.remove('on'));
   const el=document.getElementById(prefix+'-'+sub);
@@ -1436,7 +1300,7 @@ function closeModal(id){document.getElementById(id).classList.remove('on');}
 
 // ════ INIT ════
 function initApp(){
-  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();renderTemoignages();loadHistoire();loadFrequences();
+  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();if(typeof renderTemoignages==='function')renderTemoignages();if(typeof loadHistoire==='function')loadHistoire();if(typeof loadFrequences==='function')loadFrequences();setTimeout(function(){if(window.syncFirestore)window.syncFirestore();},1000);
   const a=S.get('log');
   document.getElementById('activite').innerHTML=a.length?a.slice(0,10).map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px;"><span>'+x.msg+'</span><span style="color:var(--muted);font-size:10px;white-space:nowrap;">'+x.d+'</span></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucune activité.</p>';
 }
@@ -1556,8 +1420,7 @@ function openEleve(id){
   const vs=document.getElementById('vacances-section');
   if(vs){const isDom=(el.paiement&&el.paiement>=10000)||(el.formule&&el.formule.toLowerCase().includes('domicile'));vs.style.display=isDom?'block':'none';}
 }
-function saveEleve(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;Object.assign(eleves[i],{nom:document.getElementById('e-nom').value.trim()||eleves[i].nom,mail:document.getElementById('e-mail').value,tel:document.getElementById('e-tel').value,adresse:document.getElementById('e-adr').value,paiement:parseFloat(document.getElementById('e-paie').value)||0,niveau:document.getElementById('e-niv').value,dateDebut:document.getElementById('e-date').value,statut:document.getElementById('e-statut').value,progression:parseInt(document.getElementById('e-prog').value)||0});S.set('eleves',eleves);log('Fiche modifiée : '+eleves[i].nom);renderEleves();renderDashboard();toast('✔ Sauvegardé !');// Sync Firestore
-if(window.saveEleveFirestore&&eleves[i].identifiant){window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);}}
+function saveEleve(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;Object.assign(eleves[i],{nom:document.getElementById('e-nom').value.trim()||eleves[i].nom,mail:document.getElementById('e-mail').value,tel:document.getElementById('e-tel').value,adresse:document.getElementById('e-adr').value,paiement:parseFloat(document.getElementById('e-paie').value)||0,niveau:document.getElementById('e-niv').value,dateDebut:document.getElementById('e-date').value,statut:document.getElementById('e-statut').value,progression:parseInt(document.getElementById('e-prog').value)||0});S.set('eleves',eleves);log('Fiche modifiée : '+eleves[i].nom);renderEleves();renderDashboard();toast('✔ Sauvegardé !');}
 function confirmerEl(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].statut='Actif';S.set('eleves',eleves);document.getElementById('e-statut').value='Actif';renderEleves();renderDashboard();toast('✅ Inscription confirmée !');}
 
 // ══ BASCULE VACANCES (domicile uniquement, admin exclusif) ══
@@ -1828,94 +1691,15 @@ function saveRIB(){
   var bic=document.getElementById('rib-bic-admin').value.trim();
   if(iban)localStorage.setItem('mfhi5_rib_iban',iban);
   if(bic)localStorage.setItem('mfhi5_rib_bic',bic);
-  // Sync Firestore
-  if(window.saveConfigFirestore)window.saveConfigFirestore('rib',{iban,bic});
   toast('✔ RIB enregistré — affiché sur les fiches domicile/promo !');
 }
-
-// ════ TÉMOIGNAGES ════
-function renderTemoignages(){
-  var list=S.get('temoignages');
-  var el=document.getElementById('list-temoignages');if(!el)return;
-  if(!list.length){el.innerHTML='<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucun témoignage.</p>';return;}
-  el.innerHTML=list.map((t,i)=>
-    '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">'+
-    '<div style="flex:1;min-width:0;">'+
-    '<div style="font-weight:700;color:var(--orL);font-size:13px;">'+t.auteur+'</div>'+
-    '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(t.formule||'')+'</div>'+
-    '<div style="font-size:12px;color:var(--blanc);font-style:italic;line-height:1.6;">"'+(t.texte||'').substring(0,120)+(t.texte&&t.texte.length>120?'…':'')+ '"</div>'+
-    '</div>'+
-    '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'+
-    '<span class="badge '+(t.actif!==false?'b-vert':'b-gris')+'">'+(t.actif!==false?'Visible':'Masqué')+'</span>'+
-    '<button class="btn-sm" onclick="toggleTemoignage('+i+')">'+( t.actif!==false?'Masquer':'Afficher')+'</button>'+
-    '<button class="danger" onclick="delTemoignage('+i+')">✕</button>'+
-    '</div></div>'
-  ).join('');
-}
-function addTemoignage(){
-  var auteur=(document.getElementById('tem-auteur').value||'').trim();
-  var texte=(document.getElementById('tem-texte').value||'').trim();
-  var formule=(document.getElementById('tem-formule').value||'').trim();
-  if(!auteur||!texte){toast('⚠ Auteur et témoignage requis');return;}
-  var list=S.get('temoignages');
-  if(list.length>=6){toast('⚠ Maximum 6 témoignages');return;}
-  list.push({id:Date.now(),auteur,texte,formule,actif:true});
-  S.set('temoignages',list);
-  saveTemoignagesFirestore(list);
-  ['tem-auteur','tem-texte','tem-formule'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  renderTemoignages();toast('✅ Témoignage ajouté !');
-}
-function toggleTemoignage(idx){var list=S.get('temoignages');if(!list[idx])return;list[idx].actif=!list[idx].actif;S.set('temoignages',list);saveTemoignagesFirestore(list);renderTemoignages();}
-function delTemoignage(idx){if(!confirm('Supprimer ce témoignage ?'))return;var list=S.get('temoignages');list.splice(idx,1);S.set('temoignages',list);saveTemoignagesFirestore(list);renderTemoignages();toast('Témoignage supprimé.');}
-function saveTemoignagesFirestore(list){if(window.saveConfigFirestore)window.saveConfigFirestore('params',{temoignages:list});}
-
-// ════ HISTOIRE ════
-function loadHistoire(){
-  var h=localStorage.getItem('mfhi5_histoire')||'';
-  var el=document.getElementById('histoire-texte-admin');if(el)el.value=h;
-}
-function saveHistoire(){
-  var texte=(document.getElementById('histoire-texte-admin').value||'').trim();
-  localStorage.setItem('mfhi5_histoire',texte);
-  if(window.saveConfigFirestore)window.saveConfigFirestore('params',{histoire:texte});
-  toast('✅ Histoire enregistrée !');
-}
-
-// ════ FRÉQUENCES ACCORDEUR ════
-function loadFrequences(){
-  var freqs=JSON.parse(localStorage.getItem('mfhi5_freqs_accordeur')||'null');
-  if(!freqs)return;
-  if(freqs.hawai){
-    if(document.getElementById('freq-hawai-g'))document.getElementById('freq-hawai-g').value=freqs.hawai.g||392;
-    if(document.getElementById('freq-hawai-c'))document.getElementById('freq-hawai-c').value=freqs.hawai.c||261.63;
-    if(document.getElementById('freq-hawai-e'))document.getElementById('freq-hawai-e').value=freqs.hawai.e||329.63;
-    if(document.getElementById('freq-hawai-a'))document.getElementById('freq-hawai-a').value=freqs.hawai.a||440;
-  }
-  if(freqs.tahiti){
-    if(document.getElementById('freq-tahiti-g'))document.getElementById('freq-tahiti-g').value=freqs.tahiti.g||392;
-    if(document.getElementById('freq-tahiti-c'))document.getElementById('freq-tahiti-c').value=freqs.tahiti.c||261.63;
-    if(document.getElementById('freq-tahiti-e'))document.getElementById('freq-tahiti-e').value=freqs.tahiti.e||329.63;
-    if(document.getElementById('freq-tahiti-a'))document.getElementById('freq-tahiti-a').value=freqs.tahiti.a||880;
-  }
-}
-function saveFrequences(){
-  var freqs={
-    hawai:{g:parseFloat(document.getElementById('freq-hawai-g').value)||392,c:parseFloat(document.getElementById('freq-hawai-c').value)||261.63,e:parseFloat(document.getElementById('freq-hawai-e').value)||329.63,a:parseFloat(document.getElementById('freq-hawai-a').value)||440},
-    tahiti:{g:parseFloat(document.getElementById('freq-tahiti-g').value)||392,c:parseFloat(document.getElementById('freq-tahiti-c').value)||261.63,e:parseFloat(document.getElementById('freq-tahiti-e').value)||329.63,a:parseFloat(document.getElementById('freq-tahiti-a').value)||880}
-  };
-  localStorage.setItem('mfhi5_freqs_accordeur',JSON.stringify(freqs));
-  if(window.saveConfigFirestore)window.saveConfigFirestore('accordeur',freqs);
-  toast('✅ Fréquences de l\'accordeur enregistrées !');
-}
 function toggleRecrutement(actif){
-  localStorage.setItem('mfhi5_recrutement_actif',actif?'1':'');
-  // Sync Firestore
-  if(window.saveConfigFirestore)window.saveConfigFirestore('params',{recrutement_actif:actif});
+  // corrige dans les fonctions ajoutees en bas
   toast(actif?'✅ Campagne recrutement activée sur le site !':'🚫 Campagne recrutement désactivée.');
 }
 function chargerRecrutementCheckbox(){
   var cb=document.getElementById('recrutement-actif');
-  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';
+  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement')==='on';
 }
 function saveOffre(){
   const lancEl=document.getElementById('t-lanc');const placesEl=document.getElementById('t-places');const msgEl=document.getElementById('t-msg');const statutEl=document.getElementById('t-statut');
@@ -2651,6 +2435,28 @@ function delCoachingVideo(id){
   renderCoachingVideos();
   toast('Vidéo supprimée.');
 }
+
+// ════ TÉMOIGNAGES ════
+function renderTemoignages(){var list=S.get('temoignages');var el=document.getElementById('list-temoignages');if(!el)return;if(!list.length){el.innerHTML='<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucun témoignage.</p>';return;}el.innerHTML=list.map(function(t,i){return'<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);"><div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+t.auteur+'</div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+(t.formule||'')+'</div><div style="font-size:12px;color:var(--blanc);font-style:italic;line-height:1.6;">"'+(t.texte||'').substring(0,120)+(t.texte&&t.texte.length>120?'...':'')+ '"</div></div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;"><button class="btn-sm" onclick="toggleTemoignage('+i+')">'+(t.actif!==false?'Masquer':'Afficher')+'</button><button class="danger" onclick="delTemoignage('+i+')">X</button></div></div>';}).join('');}
+function addTemoignage(){var auteur=(document.getElementById('tem-auteur').value||'').trim();var texte=(document.getElementById('tem-texte').value||'').trim();var formule=(document.getElementById('tem-formule').value||'').trim();if(!auteur||!texte){toast('Auteur et temoignage requis');return;}var list=S.get('temoignages');if(list.length>=6){toast('Maximum 6 temoignages');return;}list.push({id:Date.now(),auteur:auteur,texte:texte,formule:formule,actif:true});S.set('temoignages',list);['tem-auteur','tem-texte','tem-formule'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});renderTemoignages();toast('Temoignage ajoute !');}
+function toggleTemoignage(idx){var list=S.get('temoignages');if(!list[idx])return;list[idx].actif=!list[idx].actif;S.set('temoignages',list);renderTemoignages();}
+function delTemoignage(idx){if(!confirm('Supprimer ce temoignage ?'))return;var list=S.get('temoignages');list.splice(idx,1);S.set('temoignages',list);renderTemoignages();toast('Temoignage supprime.');}
+function loadHistoire(){var h=localStorage.getItem('mfhi5_histoire')||'';var el=document.getElementById('histoire-texte-admin');if(el)el.value=h;}
+function saveHistoire(){var texte=(document.getElementById('histoire-texte-admin').value||'').trim();localStorage.setItem('mfhi5_histoire',texte);toast('Histoire enregistree !');}
+function loadFrequences(){var freqs=JSON.parse(localStorage.getItem('mfhi5_freqs_accordeur')||'null');if(!freqs)return;if(freqs.hawai){['g','c','e','a'].forEach(function(k){var el=document.getElementById('freq-hawai-'+k);if(el)el.value=freqs.hawai[k];});}if(freqs.tahiti){['g','c','e','a'].forEach(function(k){var el=document.getElementById('freq-tahiti-'+k);if(el)el.value=freqs.tahiti[k];});}}
+function saveFrequences(){var f={hawai:{g:parseFloat(document.getElementById('freq-hawai-g').value)||392,c:parseFloat(document.getElementById('freq-hawai-c').value)||261.63,e:parseFloat(document.getElementById('freq-hawai-e').value)||329.63,a:parseFloat(document.getElementById('freq-hawai-a').value)||440},tahiti:{g:parseFloat(document.getElementById('freq-tahiti-g').value)||392,c:parseFloat(document.getElementById('freq-tahiti-c').value)||261.63,e:parseFloat(document.getElementById('freq-tahiti-e').value)||329.63,a:parseFloat(document.getElementById('freq-tahiti-a').value)||880}};localStorage.setItem('mfhi5_freqs_accordeur',JSON.stringify(f));toast('Frequences enregistrees !');}
+function toggleRecrutement(actif){localStorage.setItem('mfhi5_recrutement_actif',actif?'1':'');toast(actif?'Recrutement active !':'Recrutement desactive.');}
+function chargerRecrutementCheckbox(){var cb=document.getElementById('recrutement-actif');if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';}
+
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const app = initializeApp({apiKey:"AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",authDomain:"mf-harmonie-des-iles.firebaseapp.com",projectId:"mf-harmonie-des-iles",storageBucket:"mf-harmonie-des-iles.firebasestorage.app",messagingSenderId:"312842405867",appId:"1:312842405867:web:4ffc4656ab29070dbd3bae"});
+const db = getFirestore(app);
+window.saveEleveFirestore=async function(id,data){try{await setDoc(doc(db,'eleves',id),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn(e);}};
+window.saveConfigFirestore=async function(type,data){try{await setDoc(doc(db,'config',type),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn(e);}};
+window.syncFirestore=async function(){try{const[es,ps]=await Promise.all([getDocs(collection(db,'eleves')),getDocs(collection(db,'profs'))]);const eleves=[];es.forEach(d=>eleves.push(d.data()));localStorage.setItem('mfhi5_eleves',JSON.stringify(eleves));const profs=[];ps.forEach(d=>profs.push(d.data()));localStorage.setItem('mfhi5_profs',JSON.stringify(profs));if(typeof renderEleves==='function')renderEleves();if(typeof renderProfs==='function')renderProfs();if(typeof renderDashboard==='function')renderDashboard();if(typeof toast==='function')toast('Sync OK: '+eleves.length+' eleves, '+profs.length+' profs');}catch(e){console.warn(e);if(typeof toast==='function')toast('Sync echouee - mode local');}};
 </script>
 </body>
 </html>
