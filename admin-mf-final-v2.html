@@ -36,10 +36,16 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 /* NAV PRINCIPALE (5 sections) */
 .main-nav{display:flex;background:#0f0d08;border-bottom:2px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
 @media(min-width:600px){#hlink-site,#hlink-eleve,#hlink-prof{display:inline-block !important;}}
-.main-btn{flex-shrink:0;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:13px 8px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .2s;}
+.main-btn{flex-shrink:0;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:13px 12px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:color .2s;}
 .main-btn:hover{color:var(--blanc);}
 .main-btn.on{color:var(--orL);border-bottom-color:var(--or);background:rgba(201,146,42,.05);}
-@media(min-width:600px){.main-btn{font-size:10px;letter-spacing:1px;padding:13px 12px;}}
+.main-btn .btn-txt{display:inline;}
+.main-btn .btn-ico{display:none;font-size:18px;}
+@media(max-width:599px){
+  .main-btn{padding:10px 14px;}
+  .main-btn .btn-txt{display:none;}
+  .main-btn .btn-ico{display:inline;}
+}
 
 /* SECTIONS */
 .section{display:none;}
@@ -225,11 +231,11 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 
   <!-- NAV 5 SECTIONS -->
   <div class="main-nav">
-    <button class="main-btn on" onclick="goSection('pilotage',this)">🏠 Accueil & Pilotage</button>
-    <button class="main-btn" onclick="goSection('users',this)">👥 Utilisateurs</button>
-    <button class="main-btn" onclick="goSection('planning',this)">📅 Planification</button>
-    <button class="main-btn" onclick="goSection('studio',this)">🎵 Studio Musique</button>
-    <button class="main-btn" onclick="goSection('comms',this)">📢 Communication</button>
+    <button class="main-btn on" onclick="goSection('pilotage',this)"><span class="btn-ico">🏠</span><span class="btn-txt">🏠 Accueil & Pilotage</span></button>
+    <button class="main-btn" onclick="goSection('users',this)"><span class="btn-ico">👥</span><span class="btn-txt">👥 Utilisateurs</span></button>
+    <button class="main-btn" onclick="goSection('planning',this)"><span class="btn-ico">📅</span><span class="btn-txt">📅 Planification</span></button>
+    <button class="main-btn" onclick="goSection('studio',this)"><span class="btn-ico">🎵</span><span class="btn-txt">🎵 Studio Musique</span></button>
+    <button class="main-btn" onclick="goSection('comms',this)"><span class="btn-ico">📢</span><span class="btn-txt">📢 Communication</span></button>
   </div>
 
   <!-- ═══════════════════════════════════════════
