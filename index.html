@@ -537,6 +537,14 @@ window.sauvegarderEleveFirestore = async function(eleve) {
   } catch(e){console.error('Firestore élève:',e);return false;}
 };
 
+window.sauvegarderAbonneFirestore = async function(abonne) {
+  try {
+    await setDoc(doc(db,'abonnes',abonne.identifiant),{...abonne,dateCreation:serverTimestamp()});
+    await addDoc(collection(db,'notifications'),{nom:abonne.nom,identifiant:abonne.identifiant,formule:abonne.formule,type:'abonne-en-ligne',needsValidation:false,date:new Date().toLocaleDateString('fr-FR'),lu:false,createdAt:serverTimestamp()});
+    return true;
+  } catch(e){console.error('Firestore abonné:',e);return false;}
+};
+
 window.sauvegarderProfFirestore = async function(prof) {
   try {
     await setDoc(doc(db,'profs',prof.identifiant),{...prof,dateCreation:serverTimestamp()});
@@ -553,10 +561,20 @@ window.verifierDoublon = async function(identifiant,col) {
 // CONNEXION UNIQUE — cherche dans élèves puis profs
 window.chercherUtilisateurFirestore = async function(identifiant) {
   try {
-    // Détecter la collection par préfixe
-    const col = identifiant.startsWith('PROF_') ? 'profs' : 'eleves';
-    const snap = await getDoc(doc(db,col,identifiant));
-    if(snap.exists()) return {data:snap.data(),type:col==='profs'?'prof':'eleve'};
+    if(identifiant.startsWith('PROF_')) {
+      const snap = await getDoc(doc(db,'profs',identifiant));
+      if(snap.exists()) return {data:snap.data(),type:'prof'};
+      return null;
+    }
+    // Chercher dans eleves d'abord
+    const snapE = await getDoc(doc(db,'eleves',identifiant));
+    if(snapE.exists()) return {data:snapE.data(),type:'eleve'};
+    // Puis dans abonnes
+    const snapA = await getDoc(doc(db,'abonnes',identifiant));
+    if(snapA.exists()) {
+      const data = {...snapA.data(), typeInscription:'en-ligne'};
+      return {data, type:'eleve'};
+    }
     return null;
   } catch(e){return null;}
 };
@@ -777,7 +795,29 @@ async function soumettre(){
     progression:0,parcours:[],chansons:[],notes:[]
   };
   if(window.sauvegarderEleveFirestore)await window.sauvegarderEleveFirestore(eleveData);
-  var eleves=JSON.parse(localStorage.getItem('mfhi5_eleves')||'[]');eleves.push(eleveData);localStorage.setItem('mfhi5_eleves',JSON.stringify(eleves));
+
+  // Sauvegarder dans la bonne liste selon le type
+  if(typeInscription==='en-ligne'){
+    // Abonné en ligne → liste abonnes
+    var abonnes=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
+    var abonneData={
+      id:eleveData.id,nom:eleveData.nom,email:eleveData.mail,
+      formule:eleveData.formule,pays:eleveData.adresse||'Polynésie française',
+      date:eleveData.dateInscription,statut:'actif',
+      identifiant:eleveData.identifiant,mdp:eleveData.code,code:eleveData.code,
+      typeInscription:'en-ligne',actif:true
+    };
+    abonnes.push(abonneData);
+    localStorage.setItem('mfhi5_abonnes',JSON.stringify(abonnes));
+    // Aussi dans Firestore collection abonnes
+    if(window.sauvegarderAbonneFirestore)await window.sauvegarderAbonneFirestore(abonneData);
+  } else {
+    // Élève domicile → liste eleves
+    var eleves=JSON.parse(localStorage.getItem('mfhi5_eleves')||'[]');
+    eleves.push(eleveData);
+    localStorage.setItem('mfhi5_eleves',JSON.stringify(eleves));
+  }
+
   var notifs=JSON.parse(localStorage.getItem('mfhi5_notifs')||'[]');
   notifs.unshift({nom:prenom+' '+nom,identifiant:identifiant,formule:formule,type:typeInscription,needsValidation:!accesImmediat,date:new Date().toLocaleDateString('fr-FR'),lu:false});
   localStorage.setItem('mfhi5_notifs',JSON.stringify(notifs));
@@ -812,11 +852,17 @@ async function seConnecter(){
   var utilisateur=null;
   // Chercher dans Firestore
   if(window.chercherUtilisateurFirestore){utilisateur=await window.chercherUtilisateurFirestore(id);}
-  // Fallback localStorage
+  // Fallback localStorage — chercher dans eleves ET abonnes
   if(!utilisateur){
     var col=id.startsWith('PROF_')?'profs':'eleves';
     var list=JSON.parse(localStorage.getItem('mfhi5_'+col)||'[]');
     var found=list.find(u=>u.identifiant===id&&u.actif!==false);
+    // Si pas dans eleves → chercher dans abonnes
+    if(!found&&col==='eleves'){
+      var abonnesLocal=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
+      var foundAbo=abonnesLocal.find(a=>a.identifiant===id&&a.actif!==false);
+      if(foundAbo){foundAbo.typeInscription='en-ligne';found=foundAbo;}
+    }
     if(found)utilisateur={data:found,type:col==='profs'?'prof':'eleve'};
   }
   if(btn){btn.disabled=false;btn.textContent='Se connecter →';}

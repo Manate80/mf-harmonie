@@ -691,6 +691,16 @@ window.getEleveFirestore = async function(identifiant) {
   } catch(e) { console.warn('getEleveFirestore:', e); return null; }
 };
 
+// Chercher abonné dans Firestore
+window.getAbonneFirestore = async function(identifiant) {
+  try {
+    const docRef = doc(db, 'abonnes', identifiant);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return docSnap.data();
+    return null;
+  } catch(e) { console.warn('getAbonneFirestore:', e); return null; }
+};
+
 // Sauvegarder progression élève dans Firestore
 window.saveProgressionFirestore = async function(identifiant, data) {
   try {
@@ -774,22 +784,31 @@ async function seConnecter() {
 
   let el = null;
 
-  // 1. Chercher dans Firestore (priorité)
+  // 1. Chercher dans Firestore (priorité) — eleves puis abonnes
   if (window.getEleveFirestore) {
     el = await window.getEleveFirestore(id);
+    if (!el && window.getAbonneFirestore) {
+      const abo = await window.getAbonneFirestore(id);
+      if (abo) { abo.typeInscription = 'en-ligne'; el = abo; }
+    }
     if (el) {
-      // Mettre à jour localStorage avec les données Firestore
-      const eleves = LS.getArr('eleves');
-      const idx = eleves.findIndex(e => e.identifiant === id);
-      if (idx >= 0) eleves[idx] = el; else eleves.push(el);
-      LS.set('eleves', eleves);
+      const col = el.typeInscription === 'en-ligne' ? 'abonnes' : 'eleves';
+      const list = LS.getArr(col);
+      const idx = list.findIndex(e => e.identifiant === id);
+      if (idx >= 0) list[idx] = el; else list.push(el);
+      LS.set(col, list);
     }
   }
 
-  // 2. Fallback localStorage si Firestore échoue
+  // 2. Fallback localStorage — eleves puis abonnes
   if (!el) {
     const eleves = LS.getArr('eleves');
     el = eleves.find(e => e.identifiant === id && e.actif !== false) || null;
+    if (!el) {
+      const abonnes = LS.getArr('abonnes');
+      const abo = abonnes.find(a => a.identifiant === id && a.actif !== false) || null;
+      if (abo) { abo.typeInscription = 'en-ligne'; el = abo; }
+    }
   }
 
   if (!el || (el.mdp !== code && el.code !== code)) {
@@ -825,14 +844,32 @@ function lancerApp() {
   document.getElementById('app-avatar').textContent = ini(eleveActif.nom || nomAff);
   document.getElementById('app-nom').textContent = nomAff;
   document.getElementById('app-formule').textContent = eleveActif.formule || 'Cours domicile';
+
+  // Détecter si abonné en ligne → masquer les outils musicaux
+  const estAbonne = eleveActif.typeInscription === 'en-ligne' || 
+    (eleveActif.formule && ['Basique','Starter','Immersion','Premium','Coaching'].some(f => (eleveActif.formule||'').includes(f)));
+  
+  if (estAbonne) {
+    // Abonné en ligne : masquer page outils et nav outils
+    const pageOutils = document.getElementById('page-outils');
+    if (pageOutils) pageOutils.style.display = 'none';
+    // Masquer bouton nav outils
+    const navOutils = document.getElementById('tm-outils');
+    if (navOutils) navOutils.style.display = 'none';
+    const tdOutils = document.querySelector('[onclick*="outils"]');
+    if (tdOutils) tdOutils.style.display = 'none';
+  }
+
   // Pages
   chargerStudio();
   chargerSuivi();
   chargerCompte();
-  initMetroBeat();
-  initDictionnaire();
-  initFrappes();
-  initAccordeur();
+  if (!estAbonne) {
+    initMetroBeat();
+    initDictionnaire();
+    initFrappes();
+    initAccordeur();
+  }
   verifierNotifs();
   chargerCoaching();
 }
@@ -841,8 +878,15 @@ function lancerApp() {
 window.addEventListener('DOMContentLoaded', () => {
   const session = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
   if (session.identifiant) {
+    // Chercher dans eleves d'abord
     const eleves = LS.getArr('eleves');
-    const el = eleves.find(e => e.identifiant === session.identifiant && e.actif !== false && e.statut !== 'En attente de confirmation');
+    let el = eleves.find(e => e.identifiant === session.identifiant && e.actif !== false && e.statut !== 'En attente de confirmation');
+    // Si pas trouvé → chercher dans abonnes
+    if (!el) {
+      const abonnes = LS.getArr('abonnes');
+      const abo = abonnes.find(a => a.identifiant === session.identifiant && a.actif !== false);
+      if (abo) { abo.typeInscription = 'en-ligne'; el = abo; }
+    }
     if (el) { eleveActif = el; lancerApp(); }
   }
 });
@@ -865,15 +909,66 @@ function showPage(id, btn) {
 // ══ STUDIO ══
 var biblioView = 'rythmes';
 
+// Formules et accès aux contenus
+const ACCES_FORMULE = {
+  'Basique':    ['basique'],
+  'Starter':    ['basique','starter'],
+  'Immersion':  ['basique','starter','immersion'],
+  'Premium':    ['basique','starter','immersion','premium'],
+  'Coaching':   ['basique','starter','immersion','premium','coaching'],
+  'domicile':   ['basique','starter','immersion','premium','coaching'] // accès complet
+};
+
+function getAccesEleve() {
+  const formule = eleveActif.formule || '';
+  for (const [key, acces] of Object.entries(ACCES_FORMULE)) {
+    if (formule.includes(key)) return acces;
+  }
+  return ACCES_FORMULE['domicile']; // domicile = accès complet
+}
+
+function chansonAccessible(c) {
+  const estAbonne = eleveActif.typeInscription === 'en-ligne';
+  
+  // Élève domicile → seulement ses chansons assignées
+  if (!estAbonne) {
+    if (!eleveActif.chansons) return false;
+    return eleveActif.chansons.includes(c.id) || eleveActif.chansons.includes(String(c.id));
+  }
+  
+  // Abonné en ligne → filtrer par formule
+  if (c.statut !== 'valide') return false;
+  
+  // Si la chanson n'a pas de formule définie → accessible à tous les abonnés
+  if (!c.form || !Array.isArray(c.form) || c.form.length === 0) return true;
+  
+  // Détecter la formule de l'abonné
+  const formuleAbonne = eleveActif.formule || '';
+  const FORMULE_KEY = {
+    'Basique': 'basique',
+    'Starter': 'starter',
+    'Immersion': 'immersion',
+    'Premium': 'premium',
+    'Coaching': 'coaching'
+  };
+  
+  // Trouver la clé de formule de l'abonné
+  let cleAbonne = 'basique';
+  for (const [label, cle] of Object.entries(FORMULE_KEY)) {
+    if (formuleAbonne.includes(label)) { cleAbonne = cle; break; }
+  }
+  
+  // Hiérarchie des formules — une formule supérieure donne accès aux inférieures
+  const HIERARCHIE = ['basique','starter','immersion','premium','coaching'];
+  const niveauAbonne = HIERARCHIE.indexOf(cleAbonne);
+  
+  // La chanson est accessible si l'abonné a au moins une des formules requises
+  return c.form.some(f => HIERARCHIE.indexOf(f) <= niveauAbonne);
+}
+
 function chargerStudio() {
-  // Filtrer : seulement chansons validées ET (chansonsVisibles=true OU assignées à l'élève)
   const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
-  const chansonsEleve = eleveActif && eleveActif.chansonsVisibles ? toutesChansons :
-    toutesChansons.filter(c => {
-      if (eleveActif && eleveActif.chansons && eleveActif.chansons.includes(c.id)) return true;
-      if (eleveActif && eleveActif.chansons && eleveActif.chansons.includes(String(c.id))) return true;
-      return false;
-    });
+  const chansonsEleve = toutesChansons.filter(c => chansonAccessible(c));
   chargerBibliotheque(chansonsEleve);
   chargerCoursSemaine();
 }
