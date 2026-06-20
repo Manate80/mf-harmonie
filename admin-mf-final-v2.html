@@ -314,15 +314,15 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div class="card-title">Tarifs abonnements en ligne</div>
         <div class="row2">
           <div class="fg"><label>Basique (XPF)</label><input type="number" id="t-basique" value="1500"></div>
-          <div class="fg"><label>Starter (XPF)</label><input type="number" id="t-starter" value="3500"></div>
+          <div class="fg"><label>Starter (XPF)</label><input type="number" id="t-starter" value="2800"></div>
         </div>
         <div class="row2">
-          <div class="fg"><label>Immersion Reo (XPF)</label><input type="number" id="t-chanson" value="4500"></div>
-          <div class="fg"><label>Premium (XPF)</label><input type="number" id="t-premium" value="7500"></div>
+          <div class="fg"><label>Immersion Reo Māʼohi (XPF)</label><input type="number" id="t-chanson" value="4000"></div>
+          <div class="fg"><label>Premium (XPF)</label><input type="number" id="t-premium" value="5800"></div>
         </div>
         <div class="row2">
           <div class="fg"><label>Coaching Vidéo (XPF)</label><input type="number" id="t-coaching" value="12000"></div>
-          <div class="fg"><label>Premium + Prof (XPF)</label><input type="number" id="t-profabo" value="14000"></div>
+          <div class="fg"><label>Cours Privés Tahiti (XPF)</label><input type="number" id="t-profabo" value="14000"></div>
         </div>
         <button class="btn" onclick="saveTarifsAbo()">💾 Enregistrer tarifs abonnements</button>
       </div>
@@ -352,6 +352,13 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div class="fg"><label>Témoignage *</label><textarea id="tem-texte" placeholder="J'ai découvert le ukulélé..." style="min-height:80px;"></textarea></div>
           <button class="btn" onclick="addTemoignage()">✚ Ajouter ce témoignage</button>
         </div>
+      </div>
+
+      <!-- MODÉRATION VIDÉOS ENVOYÉES PAR ABONNÉS -->
+      <div class="card" style="border-color:rgba(0,188,212,.4);">
+        <div class="card-title" style="color:#00bcd4;">🎬 Vidéos envoyées par les abonnés (à valider)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Les abonnés peuvent envoyer une vidéo d'eux qui jouent, avec accord pour usage en témoignage. Validez ici celles que vous souhaitez publier sur l'accueil.</p>
+        <div id="list-videos-temoignages"></div>
       </div>
 
       <!-- HISTOIRE -->
@@ -441,7 +448,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div class="abo-card vert"><div class="abo-name">🌺 Immersion Reo</div><div class="abo-prix">4 500 XPF</div><div class="abo-nb">Abonnés : <strong id="cnt-chanson">0</strong></div><div class="abo-rev" id="rev-chanson">0 XPF</div></div>
         <div class="abo-card"><div class="abo-name">⭐ Premium</div><div class="abo-prix">7 500 XPF</div><div class="abo-nb">Abonnés : <strong id="cnt-premium">0</strong></div><div class="abo-rev" id="rev-premium">0 XPF</div></div>
         <div class="abo-card violet"><div class="abo-name">🌍 Coaching Vidéo</div><div class="abo-prix">12 000 XPF</div><div class="abo-nb">Abonnés : <strong id="cnt-coaching">0</strong> <span style="color:#9b59b6;font-size:10px;">/20</span></div><div class="abo-rev" id="rev-coaching">0 XPF</div></div>
-        <div class="abo-card rouge"><div class="abo-name">🌺 Premium + Prof</div><div class="abo-prix">14 000 XPF</div><div class="abo-nb">Abonnés : <strong id="cnt-profabo">0</strong></div><div class="abo-rev" id="rev-profabo">0 XPF</div></div>
+        <div class="abo-card rouge"><div class="abo-name">🏠 Cours Privés Tahiti</div><div class="abo-prix">14 000 XPF</div><div class="abo-nb">Abonnés : <strong id="cnt-profabo">0</strong></div><div class="abo-rev" id="rev-profabo">0 XPF</div></div>
       </div>
       <div class="card">
         <div class="card-title">Ajouter un abonné</div>
@@ -457,7 +464,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
               <option value="chanson">Immersion Reo — 4 500 XPF</option>
               <option value="premium">Premium — 7 500 XPF</option>
               <option value="coaching">Coaching Vidéo — 12 000 XPF</option>
-              <option value="profabo">Premium + Prof — 14 000 XPF</option>
+              <option value="profabo">Cours Privés Tahiti — 14 000 XPF</option>
             </select>
           </div>
           <div class="fg"><label>Pays</label><input id="a-pays" placeholder="France, NZ…"></div>
@@ -1253,7 +1260,7 @@ const fd=k=>{if(!k)return'—';const[y,m,d]=k.split('-');return d+' '+MOIS_C[par
 const genId=(nom,tel)=>{const p=(nom||'').split(' ')[0]||'';const l=p.replace(/[^A-Za-z]/g,'').substring(0,3).toUpperCase().padEnd(3,'X');const c=(tel||'').replace(/\D/g,'').slice(-3).padStart(3,'0');return l+c;};
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');setTimeout(()=>el.classList.remove('on'),2800);}
 function log(msg){const a=S.get('log');a.unshift({msg,d:new Date().toLocaleString('fr-FR')});if(a.length>30)a.pop();S.set('log',a);}
-function getTarifs(){return{basique:parseInt(localStorage.getItem('mfhi5_t_basique'))||1500,starter:parseInt(localStorage.getItem('mfhi5_t_starter'))||3500,chanson:parseInt(localStorage.getItem('mfhi5_t_chanson'))||4500,premium:parseInt(localStorage.getItem('mfhi5_t_premium'))||7500,coaching:parseInt(localStorage.getItem('mfhi5_t_coaching'))||12000,profabo:parseInt(localStorage.getItem('mfhi5_t_profabo'))||14000};}
+function getTarifs(){return{basique:parseInt(localStorage.getItem('mfhi5_t_basique'))||1500,starter:parseInt(localStorage.getItem('mfhi5_t_starter'))||2800,chanson:parseInt(localStorage.getItem('mfhi5_t_chanson'))||4000,premium:parseInt(localStorage.getItem('mfhi5_t_premium'))||5800,coaching:parseInt(localStorage.getItem('mfhi5_t_coaching'))||12000,profabo:parseInt(localStorage.getItem('mfhi5_t_profabo'))||14000};}
 
 // ════ LOGIN ════
 function login(){
@@ -1317,7 +1324,7 @@ function closeModal(id){document.getElementById(id).classList.remove('on');}
 
 // ════ INIT ════
 function initApp(){
-  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();if(typeof renderTemoignages==='function')renderTemoignages();if(typeof loadHistoire==='function')loadHistoire();if(typeof loadFrequences==='function')loadFrequences();setTimeout(function(){if(window.syncFirestore)window.syncFirestore();},1000);
+  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();if(typeof renderTemoignages==='function')renderTemoignages();if(typeof renderVideosTemoignages==='function')renderVideosTemoignages();if(typeof loadHistoire==='function')loadHistoire();if(typeof loadFrequences==='function')loadFrequences();setTimeout(function(){if(window.syncFirestore)window.syncFirestore();},1000);
   const a=S.get('log');
   document.getElementById('activite').innerHTML=a.length?a.slice(0,10).map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px;"><span>'+x.msg+'</span><span style="color:var(--muted);font-size:10px;white-space:nowrap;">'+x.d+'</span></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucune activité.</p>';
 }
@@ -1510,7 +1517,7 @@ function renderCoursEl(el){const cours=S.get('cours').filter(c=>c.eleveId===el.i
 
 // ════ ABONNÉS ════
 function addAbonne(){const nom=document.getElementById('a-nom').value.trim();if(!nom){toast('⚠ Nom requis');return;}const list=S.get('abonnes');list.push({id:Date.now(),nom,email:document.getElementById('a-email').value,formule:document.getElementById('a-formule').value,pays:document.getElementById('a-pays').value,date:document.getElementById('a-date').value||new Date().toISOString().slice(0,10),statut:document.getElementById('a-statut').value});S.set('abonnes',list);log('Abonné ajouté : '+nom);['a-nom','a-email','a-pays'].forEach(x=>document.getElementById(x).value='');renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('✔ Abonné ajouté !');}
-function renderAbonnes(){const list=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Premium + Prof'};el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;"><div style="flex:1;min-width:120px;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+a.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(a.email||'—')+' · '+(a.pays||'—')+'</div></div><span class="badge b-or">'+(lbl[a.formule]||a.formule)+'</span><span class="badge '+(a.statut==='actif'?'b-vert':'b-orange')+'">'+(a.statut==='actif'?'Actif':'Attente')+'</span><button class="danger" onclick="delAbonne('+a.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun abonné.</p>';}
+function renderAbonnes(){const list=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;"><div style="flex:1;min-width:120px;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+a.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(a.email||'—')+' · '+(a.pays||'—')+'</div></div><span class="badge b-or">'+(lbl[a.formule]||a.formule)+'</span><span class="badge '+(a.statut==='actif'?'b-vert':'b-orange')+'">'+(a.statut==='actif'?'Actif':'Attente')+'</span><button class="danger" onclick="delAbonne('+a.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun abonné.</p>';}
 function delAbonne(id){if(!confirm('Supprimer ?'))return;S.set('abonnes',S.get('abonnes').filter(a=>a.id!==id));renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('Supprimé.');}
 function renderAbonnesCards(){const list=S.get('abonnes').filter(a=>a.statut==='actif');const t=getTarifs();['basique','starter','chanson','premium','coaching','profabo'].forEach(f=>{const cnt=list.filter(a=>a.formule===f).length;const rev=cnt*(t[f]||0);const ce=document.getElementById('cnt-'+f);const re=document.getElementById('rev-'+f);if(ce)ce.textContent=cnt;if(re)re.textContent=fmt(rev)+' XPF';});const nc=list.filter(a=>a.formule==='coaching').length;if(document.getElementById('co-occ'))document.getElementById('co-occ').textContent=nc;if(document.getElementById('co-libre'))document.getElementById('co-libre').textContent=20-nc;if(document.getElementById('co-rev'))document.getElementById('co-rev').textContent=fmt(nc*(t.coaching||12000))+' XPF';if(document.getElementById('co-temps'))document.getElementById('co-temps').textContent=(nc*15)+' min';}
 
@@ -2511,6 +2518,45 @@ function renderTemoignages(){var list=S.get('temoignages');var el=document.getEl
 function addTemoignage(){var auteur=(document.getElementById('tem-auteur').value||'').trim();var texte=(document.getElementById('tem-texte').value||'').trim();var formule=(document.getElementById('tem-formule').value||'').trim();if(!auteur||!texte){toast('Auteur et temoignage requis');return;}var list=S.get('temoignages');if(list.length>=6){toast('Maximum 6 temoignages');return;}list.push({id:Date.now(),auteur:auteur,texte:texte,formule:formule,actif:true});S.set('temoignages',list);['tem-auteur','tem-texte','tem-formule'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});renderTemoignages();toast('Temoignage ajoute !');}
 function toggleTemoignage(idx){var list=S.get('temoignages');if(!list[idx])return;list[idx].actif=!list[idx].actif;S.set('temoignages',list);renderTemoignages();}
 function delTemoignage(idx){if(!confirm('Supprimer ce temoignage ?'))return;var list=S.get('temoignages');list.splice(idx,1);S.set('temoignages',list);renderTemoignages();toast('Temoignage supprime.');}
+
+// ════ VIDÉOS TÉMOIGNAGES ENVOYÉES PAR ABONNÉS ════
+function renderVideosTemoignages(){
+  var list=S.get('videos_temoignages');
+  var el=document.getElementById('list-videos-temoignages');if(!el)return;
+  if(!list.length){el.innerHTML='<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucune vidéo envoyée pour le moment.</p>';return;}
+  el.innerHTML=list.map(function(v,i){
+    return '<div style="padding:14px 0;border-bottom:1px solid var(--border);">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">'+
+    '<div><div style="font-weight:700;color:var(--orL);font-size:13px;">'+(v.nom||'Anonyme')+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);">'+(v.formule||'')+' · '+(v.date||'')+'</div></div>'+
+    '<span class="badge '+(v.accordImage?'b-vert':'b-orange')+'">'+(v.accordImage?'✓ Accord image':'⚠ Pas d\'accord')+'</span>'+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--blanc);font-style:italic;margin-bottom:8px;">"'+(v.message||'')+'"</div>'+
+    '<div style="font-size:11px;color:#00bcd4;margin-bottom:10px;word-break:break-all;">🔗 '+(v.lien||'—')+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+    '<span class="badge '+(v.statut==='publie'?'b-vert':v.statut==='rejete'?'b-rouge':'b-orange')+'">'+(v.statut==='publie'?'✓ Publié':v.statut==='rejete'?'✕ Rejeté':'⏳ En attente')+'</span>'+
+    (v.statut!=='publie'?'<button class="btn-sm" onclick="publierVideoTemoignage('+i+')" '+(!v.accordImage?'disabled title="Accord image requis"':'')+'>✓ Publier en témoignage</button>':'')+
+    (v.statut!=='rejete'?'<button class="btn-sm" onclick="rejeterVideoTemoignage('+i+')">✕ Rejeter</button>':'')+
+    '<button class="danger" onclick="delVideoTemoignage('+i+')">🗑</button>'+
+    '</div></div>';
+  }).join('');
+}
+function publierVideoTemoignage(idx){
+  var list=S.get('videos_temoignages');if(!list[idx])return;
+  if(!list[idx].accordImage){toast('⚠ Accord droit à l\'image requis pour publier');return;}
+  list[idx].statut='publie';S.set('videos_temoignages',list);
+  // Ajouter aussi dans les témoignages affichés sur l'accueil
+  var temoignages=S.get('temoignages');
+  if(temoignages.length<6){
+    temoignages.push({id:Date.now(),auteur:list[idx].nom||'Abonné MF Harmonie',texte:list[idx].message||'',formule:list[idx].formule||'',video:list[idx].lien,actif:true});
+    S.set('temoignages',temoignages);
+    renderTemoignages();
+  }
+  renderVideosTemoignages();
+  toast('✅ Vidéo publiée en témoignage !');
+}
+function rejeterVideoTemoignage(idx){var list=S.get('videos_temoignages');if(!list[idx])return;list[idx].statut='rejete';S.set('videos_temoignages',list);renderVideosTemoignages();toast('Vidéo rejetée.');}
+function delVideoTemoignage(idx){if(!confirm('Supprimer cette vidéo définitivement ?'))return;var list=S.get('videos_temoignages');list.splice(idx,1);S.set('videos_temoignages',list);renderVideosTemoignages();toast('Vidéo supprimée.');}
 function loadHistoire(){var h=localStorage.getItem('mfhi5_histoire')||'';var el=document.getElementById('histoire-texte-admin');if(el)el.value=h;}
 function saveHistoire(){var texte=(document.getElementById('histoire-texte-admin').value||'').trim();localStorage.setItem('mfhi5_histoire',texte);toast('Histoire enregistree !');}
 function loadFrequences(){var freqs=JSON.parse(localStorage.getItem('mfhi5_freqs_accordeur')||'null');if(!freqs)return;if(freqs.hawai){['g','c','e','a'].forEach(function(k){var el=document.getElementById('freq-hawai-'+k);if(el)el.value=freqs.hawai[k];});}if(freqs.tahiti){['g','c','e','a'].forEach(function(k){var el=document.getElementById('freq-tahiti-'+k);if(el)el.value=freqs.tahiti[k];});}}
@@ -2552,10 +2598,11 @@ window.saveConfigFirestore=async function(type,data){try{await setDoc(doc(db,'co
 // Sync intelligent — respecte les modifications locales récentes
 window.syncFirestore=async function(){
   try{
-    const[es,ps,as]=await Promise.all([
+    const[es,ps,as,vs]=await Promise.all([
       getDocs(collection(db,'eleves')),
       getDocs(collection(db,'profs')),
-      getDocs(collection(db,'abonnes'))
+      getDocs(collection(db,'abonnes')),
+      getDocs(collection(db,'videos_temoignages'))
     ]);
     // Élèves
     const firestoreEleves=[];es.forEach(d=>firestoreEleves.push(d.data()));
@@ -2587,10 +2634,21 @@ window.syncFirestore=async function(){
     });
     localAbonnes.forEach(la=>{if(!mergedAbonnes.find(ma=>ma.identifiant===la.identifiant))mergedAbonnes.push(la);});
     localStorage.setItem('mfhi5_abonnes',JSON.stringify(mergedAbonnes));
+    // Vidéos témoignages (Firestore prioritaire, fusion avec statuts locaux déjà traités)
+    const firestoreVideos=[];vs.forEach(d=>firestoreVideos.push({id:d.id,...d.data()}));
+    const localVideos=JSON.parse(localStorage.getItem('mfhi5_videos_temoignages')||'[]');
+    const mergedVideos=firestoreVideos.map(fv=>{
+      const local=localVideos.find(lv=>String(lv.id)===String(fv.id)||(lv.identifiant===fv.identifiant&&lv.date===fv.date));
+      if(local&&local.statut&&local.statut!=='en_attente')return local;
+      return fv;
+    });
+    localVideos.forEach(lv=>{if(!mergedVideos.find(mv=>String(mv.id)===String(lv.id)))mergedVideos.push(lv);});
+    localStorage.setItem('mfhi5_videos_temoignages',JSON.stringify(mergedVideos));
     // Refresh
     if(typeof renderEleves==='function')renderEleves();
     if(typeof renderProfs==='function')renderProfs();
     if(typeof renderAbonnes==='function'){renderAbonnes();renderAbonnesCards();}
+    if(typeof renderVideosTemoignages==='function')renderVideosTemoignages();
     if(typeof renderDashboard==='function')renderDashboard();
     if(typeof toast==='function')toast('🔄 Sync OK: '+mergedEleves.length+' élèves · '+mergedProfs.length+' profs · '+mergedAbonnes.length+' abonnés');
   }catch(e){

@@ -190,8 +190,8 @@ footer a{color:var(--or);text-decoration:none;}
   </div>
   <div class="hero">
     <div class="hero-badge">Polynésie Française · Tahiti</div>
-    <h1>L'art du <em>ukulélé</em><br>à votre porte</h1>
-    <p>Cours personnalisés à domicile, supports pédagogiques exclusifs en reo mā'ohi, et une communauté musicale chaleureuse.</p>
+    <h1>Recréez l'ambiance de <em>Tahiti</em><br>où que vous soyez</h1>
+    <p>Les chansons de vos bringues familiales, avec les accords et les paroles en reo māʼohi — pour chanter ensemble comme à la maison.</p>
     <div class="hero-btns">
       <button class="btn-or" onclick="showPage('inscriptions')">S'inscrire maintenant</button>
       <button class="btn-outline" onclick="showPage('tarifs')">Voir les tarifs</button>
@@ -226,10 +226,10 @@ footer a{color:var(--or);text-decoration:none;}
     <div class="section-title">Pourquoi choisir MF Harmonie des Îles ?</div>
     <div class="divider"></div>
     <div class="features-grid">
-      <div class="feature-card"><div class="feature-icon">🎸</div><h3>Cours à domicile</h3><p>Votre professeur se déplace chez vous. Apprenez dans le confort de votre foyer, à Tahiti.</p></div>
-      <div class="feature-card"><div class="feature-icon">🌺</div><h3>Répertoire polynésien</h3><p>Paroles en reo mā'ohi, himene, chants traditionnels. Une pédagogie ancrée dans la culture locale.</p></div>
-      <div class="feature-card"><div class="feature-icon">📱</div><h3>Supports numériques</h3><p>Accédez à vos partitions, accords, traductions et outils musicaux depuis votre espace élève.</p></div>
-      <div class="feature-card"><div class="feature-icon">👨‍🏫</div><h3>Profs patentés</h3><p>Des enseignants certifiés et passionnés, sélectionnés pour leur maîtrise musicale.</p></div>
+      <div class="feature-card"><div class="feature-icon">📺</div><h3>Bringue façon karaoké</h3><p>Projetez sur votre TV, suivez les accords en famille, et chantez ensemble — comme à Tahiti, où que vous soyez dans le monde.</p></div>
+      <div class="feature-card"><div class="feature-icon">🌺</div><h3>Répertoire introuvable ailleurs</h3><p>Paroles en reo mā'ohi, himene, chants de bringue traditionnels — un répertoire unique, ancré dans la culture polynésienne.</p></div>
+      <div class="feature-card"><div class="feature-icon">🏠</div><h3>Cours à domicile</h3><p>Votre professeur se déplace chez vous à Tahiti. Apprenez dans le confort de votre foyer.</p></div>
+      <div class="feature-card"><div class="feature-icon">📱</div><h3>Supports numériques</h3><p>Vidéos, audio multi-pistes, traduction, métronome et accordeur depuis votre espace personnel.</p></div>
     </div>
   </div>
 
@@ -249,13 +249,26 @@ footer a{color:var(--or);text-decoration:none;}
       <div class="section-label">Notre histoire</div>
       <div class="section-title" style="font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.5rem);font-weight:700;margin-bottom:20px;">L'origine de MF Harmonie des Îles</div>
       <div class="divider"></div>
-      <div class="histoire-texte" id="histoire-texte"></div>
+      <div class="histoire-texte" id="histoire-texte">Né à Tahiti, passionné de ukulélé depuis l'enfance, Manate a passé des années comme responsable artistique sur les plus grands navires de croisière du monde. Sa philosophie : former jusqu'à ce que l'autre n'ait plus besoin de toi.
+
+Aujourd'hui il met cette passion au service de sa culture polynésienne. Parce que le reo māʼohi mérite d'être chanté partout dans le monde. Parce que la musique polynésienne mérite d'être transmise avec respect, passion et excellence.
+
+MF Harmonie des Îles — né à Tahiti, pour le monde entier.
+
+— Notre vision —
+
+Ici vous n'êtes pas un abonné à vie. Vous êtes un musicien en devenir. Commencez par le Basique, montez si vous en avez besoin, redescendez quand vous maîtrisez. C'est vous qui décidez.
+
+— Le futur —
+
+MF Harmonie des Îles ne s'arrête pas à un écran. Bientôt des événements culturels, des stages à Tahiti, des rencontres entre abonnés. Le site grandit avec vous, chanson après chanson.</div>
     </div>
   </div>
 
   <footer>
     <div class="footer-logo">MF Harmonie des Îles</div>
     <p>École de Ukulélé · Polynésie Française · <a href="#" onclick="showPage('connexion');return false;">Espace membres</a></p>
+    <p style="font-size:0.7rem;color:var(--texte-dim);margin-top:12px;opacity:0.7;">L'abonnement est strictement personnel. Toute utilisation commerciale ou d'enseignement payant du contenu est interdite.</p>
   </footer>
 </div>
 
@@ -272,7 +285,7 @@ footer a{color:var(--or);text-decoration:none;}
   </div>
   <div class="tarif-grid" style="max-width:400px;">
     <div class="tarif-card featured">
-      <div class="tarif-badge">🌺 Premium + Professeur</div>
+      <div class="tarif-badge">🏠 Cours Privés Tahiti</div>
       <h3>Cours à domicile · Tahiti</h3>
       <div class="type">Tahiti uniquement</div>
       <div class="tarif-price"><span id="prix-dom-tarif">14 000</span> <span>XPF/mois</span></div>
@@ -442,7 +455,7 @@ footer a{color:var(--or);text-decoration:none;}
     <div class="connexion-sub">Entrez votre identifiant et votre code d'accès.<br>Élève, professeur — tout le monde se connecte ici.</div>
     <div class="connexion-card">
       <label class="conn-label">Identifiant</label>
-      <input type="text" class="conn-input" id="conn-id" placeholder="ELE_PSEUDO ou PROF_PSEUDO" autocomplete="username" autocapitalize="characters">
+      <input type="text" class="conn-input" id="conn-id" placeholder="ELE_ / ABO_ / PROF_PSEUDO" autocomplete="username" autocapitalize="characters">
       <label class="conn-label">Code d'accès</label>
       <input type="password" class="conn-input conn-input-code" id="conn-code" placeholder="••••" autocomplete="current-password">
       <div class="conn-err" id="conn-err">❌ Identifiant ou code incorrect. Vérifiez et réessayez.</div>
@@ -450,7 +463,7 @@ footer a{color:var(--or);text-decoration:none;}
       <button class="conn-btn" id="conn-btn" onclick="seConnecter()">Se connecter →</button>
       <div class="conn-sep">ou</div>
       <button class="conn-creer" onclick="showPage('inscriptions')">Créer mon compte</button>
-      <div class="conn-hint">Votre identifiant commence par <strong style="color:var(--or);">ELE_</strong> (élève) ou <strong style="color:var(--or);">PROF_</strong> (professeur).<br>Il vous a été fourni lors de votre inscription.<br>📞 87 31 77 57 en cas de problème.</div>
+      <div class="conn-hint">Votre identifiant commence par <strong style="color:var(--or);">ELE_</strong> (élève domicile), <strong style="color:var(--or);">ABO_</strong> (abonné en ligne) ou <strong style="color:var(--or);">PROF_</strong> (professeur).<br>Il vous a été fourni lors de votre inscription.<br>📞 87 31 77 57 en cas de problème.</div>
     </div>
   </div>
 </div>
@@ -566,15 +579,17 @@ window.chercherUtilisateurFirestore = async function(identifiant) {
       if(snap.exists()) return {data:snap.data(),type:'prof'};
       return null;
     }
-    // Chercher dans eleves d'abord
+    if(identifiant.startsWith('ABO_')) {
+      const snapA = await getDoc(doc(db,'abonnes',identifiant));
+      if(snapA.exists()) {
+        const data = {...snapA.data(), typeInscription:'en-ligne'};
+        return {data, type:'eleve'};
+      }
+      return null;
+    }
+    // ELE_ → eleves
     const snapE = await getDoc(doc(db,'eleves',identifiant));
     if(snapE.exists()) return {data:snapE.data(),type:'eleve'};
-    // Puis dans abonnes
-    const snapA = await getDoc(doc(db,'abonnes',identifiant));
-    if(snapA.exists()) {
-      const data = {...snapA.data(), typeInscription:'en-ligne'};
-      return {data, type:'eleve'};
-    }
     return null;
   } catch(e){return null;}
 };
@@ -601,9 +616,9 @@ function showPage(id) {
 function getTarifs(){
   return{
     basique:parseInt(localStorage.getItem('mfhi5_t_basique'))||1500,
-    starter:parseInt(localStorage.getItem('mfhi5_t_starter'))||3500,
-    chanson:parseInt(localStorage.getItem('mfhi5_t_chanson'))||4500,
-    premium:parseInt(localStorage.getItem('mfhi5_t_premium'))||7500,
+    starter:parseInt(localStorage.getItem('mfhi5_t_starter'))||2800,
+    chanson:parseInt(localStorage.getItem('mfhi5_t_chanson'))||4000,
+    premium:parseInt(localStorage.getItem('mfhi5_t_premium'))||5800,
     coaching:parseInt(localStorage.getItem('mfhi5_t_coaching'))||12000,
     dom:parseInt(localStorage.getItem('mfhi5_t_dom'))||14000,
     promo:parseInt(localStorage.getItem('mfhi5_t_lanc'))||12000,
@@ -708,9 +723,8 @@ function chargerHistoire(){
   var section=document.getElementById('section-histoire');
   var el=document.getElementById('histoire-texte');
   if(!section||!el)return;
-  if(!histoire){section.style.display='none';return;}
   section.style.display='block';
-  el.textContent=histoire;
+  if(histoire) el.textContent=histoire; // sinon garde le texte par défaut déjà dans le HTML
 }
 
 // ════ INSCRIPTION ════
@@ -768,14 +782,16 @@ async function soumettre(){
   if(!pseudo||pseudo.length<3){alert('Veuillez choisir un pseudo (minimum 3 caractères).');return;}
   if(!code||code.length<4){alert('Le code doit faire minimum 4 caractères.');return;}
   if(code!==codeConf){alert('Les deux codes ne correspondent pas.');return;}
-  // Identifiant avec préfixe ELE_
-  var identifiant='ELE_'+pseudo.replace(/\s+/g,'_').toUpperCase();
+  // Identifiant avec préfixe selon le type : ABO_ pour en ligne, ELE_ pour domicile
+  var prefixe = (typeInscription==='en-ligne') ? 'ABO_' : 'ELE_';
+  var identifiant=prefixe+pseudo.replace(/\s+/g,'_').toUpperCase();
   var btn=document.getElementById('btn-inscrip');
   if(btn){btn.disabled=true;btn.textContent='Envoi en cours...';}
-  // Vérifier doublon
+  // Vérifier doublon dans la bonne collection
+  var collectionCheck = (typeInscription==='en-ligne') ? 'abonnes' : 'eleves';
   var doublon=false;
-  if(window.verifierDoublon){doublon=await window.verifierDoublon(identifiant,'eleves');}
-  else{var el=JSON.parse(localStorage.getItem('mfhi5_eleves')||'[]');doublon=el.some(e=>e.identifiant===identifiant&&e.actif!==false);}
+  if(window.verifierDoublon){doublon=await window.verifierDoublon(identifiant,collectionCheck);}
+  else{var el=JSON.parse(localStorage.getItem('mfhi5_'+collectionCheck)||'[]');doublon=el.some(e=>e.identifiant===identifiant&&e.actif!==false);}
   if(doublon){alert('Ce pseudo est déjà utilisé. Veuillez en choisir un autre.');if(btn){btn.disabled=false;btn.textContent='Envoyer ma demande d\'inscription ✦';}return;}
   // Formule
   var formule='';
@@ -784,35 +800,36 @@ async function soumettre(){
   else if(typeInscription==='promo'){formule='Tarif promotionnel - '+document.getElementById('formule-fixe-prix').textContent;}
   var statut=(typeInscription==='en-ligne')?'Actif':'En attente de confirmation';
   var accesImmediat=(typeInscription==='en-ligne');
-  var eleveData={
-    id:Date.now(),nom:prenom+' '+nom,prenom:prenom,pseudo:pseudo,
-    actif:true,statut:statut,inscritVia:'site',chansonsVisibles:false,
-    identifiant:identifiant,mdp:code,code:code,
-    tel:tel,mail:email,adresse:commune,
-    paiement:0,niveau:document.getElementById('i-niveau').value,
-    formule:formule,typeInscription:typeInscription,
-    dateInscription:new Date().toLocaleDateString('fr-FR'),
-    progression:0,parcours:[],chansons:[],notes:[]
-  };
-  if(window.sauvegarderEleveFirestore)await window.sauvegarderEleveFirestore(eleveData);
 
-  // Sauvegarder dans la bonne liste selon le type
   if(typeInscription==='en-ligne'){
-    // Abonné en ligne → liste abonnes
-    var abonnes=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
+    // ═══ ABONNÉ EN LIGNE — uniquement dans la collection abonnes ═══
     var abonneData={
-      id:eleveData.id,nom:eleveData.nom,email:eleveData.mail,
-      formule:eleveData.formule,pays:eleveData.adresse||'Polynésie française',
-      date:eleveData.dateInscription,statut:'actif',
-      identifiant:eleveData.identifiant,mdp:eleveData.code,code:eleveData.code,
-      typeInscription:'en-ligne',actif:true
+      id:Date.now(),nom:prenom+' '+nom,prenom:prenom,pseudo:pseudo,
+      identifiant:identifiant,mdp:code,code:code,
+      email:email,mail:email,tel:tel,pays:commune||'Polynésie française',adresse:commune,
+      formule:formule,typeInscription:'en-ligne',
+      statut:'actif',actif:true,
+      date:new Date().toLocaleDateString('fr-FR'),dateInscription:new Date().toLocaleDateString('fr-FR'),
+      niveau:document.getElementById('i-niveau').value,
+      progression:0,chansons:[]
     };
+    if(window.sauvegarderAbonneFirestore)await window.sauvegarderAbonneFirestore(abonneData);
+    var abonnes=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
     abonnes.push(abonneData);
     localStorage.setItem('mfhi5_abonnes',JSON.stringify(abonnes));
-    // Aussi dans Firestore collection abonnes
-    if(window.sauvegarderAbonneFirestore)await window.sauvegarderAbonneFirestore(abonneData);
   } else {
-    // Élève domicile → liste eleves
+    // ═══ ÉLÈVE DOMICILE — uniquement dans la collection eleves ═══
+    var eleveData={
+      id:Date.now(),nom:prenom+' '+nom,prenom:prenom,pseudo:pseudo,
+      actif:true,statut:statut,inscritVia:'site',chansonsVisibles:false,
+      identifiant:identifiant,mdp:code,code:code,
+      tel:tel,mail:email,adresse:commune,
+      paiement:0,niveau:document.getElementById('i-niveau').value,
+      formule:formule,typeInscription:typeInscription,
+      dateInscription:new Date().toLocaleDateString('fr-FR'),
+      progression:0,parcours:[],chansons:[],notes:[]
+    };
+    if(window.sauvegarderEleveFirestore)await window.sauvegarderEleveFirestore(eleveData);
     var eleves=JSON.parse(localStorage.getItem('mfhi5_eleves')||'[]');
     eleves.push(eleveData);
     localStorage.setItem('mfhi5_eleves',JSON.stringify(eleves));
@@ -850,20 +867,18 @@ async function seConnecter(){
   var btn=document.getElementById('conn-btn');
   if(btn){btn.disabled=true;btn.textContent='Connexion...';}
   var utilisateur=null;
+  // Déterminer la collection par préfixe
+  var col = id.startsWith('PROF_') ? 'profs' : id.startsWith('ABO_') ? 'abonnes' : 'eleves';
   // Chercher dans Firestore
   if(window.chercherUtilisateurFirestore){utilisateur=await window.chercherUtilisateurFirestore(id);}
-  // Fallback localStorage — chercher dans eleves ET abonnes
+  // Fallback localStorage
   if(!utilisateur){
-    var col=id.startsWith('PROF_')?'profs':'eleves';
     var list=JSON.parse(localStorage.getItem('mfhi5_'+col)||'[]');
     var found=list.find(u=>u.identifiant===id&&u.actif!==false);
-    // Si pas dans eleves → chercher dans abonnes
-    if(!found&&col==='eleves'){
-      var abonnesLocal=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
-      var foundAbo=abonnesLocal.find(a=>a.identifiant===id&&a.actif!==false);
-      if(foundAbo){foundAbo.typeInscription='en-ligne';found=foundAbo;}
+    if(found){
+      if(col==='abonnes')found.typeInscription='en-ligne';
+      utilisateur={data:found,type:col==='profs'?'prof':'eleve'};
     }
-    if(found)utilisateur={data:found,type:col==='profs'?'prof':'eleve'};
   }
   if(btn){btn.disabled=false;btn.textContent='Se connecter →';}
   if(!utilisateur||!utilisateur.data){document.getElementById('conn-err').style.display='block';return;}
@@ -874,12 +889,18 @@ async function seConnecter(){
   // Rediriger selon type
   if(utilisateur.type==='prof'){
     localStorage.setItem('mfhi5_prof_session',JSON.stringify({identifiant:id}));
-    // Mettre à jour cache local
     var profs=JSON.parse(localStorage.getItem('mfhi5_profs')||'[]');
     var idx=profs.findIndex(p=>p.identifiant===id);
     if(idx>=0)profs[idx]=u;else profs.push(u);
     localStorage.setItem('mfhi5_profs',JSON.stringify(profs));
     window.location.href='mf-prof.html';
+  } else if(col==='abonnes'){
+    localStorage.setItem('mfhi5_session',JSON.stringify({identifiant:id}));
+    var abonnes=JSON.parse(localStorage.getItem('mfhi5_abonnes')||'[]');
+    var idxA=abonnes.findIndex(a=>a.identifiant===id);
+    if(idxA>=0)abonnes[idxA]=u;else abonnes.push(u);
+    localStorage.setItem('mfhi5_abonnes',JSON.stringify(abonnes));
+    window.location.href='mf-eleve.html';
   } else {
     localStorage.setItem('mfhi5_session',JSON.stringify({identifiant:id}));
     var eleves=JSON.parse(localStorage.getItem('mfhi5_eleves')||'[]');

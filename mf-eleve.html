@@ -622,6 +622,17 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
         <div class="fg"><label>Commune (Tahiti)</label><input type="text" id="c-commune" placeholder="Papeete, Paea, Pirae…"></div>
         <button class="btn-save" onclick="sauvegarderInfos()">💾 Sauvegarder mes informations</button>
       </div>
+      <div class="card" id="card-temoignage" style="border-color:rgba(212,175,55,.4);">
+        <div class="card-title" style="color:var(--orL);">🌺 Partager ma progression</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Envoyez une vidéo de vous en train de jouer — elle pourra être sélectionnée pour apparaître en témoignage sur l'accueil du site.</p>
+        <div class="fg"><label>Lien de votre vidéo (Vimeo, YouTube, Google Drive)</label><input type="text" id="t-video-lien" placeholder="https://..."></div>
+        <div class="fg"><label>Votre message</label><textarea id="t-video-message" placeholder="Quelques mots sur votre progression…" style="min-height:70px;"></textarea></div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:10px 0 14px;cursor:pointer;line-height:1.5;">
+          <input type="checkbox" id="t-video-accord" style="margin-top:2px;accent-color:var(--or);">
+          J'accepte que MF Harmonie des Îles utilise cette vidéo et mon témoignage sur son site.
+        </label>
+        <button class="btn-save" onclick="envoyerVideoTemoignage()">📤 Envoyer ma vidéo</button>
+      </div>
       <div class="card">
         <div class="card-title">🔑 Changer mon code d'accès</div>
         <div class="fg"><label>Code actuel</label><input type="password" id="c-old-code" placeholder="Votre code actuel"></div>
@@ -667,7 +678,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 <!-- ═══ FIREBASE SDK ═══ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
@@ -699,6 +710,13 @@ window.getAbonneFirestore = async function(identifiant) {
     if (docSnap.exists()) return docSnap.data();
     return null;
   } catch(e) { console.warn('getAbonneFirestore:', e); return null; }
+};
+
+// Enregistrer une vidéo témoignage envoyée par un abonné/élève
+window.saveVideoTemoignageFirestore = async function(videoData) {
+  try {
+    await addDoc(collection(db, 'videos_temoignages'), {...videoData, createdAt: serverTimestamp()});
+  } catch(e) { console.warn('saveVideoTemoignageFirestore:', e); }
 };
 
 // Sauvegarder progression élève dans Firestore
@@ -845,29 +863,58 @@ function lancerApp() {
   document.getElementById('app-nom').textContent = nomAff;
   document.getElementById('app-formule').textContent = eleveActif.formule || 'Cours domicile';
 
-  // Détecter si abonné en ligne → masquer les outils musicaux
-  const estAbonne = eleveActif.typeInscription === 'en-ligne' || 
-    (eleveActif.formule && ['Basique','Starter','Immersion','Premium','Coaching'].some(f => (eleveActif.formule||'').includes(f)));
-  
+  // Détecter si abonné en ligne
+  const estAbonne = eleveActif.typeInscription === 'en-ligne';
+
   if (estAbonne) {
-    // Abonné en ligne : masquer page outils et nav outils
-    const pageOutils = document.getElementById('page-outils');
-    if (pageOutils) pageOutils.style.display = 'none';
-    // Masquer bouton nav outils
-    const navOutils = document.getElementById('tm-outils');
-    if (navOutils) navOutils.style.display = 'none';
-    const tdOutils = document.querySelector('[onclick*="outils"]');
-    if (tdOutils) tdOutils.style.display = 'none';
+    // ABONNÉ EN LIGNE — interface boîte à chansons épurée
+    // Masquer "Mon Suivi" (réservé au suivi prof/élève domicile)
+    const tdSuivi = document.querySelector('.td-btn[onclick*="suivi"]');
+    if (tdSuivi) tdSuivi.style.display = 'none';
+    const tmSuivi = document.getElementById('tm-suivi');
+    if (tmSuivi) tmSuivi.style.display = 'none';
+
+    // Outils — visibilité selon la formule (Starter+ a le métronome, Premium+ a tout)
+    const acces = getAccesEleve();
+    const aOutils = acces.length > 1; // Starter ou plus = au moins métronome
+    const tdOutils = document.querySelector('.td-btn[onclick*="outils"]');
+    const tmOutils = document.getElementById('tm-outils');
+    if (!aOutils) {
+      if (tdOutils) tdOutils.style.display = 'none';
+      if (tmOutils) tmOutils.style.display = 'none';
+    } else {
+      if (tdOutils) tdOutils.style.display = '';
+      if (tmOutils) tmOutils.style.display = '';
+    }
+
+    // Toujours arriver directement sur le Studio (bibliothèque) — déjà la page par défaut
+    showPage('studio', document.querySelector('.td-btn[onclick*="studio"]'));
+  } else {
+    // ÉLÈVE DOMICILE — dashboard complet, tout visible
+    const tdSuivi = document.querySelector('.td-btn[onclick*="suivi"]');
+    if (tdSuivi) tdSuivi.style.display = '';
+    const tmSuivi = document.getElementById('tm-suivi');
+    if (tmSuivi) tmSuivi.style.display = '';
+    const tdOutils = document.querySelector('.td-btn[onclick*="outils"]');
+    const tmOutils = document.getElementById('tm-outils');
+    if (tdOutils) tdOutils.style.display = '';
+    if (tmOutils) tmOutils.style.display = '';
   }
 
   // Pages
   chargerStudio();
   chargerSuivi();
   chargerCompte();
-  if (!estAbonne) {
+  // Outils musicaux initialisés seulement si l'utilisateur y a accès
+  const aDroitOutils = !estAbonne || (getAccesEleve().length > 1);
+  if (aDroitOutils) {
     initMetroBeat();
-    initDictionnaire();
     initFrappes();
+  }
+  // Accordeur et dictionnaire réservés Premium+ pour les abonnés
+  const accesComplet = !estAbonne || getAccesEleve().includes('premium');
+  if (accesComplet) {
+    initDictionnaire();
     initAccordeur();
   }
   verifierNotifs();
@@ -1891,22 +1938,51 @@ function sauvegarderInfos() {
   const email = (document.getElementById('c-email').value || '').trim();
   const commune = (document.getElementById('c-commune').value || '').trim();
   if (!pseudo || pseudo.length < 3) { toast('⚠ Le pseudo doit faire minimum 3 caractères'); return; }
-  const newId = pseudo.replace(/\s+/g, '_').toUpperCase();
-  const eleves = LS.getArr('eleves');
-  const i = eleves.findIndex(e => e.identifiant === eleveActif.identifiant);
-  if (i < 0) { toast('Erreur : élève introuvable'); return; }
+  const estAbonne = eleveActif.typeInscription === 'en-ligne';
+  const col = estAbonne ? 'abonnes' : 'eleves';
+  const prefixe = estAbonne ? 'ABO_' : 'ELE_';
+  const newId = prefixe + pseudo.replace(/\s+/g, '_').toUpperCase();
+  const liste = LS.getArr(col);
+  const i = liste.findIndex(e => e.identifiant === eleveActif.identifiant);
+  if (i < 0) { toast('Erreur : compte introuvable'); return; }
   // Vérifier doublon
-  if (newId !== eleveActif.identifiant && eleves.find((e, idx) => e.identifiant === newId && idx !== i)) { toast('⚠ Ce pseudo est déjà utilisé'); return; }
-  eleves[i].pseudo = pseudo; eleves[i].identifiant = newId; eleves[i].nom = nom || eleves[i].nom;
-  eleves[i].tel = tel; eleves[i].mail = email; eleves[i].adresse = commune;
-  LS.set('eleves', eleves);
-  eleveActif = eleves[i];
+  if (newId !== eleveActif.identifiant && liste.find((e, idx) => e.identifiant === newId && idx !== i)) { toast('⚠ Ce pseudo est déjà utilisé'); return; }
+  liste[i].pseudo = pseudo; liste[i].identifiant = newId; liste[i].nom = nom || liste[i].nom;
+  liste[i].tel = tel; liste[i].mail = email; liste[i].email = email; liste[i].adresse = commune;
+  LS.set(col, liste);
+  eleveActif = liste[i];
   localStorage.setItem(SESSION_KEY, JSON.stringify({ identifiant: newId }));
   // Mettre à jour affichage
   document.getElementById('app-nom').textContent = pseudo;
   document.getElementById('app-avatar').textContent = ini(nom || pseudo);
   chargerCompte();
   toast('✅ Informations mises à jour !');
+}
+
+function envoyerVideoTemoignage() {
+  const lien = (document.getElementById('t-video-lien').value || '').trim();
+  const message = (document.getElementById('t-video-message').value || '').trim();
+  const accord = document.getElementById('t-video-accord').checked;
+  if (!lien) { toast('⚠ Merci de coller le lien de votre vidéo'); return; }
+  if (!accord) { toast('⚠ Merci de cocher la case d\'accord pour le droit à l\'image'); return; }
+  const videos = LS.getArr('videos_temoignages');
+  videos.push({
+    id: Date.now(),
+    nom: eleveActif.nom || eleveActif.pseudo || eleveActif.identifiant,
+    identifiant: eleveActif.identifiant,
+    formule: eleveActif.formule || '',
+    lien: lien,
+    message: message,
+    accordImage: true,
+    statut: 'en_attente',
+    date: new Date().toLocaleDateString('fr-FR')
+  });
+  LS.set('videos_temoignages', videos);
+  if (window.saveVideoTemoignageFirestore) window.saveVideoTemoignageFirestore(videos[videos.length - 1]);
+  document.getElementById('t-video-lien').value = '';
+  document.getElementById('t-video-message').value = '';
+  document.getElementById('t-video-accord').checked = false;
+  toast('🌺 Vidéo envoyée ! Merci pour votre partage.');
 }
 
 function changerCode() {
