@@ -678,7 +678,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 <!-- ═══ FIREBASE SDK ═══ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
@@ -717,6 +717,25 @@ window.saveVideoTemoignageFirestore = async function(videoData) {
   try {
     await addDoc(collection(db, 'videos_temoignages'), {...videoData, createdAt: serverTimestamp()});
   } catch(e) { console.warn('saveVideoTemoignageFirestore:', e); }
+};
+
+// Récupérer toutes les chansons depuis Firestore et fusionner avec le localStorage
+window.syncChansonsFirestore = async function() {
+  try {
+    const snap = await getDocs(collection(db, 'chansons'));
+    const firestoreChansons = [];
+    snap.forEach(d => firestoreChansons.push(d.data()));
+    if (firestoreChansons.length > 0) {
+      const localChansons = JSON.parse(localStorage.getItem('mfhi5_chansons') || '[]');
+      const merged = firestoreChansons.map(fc => {
+        const local = localChansons.find(lc => String(lc.id) === String(fc.id));
+        return local || fc;
+      });
+      localChansons.forEach(lc => { if (!merged.find(mc => String(mc.id) === String(lc.id))) merged.push(lc); });
+      localStorage.setItem('mfhi5_chansons', JSON.stringify(merged));
+    }
+    return true;
+  } catch(e) { console.warn('syncChansonsFirestore:', e); return false; }
 };
 
 // Sauvegarder progression élève dans Firestore
@@ -837,6 +856,8 @@ async function seConnecter() {
 
   eleveActif = el;
   localStorage.setItem(SESSION_KEY, JSON.stringify({ identifiant: id }));
+  // Synchroniser les chansons depuis Firestore avant d'ouvrir la bibliothèque
+  if (window.syncChansonsFirestore) { await window.syncChansonsFirestore(); }
   lancerApp();
 }
 document.getElementById('l-code').addEventListener('keydown', e => { if (e.key === 'Enter') seConnecter(); });
@@ -922,7 +943,7 @@ function lancerApp() {
 }
 
 // Restaurer session
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   const session = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}');
   if (session.identifiant) {
     // Chercher dans eleves d'abord
@@ -934,7 +955,17 @@ window.addEventListener('DOMContentLoaded', () => {
       const abo = abonnes.find(a => a.identifiant === session.identifiant && a.actif !== false);
       if (abo) { abo.typeInscription = 'en-ligne'; el = abo; }
     }
-    if (el) { eleveActif = el; lancerApp(); }
+    if (el) {
+      eleveActif = el;
+      // Attendre un court instant que le module Firebase soit chargé, puis synchroniser les chansons
+      let tentatives = 0;
+      while (!window.syncChansonsFirestore && tentatives < 20) {
+        await new Promise(r => setTimeout(r, 100));
+        tentatives++;
+      }
+      if (window.syncChansonsFirestore) { await window.syncChansonsFirestore(); }
+      lancerApp();
+    }
   }
 });
 
@@ -1028,8 +1059,7 @@ function setBiblioView(view, btn) {
   const el = document.getElementById('view-' + view);
   if (el) el.style.display = 'block';
   const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
-  const chansonsEleve = eleveActif && eleveActif.chansonsVisibles ? toutesChansons :
-    toutesChansons.filter(c => eleveActif && eleveActif.chansons && (eleveActif.chansons.includes(c.id) || eleveActif.chansons.includes(String(c.id))));
+  const chansonsEleve = toutesChansons.filter(c => chansonAccessible(c));
   chargerBibliotheque(chansonsEleve);
 }
 

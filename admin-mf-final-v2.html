@@ -1241,6 +1241,31 @@ Date : ________________________</div>
   </div>
 </div>
 
+<!-- MODALE FICHE ABONNÉ -->
+<div class="modal-bg" id="modal-abo">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-title" id="mabo-title">Fiche abonné</div>
+      <button class="modal-close" onclick="closeModal('modal-abo')">×</button>
+    </div>
+    <div class="mpanel on" style="padding:18px;">
+      <div class="fg"><label>Nom</label><input id="abo-nom" readonly style="opacity:.7;"></div>
+      <div class="fg"><label>Email</label><input id="abo-email" readonly style="opacity:.7;"></div>
+      <div class="fg"><label>Identifiant</label><input id="abo-identifiant" readonly style="opacity:.7;"></div>
+      <div class="row2">
+        <div class="fg"><label>Formule</label><input id="abo-formule" readonly style="opacity:.7;"></div>
+        <div class="fg"><label>Statut</label><input id="abo-statut" readonly style="opacity:.7;"></div>
+      </div>
+      <div class="fg"><label>Pays / Commune</label><input id="abo-pays" readonly style="opacity:.7;"></div>
+      <div class="fg"><label>Date d'inscription</label><input id="abo-date" readonly style="opacity:.7;"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;">
+        <button class="btn-grn" id="abo-btn-confirmer" onclick="confirmerAbo()">✅ Confirmer inscription</button>
+        <button class="btn-red" id="abo-btn-desactiver" onclick="desactiverAbo()">🚫 Désactiver</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 // ════ DONNÉES ════
@@ -1508,8 +1533,8 @@ function resetCode(){var nc=document.getElementById('nouveau-code').value.trim()
 function addParcours(){const t=document.getElementById('parc-txt').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.parcours)el.parcours=[];el.parcours.push({id:Date.now(),t,d:new Date().toLocaleDateString('fr-FR')});S.set('eleves',eleves);document.getElementById('parc-txt').value='';renderParcours(el);toast('✔ Étape ajoutée !');}
 function delParcours(eid,pid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===eid);el.parcours=el.parcours.filter(p=>p.id!==pid);S.set('eleves',eleves);renderParcours(el);}
 function renderParcours(el){document.getElementById('mel-parc-list').innerHTML=(el.parcours||[]).length?(el.parcours||[]).map(p=>'<div class="tl-item"><div class="tl-dot"></div><div style="flex:1;"><div style="font-size:13px;">'+p.t+'</div><div style="font-size:10px;color:var(--muted);">'+p.d+'</div></div><button class="danger" onclick="delParcours('+el.id+','+p.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune étape.</p>';}
-function assignChanson(){const cid=parseInt(document.getElementById('sel-chanson').value);if(!cid)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.chansons)el.chansons=[];if(el.chansons.includes(cid)){toast('⚠ Déjà assignée');return;}el.chansons.push(cid);S.set('eleves',eleves);renderChansonsEl(el);toast('✔ Chanson assignée !');}
-function retireChanson(cid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);el.chansons=(el.chansons||[]).filter(c=>c!==cid);S.set('eleves',eleves);renderChansonsEl(el);}
+function assignChanson(){const cid=parseInt(document.getElementById('sel-chanson').value);if(!cid)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.chansons)el.chansons=[];if(el.chansons.includes(cid)){toast('⚠ Déjà assignée');return;}el.chansons.push(cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('✔ Chanson assignée — Firestore mis à jour !');}
+function retireChanson(cid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);el.chansons=(el.chansons||[]).filter(c=>c!==cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('Chanson retirée — Firestore mis à jour.');}
 function renderChansonsEl(el){const ch=S.get('chansons');document.getElementById('sel-chanson').innerHTML=ch.length?ch.map(c=>'<option value="'+c.id+'">'+c.titre+'</option>').join(''):'<option>Aucune chanson</option>';const ass=ch.filter(c=>(el.chansons||[]).includes(c.id));document.getElementById('mel-ch-list').innerHTML=ass.length?ass.map(c=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="flex:1;">🎵 '+c.titre+'</div><button class="danger" onclick="retireChanson('+c.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;margin-top:8px;">Aucune chanson.</p>';}
 function saveNote(){const t=document.getElementById('e-notes').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.notes)el.notes=[];el.notes.unshift({t,d:new Date().toLocaleString('fr-FR')});S.set('eleves',eleves);document.getElementById('e-notes').value='';renderNotes(el);toast('✔ Note sauvegardée !');}
 function renderNotes(el){document.getElementById('mel-notes-list').innerHTML=(el.notes&&el.notes.length)?el.notes.map(n=>'<div style="background:var(--card2);border-left:3px solid var(--or);padding:12px;margin-top:8px;"><div style="font-size:10px;color:var(--muted);">'+n.d+'</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;margin-top:4px;">'+n.t+'</div></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune note.</p>';}
@@ -1517,7 +1542,56 @@ function renderCoursEl(el){const cours=S.get('cours').filter(c=>c.eleveId===el.i
 
 // ════ ABONNÉS ════
 function addAbonne(){const nom=document.getElementById('a-nom').value.trim();if(!nom){toast('⚠ Nom requis');return;}const list=S.get('abonnes');list.push({id:Date.now(),nom,email:document.getElementById('a-email').value,formule:document.getElementById('a-formule').value,pays:document.getElementById('a-pays').value,date:document.getElementById('a-date').value||new Date().toISOString().slice(0,10),statut:document.getElementById('a-statut').value});S.set('abonnes',list);log('Abonné ajouté : '+nom);['a-nom','a-email','a-pays'].forEach(x=>document.getElementById(x).value='');renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('✔ Abonné ajouté !');}
-function renderAbonnes(){const list=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;"><div style="flex:1;min-width:120px;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+a.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(a.email||'—')+' · '+(a.pays||'—')+'</div></div><span class="badge b-or">'+(lbl[a.formule]||a.formule)+'</span><span class="badge '+(a.statut==='actif'?'b-vert':'b-orange')+'">'+(a.statut==='actif'?'Actif':'Attente')+'</span><button class="danger" onclick="delAbonne('+a.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun abonné.</p>';}
+function renderAbonnes(){const list=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer;" onclick="ouvrirAbonne('+a.id+')"><div style="flex:1;min-width:120px;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+a.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(a.email||'—')+' · '+(a.pays||'—')+'</div></div><span class="badge b-or">'+(lbl[a.formule]||a.formule)+'</span><span class="badge '+(a.statut==='actif'?'b-vert':'b-orange')+'">'+(a.statut==='actif'?'Actif':'Attente')+'</span><button class="danger" onclick="event.stopPropagation();delAbonne('+a.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun abonné.</p>';}
+
+let aboActif=null;
+function ouvrirAbonne(id){
+  const list=S.get('abonnes');
+  const a=list.find(x=>x.id===id);
+  if(!a)return;
+  aboActif=id;
+  const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};
+  document.getElementById('mabo-title').textContent=a.nom;
+  document.getElementById('abo-nom').value=a.nom||'';
+  document.getElementById('abo-email').value=a.email||'';
+  document.getElementById('abo-identifiant').value=a.identifiant||'';
+  document.getElementById('abo-formule').value=lbl[a.formule]||a.formule||'';
+  document.getElementById('abo-statut').value=a.statut==='actif'?'Actif':'En attente';
+  document.getElementById('abo-pays').value=a.pays||'—';
+  document.getElementById('abo-date').value=a.date||'—';
+  const btnConfirmer=document.getElementById('abo-btn-confirmer');
+  const btnDesactiver=document.getElementById('abo-btn-desactiver');
+  if(a.statut==='actif'){btnConfirmer.style.display='none';btnDesactiver.style.display='inline-block';}
+  else{btnConfirmer.style.display='inline-block';btnDesactiver.style.display='none';}
+  document.getElementById('modal-abo').classList.add('on');
+}
+function confirmerAbo(){
+  if(!aboActif)return;
+  const list=S.get('abonnes');
+  const i=list.findIndex(a=>a.id===aboActif);
+  if(i<0)return;
+  list[i].statut='actif';
+  list[i].actif=true;
+  S.set('abonnes',list);
+  if(window.saveAbonneFirestore&&list[i].identifiant){window.saveAbonneFirestore(list[i].identifiant,list[i]);}
+  closeModal('modal-abo');
+  renderAbonnes();renderAbonnesCards();renderDashboard();
+  toast('✅ Abonnement confirmé — Firestore mis à jour !');
+}
+function desactiverAbo(){
+  if(!aboActif)return;
+  if(!confirm('Désactiver cet abonné ? Il ne pourra plus se connecter.'))return;
+  const list=S.get('abonnes');
+  const i=list.findIndex(a=>a.id===aboActif);
+  if(i<0)return;
+  list[i].statut='inactif';
+  list[i].actif=false;
+  S.set('abonnes',list);
+  if(window.saveAbonneFirestore&&list[i].identifiant){window.saveAbonneFirestore(list[i].identifiant,list[i]);}
+  closeModal('modal-abo');
+  renderAbonnes();renderAbonnesCards();renderDashboard();
+  toast('🚫 Abonné désactivé — Firestore mis à jour.');
+}
 function delAbonne(id){if(!confirm('Supprimer ?'))return;S.set('abonnes',S.get('abonnes').filter(a=>a.id!==id));renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('Supprimé.');}
 function renderAbonnesCards(){const list=S.get('abonnes').filter(a=>a.statut==='actif');const t=getTarifs();['basique','starter','chanson','premium','coaching','profabo'].forEach(f=>{const cnt=list.filter(a=>a.formule===f).length;const rev=cnt*(t[f]||0);const ce=document.getElementById('cnt-'+f);const re=document.getElementById('rev-'+f);if(ce)ce.textContent=cnt;if(re)re.textContent=fmt(rev)+' XPF';});const nc=list.filter(a=>a.formule==='coaching').length;if(document.getElementById('co-occ'))document.getElementById('co-occ').textContent=nc;if(document.getElementById('co-libre'))document.getElementById('co-libre').textContent=20-nc;if(document.getElementById('co-rev'))document.getElementById('co-rev').textContent=fmt(nc*(t.coaching||12000))+' XPF';if(document.getElementById('co-temps'))document.getElementById('co-temps').textContent=(nc*15)+' min';}
 
@@ -1643,7 +1717,7 @@ function loadSVG(file){
 function addChanson(){
   const titre=document.getElementById('ch-titre').value.trim();if(!titre){toast('⚠ Titre requis');return;}
   const list=S.get('chansons');const statut=document.getElementById('ch-statut').value;
-  list.push({
+  const nouvelleChanson={
     id:Date.now(),titre,
     auteur:document.getElementById('ch-auteur').value,
     format:document.getElementById('ch-format').value,
@@ -1666,18 +1740,20 @@ function addChanson(){
     pattern:document.getElementById('ch-pattern')?document.getElementById('ch-pattern').value.trim():'',
     svg:svgData,statut,
     dateAjout:new Date().toLocaleDateString('fr-FR')
-  });
+  };
+  list.push(nouvelleChanson);
   S.set('chansons',list);log('Chanson ajoutée : '+titre);
+  if(window.saveChansonFirestore)window.saveChansonFirestore(nouvelleChanson);
   ['ch-titre','ch-auteur','ch-acc','ch-par','ch-trad','ch-pron','ch-ctx','ch-video','ch-audio'].forEach(x=>document.getElementById(x).value='');['basique','starter','immersion','premium','coaching','toutes'].forEach(function(f){var el=document.getElementById('ch-form-'+f);if(el)el.checked=false;});
   svgData='';document.getElementById('svg-prev').classList.remove('on');
   document.getElementById('uz-txt').innerHTML='<strong>Appuyez ici</strong> pour choisir votre fichier';
-  renderChansons();initGenSelect();toast('✔ Chanson ajoutée en '+statut+' !');
+  renderChansons();initGenSelect();toast('✔ Chanson ajoutée en '+statut+' — Firestore mis à jour !');
 }
 
-function delChanson(id){if(!confirm('Supprimer ?'))return;S.set('chansons',S.get('chansons').filter(c=>c.id!==id));renderChansons();initGenSelect();toast('Supprimée.');}
+function delChanson(id){if(!confirm('Supprimer ?'))return;S.set('chansons',S.get('chansons').filter(c=>c.id!==id));if(window.deleteChansonFirestore)window.deleteChansonFirestore(id);renderChansons();initGenSelect();toast('Supprimée — Firestore mis à jour.');}
 function toggleCh(id){document.getElementById('chb-'+id).classList.toggle('on');}
-function validerChanson(id){const list=S.get('chansons');const i=list.findIndex(c=>c.id===id);if(i>-1){list[i].statut='valide';S.set('chansons',list);log('Chanson validée : '+list[i].titre);renderChansons();toast('✅ Chanson visible dans espace élève !');}}
-function mettreEnBrouillon(id){const list=S.get('chansons');const i=list.findIndex(c=>c.id===id);if(i>-1){list[i].statut='brouillon';S.set('chansons',list);renderChansons();toast('📁 Chanson en brouillon.');}}
+function validerChanson(id){const list=S.get('chansons');const i=list.findIndex(c=>c.id===id);if(i>-1){list[i].statut='valide';S.set('chansons',list);log('Chanson validée : '+list[i].titre);if(window.saveChansonFirestore)window.saveChansonFirestore(list[i]);renderChansons();toast('✅ Chanson visible dans espace élève — Firestore mis à jour !');}}
+function mettreEnBrouillon(id){const list=S.get('chansons');const i=list.findIndex(c=>c.id===id);if(i>-1){list[i].statut='brouillon';S.set('chansons',list);if(window.saveChansonFirestore)window.saveChansonFirestore(list[i]);renderChansons();toast('📁 Chanson en brouillon — Firestore mis à jour.');}}
 function renderChansons(){
   const list=S.get('chansons');const niv={Débutant:'b-vert',Intermédiaire:'b-or',Avancé:'b-rouge'};
   document.getElementById('nb-chansons').textContent=list.length;
@@ -2455,6 +2531,7 @@ function delPattern(id) {
 
 // ════ FERMER MODALES ════
 document.getElementById('modal-el').addEventListener('click',function(e){if(e.target===this)closeModal('modal-el');});
+document.getElementById('modal-abo').addEventListener('click',function(e){if(e.target===this)closeModal('modal-abo');});
 document.getElementById('modal-pr').addEventListener('click',function(e){if(e.target===this)closeModal('modal-pr');});
 
 // ════ VIDÉOS COACHING ════
@@ -2586,6 +2663,8 @@ const db = getFirestore(app);
 window.saveEleveFirestore=async function(id,data){try{await setDoc(doc(db,'eleves',id),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveEleveFirestore:',e);}};
 window.saveProfFirestore=async function(id,data){try{await setDoc(doc(db,'profs',id),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveProfFirestore:',e);}};
 window.saveAbonneFirestore=async function(id,data){try{await setDoc(doc(db,'abonnes',id),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveAbonneFirestore:',e);}};
+window.saveChansonFirestore=async function(chanson){try{await setDoc(doc(db,'chansons',String(chanson.id)),{...chanson,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveChansonFirestore:',e);}};
+window.deleteChansonFirestore=async function(id){try{const {deleteDoc:dd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");await dd(doc(db,'chansons',String(id)));}catch(e){console.warn('deleteChansonFirestore:',e);}};
 window.supprimerFirestore=async function(col,identifiant){
   try{
     const {deleteDoc:dd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
@@ -2598,11 +2677,12 @@ window.saveConfigFirestore=async function(type,data){try{await setDoc(doc(db,'co
 // Sync intelligent — respecte les modifications locales récentes
 window.syncFirestore=async function(){
   try{
-    const[es,ps,as,vs]=await Promise.all([
+    const[es,ps,as,vs,cs]=await Promise.all([
       getDocs(collection(db,'eleves')),
       getDocs(collection(db,'profs')),
       getDocs(collection(db,'abonnes')),
-      getDocs(collection(db,'videos_temoignages'))
+      getDocs(collection(db,'videos_temoignages')),
+      getDocs(collection(db,'chansons'))
     ]);
     // Élèves
     const firestoreEleves=[];es.forEach(d=>firestoreEleves.push(d.data()));
@@ -2644,13 +2724,23 @@ window.syncFirestore=async function(){
     });
     localVideos.forEach(lv=>{if(!mergedVideos.find(mv=>String(mv.id)===String(lv.id)))mergedVideos.push(lv);});
     localStorage.setItem('mfhi5_videos_temoignages',JSON.stringify(mergedVideos));
+    // Chansons (Firestore prioritaire, fusion simple par id)
+    const firestoreChansons=[];cs.forEach(d=>firestoreChansons.push(d.data()));
+    const localChansons=JSON.parse(localStorage.getItem('mfhi5_chansons')||'[]');
+    const mergedChansons=firestoreChansons.map(fc=>{
+      const local=localChansons.find(lc=>String(lc.id)===String(fc.id));
+      return local||fc;
+    });
+    localChansons.forEach(lc=>{if(!mergedChansons.find(mc=>String(mc.id)===String(lc.id)))mergedChansons.push(lc);});
+    localStorage.setItem('mfhi5_chansons',JSON.stringify(mergedChansons));
     // Refresh
     if(typeof renderEleves==='function')renderEleves();
     if(typeof renderProfs==='function')renderProfs();
     if(typeof renderAbonnes==='function'){renderAbonnes();renderAbonnesCards();}
     if(typeof renderVideosTemoignages==='function')renderVideosTemoignages();
+    if(typeof renderChansons==='function')renderChansons();
     if(typeof renderDashboard==='function')renderDashboard();
-    if(typeof toast==='function')toast('🔄 Sync OK: '+mergedEleves.length+' élèves · '+mergedProfs.length+' profs · '+mergedAbonnes.length+' abonnés');
+    if(typeof toast==='function')toast('🔄 Sync OK: '+mergedEleves.length+' élèves · '+mergedProfs.length+' profs · '+mergedAbonnes.length+' abonnés · '+mergedChansons.length+' chansons');
   }catch(e){
     console.warn(e);
     if(typeof toast==='function')toast('⚠ Sync échouée — mode local actif');
