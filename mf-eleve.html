@@ -678,7 +678,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 <!-- ═══ FIREBASE SDK ═══ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, addDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
@@ -710,6 +710,30 @@ window.getAbonneFirestore = async function(identifiant) {
     if (docSnap.exists()) return docSnap.data();
     return null;
   } catch(e) { console.warn('getAbonneFirestore:', e); return null; }
+};
+
+// Enregistrer les modifications d'un élève (auto-modification depuis son propre espace)
+window.saveEleveFirestoreEleve = async function(identifiant, data) {
+  try {
+    await setDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()}, {merge: true});
+  } catch(e) { console.warn('saveEleveFirestoreEleve:', e); }
+};
+
+// Enregistrer les modifications d'un abonné (auto-modification depuis son propre espace)
+window.saveAbonneFirestoreEleve = async function(identifiant, data) {
+  try {
+    await setDoc(doc(db, 'abonnes', identifiant), {...data, updatedAt: serverTimestamp()}, {merge: true});
+  } catch(e) { console.warn('saveAbonneFirestoreEleve:', e); }
+};
+
+// Si l'identifiant change (changement de pseudo), il faut créer le nouveau doc et supprimer l'ancien
+window.renommerCompteFirestore = async function(ancienId, nouvelId, data, estAbonne) {
+  try {
+    const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const col = estAbonne ? 'abonnes' : 'eleves';
+    await setDoc(doc(db, col, nouvelId), {...data, updatedAt: serverTimestamp()}, {merge: true});
+    if (ancienId !== nouvelId) await deleteDoc(doc(db, col, ancienId));
+  } catch(e) { console.warn('renommerCompteFirestore:', e); }
 };
 
 // Enregistrer une vidéo témoignage envoyée par un abonné/élève
@@ -1971,22 +1995,27 @@ function sauvegarderInfos() {
   const estAbonne = eleveActif.typeInscription === 'en-ligne';
   const col = estAbonne ? 'abonnes' : 'eleves';
   const prefixe = estAbonne ? 'ABO_' : 'ELE_';
+  const ancienId = eleveActif.identifiant;
   const newId = prefixe + pseudo.replace(/\s+/g, '_').toUpperCase();
   const liste = LS.getArr(col);
-  const i = liste.findIndex(e => e.identifiant === eleveActif.identifiant);
+  const i = liste.findIndex(e => e.identifiant === ancienId);
   if (i < 0) { toast('Erreur : compte introuvable'); return; }
   // Vérifier doublon
-  if (newId !== eleveActif.identifiant && liste.find((e, idx) => e.identifiant === newId && idx !== i)) { toast('⚠ Ce pseudo est déjà utilisé'); return; }
+  if (newId !== ancienId && liste.find((e, idx) => e.identifiant === newId && idx !== i)) { toast('⚠ Ce pseudo est déjà utilisé'); return; }
   liste[i].pseudo = pseudo; liste[i].identifiant = newId; liste[i].nom = nom || liste[i].nom;
   liste[i].tel = tel; liste[i].mail = email; liste[i].email = email; liste[i].adresse = commune;
   LS.set(col, liste);
   eleveActif = liste[i];
   localStorage.setItem(SESSION_KEY, JSON.stringify({ identifiant: newId }));
+  // Propager vers Firestore — gère aussi le cas où l'identifiant change (renommage du doc)
+  if (window.renommerCompteFirestore) {
+    window.renommerCompteFirestore(ancienId, newId, eleveActif, estAbonne);
+  }
   // Mettre à jour affichage
   document.getElementById('app-nom').textContent = pseudo;
   document.getElementById('app-avatar').textContent = ini(nom || pseudo);
   chargerCompte();
-  toast('✅ Informations mises à jour !');
+  toast('✅ Informations mises à jour — Firestore mis à jour !');
 }
 
 function envoyerVideoTemoignage() {
@@ -2024,11 +2053,19 @@ function changerCode() {
   if (eleveActif.mdp !== ancien && eleveActif.code !== ancien) { toast('⚠ Code actuel incorrect'); return; }
   if (!nouveau || nouveau.length < 4) { toast('⚠ Le nouveau code doit faire minimum 4 caractères'); return; }
   if (nouveau !== confirm) { toast('⚠ Les deux codes ne correspondent pas'); return; }
-  const eleves = LS.getArr('eleves');
-  const i = eleves.findIndex(e => e.identifiant === eleveActif.identifiant);
-  if (i >= 0) { eleves[i].mdp = nouveau; eleves[i].code = nouveau; LS.set('eleves', eleves); eleveActif = eleves[i]; }
+  const estAbonne = eleveActif.typeInscription === 'en-ligne';
+  const col = estAbonne ? 'abonnes' : 'eleves';
+  const liste = LS.getArr(col);
+  const i = liste.findIndex(e => e.identifiant === eleveActif.identifiant);
+  if (i >= 0) {
+    liste[i].mdp = nouveau; liste[i].code = nouveau;
+    LS.set(col, liste);
+    eleveActif = liste[i];
+    if (estAbonne && window.saveAbonneFirestoreEleve) window.saveAbonneFirestoreEleve(eleveActif.identifiant, eleveActif);
+    if (!estAbonne && window.saveEleveFirestoreEleve) window.saveEleveFirestoreEleve(eleveActif.identifiant, eleveActif);
+  }
   ['c-old-code', 'c-new-code', 'c-confirm-code'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  toast('✅ Code changé avec succès !');
+  toast('✅ Code changé — Firestore mis à jour !');
 }
 </script>
 </body>

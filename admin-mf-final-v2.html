@@ -291,6 +291,13 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         </div>
         <button class="btn" onclick="saveRIB()">💾 Enregistrer le RIB</button>
       </div>
+      <div class="card" style="border-color:rgba(99,91,255,.3);">
+        <div class="card-title" style="color:#635bff;">💳 Liens de paiement — Stripe & PayPal</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Liens de paiement pour les abonnés en ligne (Basique à Coaching). Créez un lien de paiement simple sur votre tableau de bord Stripe ou PayPal.me, puis collez-le ici. Laissez vide pour masquer le bouton correspondant.</p>
+        <div class="fg"><label>🔗 Lien de paiement Stripe</label><input type="text" id="lien-stripe-admin" placeholder="https://buy.stripe.com/XXXXXXXX"></div>
+        <div class="fg"><label>🔗 Lien de paiement PayPal</label><input type="text" id="lien-paypal-admin" placeholder="https://paypal.me/votrenom"></div>
+        <button class="btn" onclick="saveLiensPaiement()">💾 Enregistrer les liens de paiement</button>
+      </div>
       <div class="card" style="border-color:rgba(0,188,212,.3);">
         <div class="card-title" style="color:#00bcd4;">🌍 Visibilité — Abonnements en ligne</div>
         <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Contrôle si la section abonnements en ligne est visible sur le site public. Désactivez pendant votre phase de test local.</p>
@@ -1417,12 +1424,12 @@ function marquerNotifLue(idx){
 function validerInscription(identifiant,idx){
   if(identifiant.startsWith('PROF_')){
     var profs=S.get('profs');var i=profs.findIndex(p=>p.identifiant===identifiant);
-    if(i>-1){profs[i].statut='Actif';S.set('profs',profs);log('✅ Prof validé : '+profs[i].nom);}
-    marquerNotifLue(idx);renderProfs();renderDashboard();toast('✅ Candidature professeur validée !');
+    if(i>-1){profs[i].statut='Actif';S.set('profs',profs);log('✅ Prof validé : '+profs[i].nom);if(window.saveProfFirestore)window.saveProfFirestore(identifiant,profs[i]);}
+    marquerNotifLue(idx);renderProfs();renderDashboard();toast('✅ Candidature professeur validée — Firestore mis à jour !');
   }else{
     var eleves=S.get('eleves');var ie=eleves.findIndex(e=>e.identifiant===identifiant);
-    if(ie>-1){eleves[ie].statut='Actif';S.set('eleves',eleves);log('✅ Inscription validée : '+eleves[ie].nom);}
-    marquerNotifLue(idx);renderEleves();renderDashboard();toast('✅ Inscription validée !');
+    if(ie>-1){eleves[ie].statut='Actif';S.set('eleves',eleves);log('✅ Inscription validée : '+eleves[ie].nom);if(window.saveEleveFirestore)window.saveEleveFirestore(identifiant,eleves[ie]);}
+    marquerNotifLue(idx);renderEleves();renderDashboard();toast('✅ Inscription validée — Firestore mis à jour !');
   }
 }
 
@@ -1451,10 +1458,12 @@ function addEleve(){
   const nom=document.getElementById('f-nom').value.trim();const tel=document.getElementById('f-tel').value.trim();
   if(!nom||!tel){toast('⚠ Nom et téléphone requis');return;}
   const id=genId(nom,tel);const eleves=S.get('eleves');
-  eleves.push({id:Date.now(),nom,actif:true,statut:'Actif',identifiant:id,tel,mail:document.getElementById('f-mail').value,adresse:document.getElementById('f-adresse').value,paiement:parseFloat(document.getElementById('f-paiement').value)||14000,niveau:document.getElementById('f-niveau').value,dateDebut:document.getElementById('f-date').value,jourCours:document.getElementById('f-jour').value,heureCours:document.getElementById('f-heure').value,progression:0,parcours:[],chansons:[],notes:[]});
+  const nouvelEleve={id:Date.now(),nom,actif:true,statut:'Actif',identifiant:id,tel,mail:document.getElementById('f-mail').value,adresse:document.getElementById('f-adresse').value,paiement:parseFloat(document.getElementById('f-paiement').value)||14000,niveau:document.getElementById('f-niveau').value,dateDebut:document.getElementById('f-date').value,jourCours:document.getElementById('f-jour').value,heureCours:document.getElementById('f-heure').value,progression:0,parcours:[],chansons:[],notes:[]};
+  eleves.push(nouvelEleve);
   S.set('eleves',eleves);log('Élève ajouté : '+nom);
+  if(window.saveEleveFirestore)window.saveEleveFirestore(id,nouvelEleve);
   ['f-nom','f-tel','f-mail','f-adresse','f-paiement','f-date'].forEach(x=>document.getElementById(x).value='');
-  renderEleves();renderDashboard();toast('✔ Élève ajouté ! ID : '+id);
+  renderEleves();renderDashboard();toast('✔ Élève ajouté — Firestore mis à jour ! ID : '+id);
 }
 function renderEleves(){
   const eleves=S.get('eleves');
@@ -1509,7 +1518,7 @@ function saveEleve(){
   renderEleves();renderDashboard();
   toast('✔ Sauvegardé — Firestore mis à jour !');
 }
-function confirmerEl(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].statut='Actif';S.set('eleves',eleves);document.getElementById('e-statut').value='Actif';renderEleves();renderDashboard();toast('✅ Inscription confirmée !');}
+function confirmerEl(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].statut='Actif';S.set('eleves',eleves);if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);document.getElementById('e-statut').value='Actif';renderEleves();renderDashboard();toast('✅ Inscription confirmée — Firestore mis à jour !');}
 
 // ══ BASCULE VACANCES (domicile uniquement, admin exclusif) ══
 function activerVacances(activer){
@@ -1526,11 +1535,11 @@ function activerVacances(activer){
     delete eleves[i].vacances;
     log('✅ Retour de vacances : '+eleves[i].nom);
   }
-  S.set('eleves',eleves);renderEleves();renderDashboard();
+  S.set('eleves',eleves);if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);renderEleves();renderDashboard();
   toast(activer?'🌍 Bascule vacances activée — 6 500 XPF ce mois':'✅ Retour de vacances — Tarif 14 000 XPF rétabli');
   closeModal('modal-el');
 }
-function savePlanning(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].jourCours=document.getElementById('e-jour').value;eleves[i].heureCours=document.getElementById('e-heure').value;S.set('eleves',eleves);toast('✔ Planning mis à jour !');}
+function savePlanning(){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].jourCours=document.getElementById('e-jour').value;eleves[i].heureCours=document.getElementById('e-heure').value;S.set('eleves',eleves);if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);toast('✔ Planning mis à jour — Firestore mis à jour !');}
 function desinscrire(){
   const eleves=S.get('eleves');
   const i=eleves.findIndex(e=>e.id===elActif);
@@ -1546,21 +1555,21 @@ function desinscrire(){
   closeModal('modal-el');renderEleves();renderDashboard();
   toast('🚫 Désinscrit(e) — Firestore mis à jour.');
 }
-function reinscrire(id){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===id);if(i<0)return;eleves[i].actif=true;eleves[i].statut='Actif';S.set('eleves',eleves);renderEleves();renderDashboard();toast('✅ Réinscrit(e) !');}
+function reinscrire(id){const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===id);if(i<0)return;eleves[i].actif=true;eleves[i].statut='Actif';S.set('eleves',eleves);if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);renderEleves();renderDashboard();toast('✅ Réinscrit(e) — Firestore mis à jour !');}
 function copyCode(){var c=document.getElementById('mel-code-val').textContent;if(navigator.clipboard)navigator.clipboard.writeText(c).then(()=>toast('✔ Copié !'));else toast('ID : '+c);}
-function resetCode(){var nc=document.getElementById('nouveau-code').value.trim();if(!nc||nc.length<4){toast('⚠ Min 4 car.');return;}var eleves=S.get('eleves');var i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].mdp=nc;eleves[i].code=nc;S.set('eleves',eleves);document.getElementById('nouveau-code').value='';document.getElementById('mel-code-actuel').textContent=nc;log('Code réinitialisé : '+eleves[i].nom);toast('✅ Nouveau code : '+nc);}
-function addParcours(){const t=document.getElementById('parc-txt').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.parcours)el.parcours=[];el.parcours.push({id:Date.now(),t,d:new Date().toLocaleDateString('fr-FR')});S.set('eleves',eleves);document.getElementById('parc-txt').value='';renderParcours(el);toast('✔ Étape ajoutée !');}
-function delParcours(eid,pid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===eid);el.parcours=el.parcours.filter(p=>p.id!==pid);S.set('eleves',eleves);renderParcours(el);}
+function resetCode(){var nc=document.getElementById('nouveau-code').value.trim();if(!nc||nc.length<4){toast('⚠ Min 4 car.');return;}var eleves=S.get('eleves');var i=eleves.findIndex(e=>e.id===elActif);if(i<0)return;eleves[i].mdp=nc;eleves[i].code=nc;S.set('eleves',eleves);if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);document.getElementById('nouveau-code').value='';document.getElementById('mel-code-actuel').textContent=nc;log('Code réinitialisé : '+eleves[i].nom);toast('✅ Nouveau code — Firestore mis à jour : '+nc);}
+function addParcours(){const t=document.getElementById('parc-txt').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.parcours)el.parcours=[];el.parcours.push({id:Date.now(),t,d:new Date().toLocaleDateString('fr-FR')});S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);document.getElementById('parc-txt').value='';renderParcours(el);toast('✔ Étape ajoutée — Firestore mis à jour !');}
+function delParcours(eid,pid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===eid);el.parcours=el.parcours.filter(p=>p.id!==pid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderParcours(el);}
 function renderParcours(el){document.getElementById('mel-parc-list').innerHTML=(el.parcours||[]).length?(el.parcours||[]).map(p=>'<div class="tl-item"><div class="tl-dot"></div><div style="flex:1;"><div style="font-size:13px;">'+p.t+'</div><div style="font-size:10px;color:var(--muted);">'+p.d+'</div></div><button class="danger" onclick="delParcours('+el.id+','+p.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune étape.</p>';}
 function assignChanson(){const cid=parseInt(document.getElementById('sel-chanson').value);if(!cid)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.chansons)el.chansons=[];if(el.chansons.includes(cid)){toast('⚠ Déjà assignée');return;}el.chansons.push(cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('✔ Chanson assignée — Firestore mis à jour !');}
 function retireChanson(cid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);el.chansons=(el.chansons||[]).filter(c=>c!==cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('Chanson retirée — Firestore mis à jour.');}
 function renderChansonsEl(el){const ch=S.get('chansons');document.getElementById('sel-chanson').innerHTML=ch.length?ch.map(c=>'<option value="'+c.id+'">'+c.titre+'</option>').join(''):'<option>Aucune chanson</option>';const ass=ch.filter(c=>(el.chansons||[]).includes(c.id));document.getElementById('mel-ch-list').innerHTML=ass.length?ass.map(c=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="flex:1;">🎵 '+c.titre+'</div><button class="danger" onclick="retireChanson('+c.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;margin-top:8px;">Aucune chanson.</p>';}
-function saveNote(){const t=document.getElementById('e-notes').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.notes)el.notes=[];el.notes.unshift({t,d:new Date().toLocaleString('fr-FR')});S.set('eleves',eleves);document.getElementById('e-notes').value='';renderNotes(el);toast('✔ Note sauvegardée !');}
+function saveNote(){const t=document.getElementById('e-notes').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.notes)el.notes=[];el.notes.unshift({t,d:new Date().toLocaleString('fr-FR')});S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);document.getElementById('e-notes').value='';renderNotes(el);toast('✔ Note sauvegardée — Firestore mis à jour !');}
 function renderNotes(el){document.getElementById('mel-notes-list').innerHTML=(el.notes&&el.notes.length)?el.notes.map(n=>'<div style="background:var(--card2);border-left:3px solid var(--or);padding:12px;margin-top:8px;"><div style="font-size:10px;color:var(--muted);">'+n.d+'</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;margin-top:4px;">'+n.t+'</div></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune note.</p>';}
 function renderCoursEl(el){const cours=S.get('cours').filter(c=>c.eleveId===el.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);document.getElementById('mel-cours').innerHTML=cours.length?cours.map(c=>'<div class="cours-item"><div class="cours-time">'+c.heure+'</div><div><div style="font-size:12px;color:var(--orL);">'+fd(c.date)+'</div>'+(c.note?'<div style="font-size:12px;color:var(--muted);">'+c.note+'</div>':'')+'</div></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucun cours.</p>';}
 
 // ════ ABONNÉS ════
-function addAbonne(){const nom=document.getElementById('a-nom').value.trim();if(!nom){toast('⚠ Nom requis');return;}const list=S.get('abonnes');list.push({id:Date.now(),nom,email:document.getElementById('a-email').value,formule:document.getElementById('a-formule').value,pays:document.getElementById('a-pays').value,date:document.getElementById('a-date').value||new Date().toISOString().slice(0,10),statut:document.getElementById('a-statut').value});S.set('abonnes',list);log('Abonné ajouté : '+nom);['a-nom','a-email','a-pays'].forEach(x=>document.getElementById(x).value='');renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('✔ Abonné ajouté !');}
+function addAbonne(){const nom=document.getElementById('a-nom').value.trim();if(!nom){toast('⚠ Nom requis');return;}const list=S.get('abonnes');const identifiant='ABO_'+nom.replace(/\s+/g,'_').toUpperCase();const code=Math.random().toString(36).substring(2,8).toUpperCase();const nouvelAbonne={id:Date.now(),nom,identifiant,mdp:code,code,email:document.getElementById('a-email').value,formule:document.getElementById('a-formule').value,pays:document.getElementById('a-pays').value,date:document.getElementById('a-date').value||new Date().toISOString().slice(0,10),statut:document.getElementById('a-statut').value,actif:true,typeInscription:'en-ligne'};list.push(nouvelAbonne);S.set('abonnes',list);log('Abonné ajouté : '+nom);if(window.saveAbonneFirestore)window.saveAbonneFirestore(identifiant,nouvelAbonne);['a-nom','a-email','a-pays'].forEach(x=>document.getElementById(x).value='');renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('✔ Abonné ajouté — Identifiant : '+identifiant+' / Code : '+code);}
 function renderAbonnes(){const list=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer;" onclick="ouvrirAbonne('+a.id+')"><div style="flex:1;min-width:120px;"><div style="font-weight:700;color:var(--orL);font-size:13px;">'+a.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(a.email||'—')+' · '+(a.pays||'—')+'</div></div><span class="badge b-or">'+(lbl[a.formule]||a.formule)+'</span><span class="badge '+(a.statut==='actif'?'b-vert':'b-orange')+'">'+(a.statut==='actif'?'Actif':'Attente')+'</span><button class="danger" onclick="event.stopPropagation();delAbonne('+a.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:14px;">Aucun abonné.</p>';}
 
 let aboActif=null;
@@ -1611,7 +1620,7 @@ function desactiverAbo(){
   renderAbonnes();renderAbonnesCards();renderDashboard();
   toast('🚫 Abonné désactivé — Firestore mis à jour.');
 }
-function delAbonne(id){if(!confirm('Supprimer ?'))return;S.set('abonnes',S.get('abonnes').filter(a=>a.id!==id));renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('Supprimé.');}
+function delAbonne(id){if(!confirm('Supprimer ?'))return;const list=S.get('abonnes');const a=list.find(x=>x.id===id);S.set('abonnes',list.filter(a=>a.id!==id));if(a&&a.identifiant&&window.deleteAbonneFirestore)window.deleteAbonneFirestore(a.identifiant);renderAbonnes();renderAbonnesCards();renderDashboard();renderCoaching();toast('Supprimé — Firestore mis à jour.');}
 function renderAbonnesCards(){const list=S.get('abonnes').filter(a=>a.statut==='actif');const t=getTarifs();['basique','starter','chanson','premium','coaching','profabo'].forEach(f=>{const cnt=list.filter(a=>a.formule===f).length;const rev=cnt*(t[f]||0);const ce=document.getElementById('cnt-'+f);const re=document.getElementById('rev-'+f);if(ce)ce.textContent=cnt;if(re)re.textContent=fmt(rev)+' XPF';});const nc=list.filter(a=>a.formule==='coaching').length;if(document.getElementById('co-occ'))document.getElementById('co-occ').textContent=nc;if(document.getElementById('co-libre'))document.getElementById('co-libre').textContent=20-nc;if(document.getElementById('co-rev'))document.getElementById('co-rev').textContent=fmt(nc*(t.coaching||12000))+' XPF';if(document.getElementById('co-temps'))document.getElementById('co-temps').textContent=(nc*15)+' min';}
 
 // ════ COACHING ════
@@ -1629,15 +1638,17 @@ function addProf(){
   const identifiant='PROF_'+pseudo.replace(/\s+/g,'_').toUpperCase();
   const list=S.get('profs');
   if(list.find(p=>p.identifiant===identifiant)){toast('⚠ Ce pseudo est déjà utilisé.');return;}
-  list.push({
+  const nouveauProf={
     id:Date.now(),nom,actif:true,statut:'Actif',
     identifiant,pseudo,mdp:code,code,
     mail:document.getElementById('p-mail').value,
     tel,
     sal:parseFloat(document.getElementById('p-sal').value)||10000,
     zone:document.getElementById('p-zone').value
-  });
+  };
+  list.push(nouveauProf);
   S.set('profs',list);log('Prof ajouté : '+nom+' ('+identifiant+')');
+  if(window.saveProfFirestore)window.saveProfFirestore(identifiant,nouveauProf);
   ['p-nom','p-mail','p-tel','p-sal','p-pseudo','p-code'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
   // Afficher confirmation avec identifiant
   const okDiv=document.getElementById('add-prof-ok');
@@ -1649,7 +1660,7 @@ function addProf(){
   renderProfs();renderDashboard();toast('✔ Prof ajouté ! ID : '+identifiant);
 }function renderProfs(){const list=S.get('profs');const act=list.filter(p=>p.actif!==false);const arch=list.filter(p=>p.actif===false);const nb=document.getElementById('nb-profs');if(nb)nb.textContent='('+act.length+')';const lp=document.getElementById('list-profs');if(lp)lp.innerHTML=act.length?act.map(p=>'<div style="display:flex;align-items:center;padding:13px;gap:11px;background:var(--card);border:1px solid var(--border);margin-bottom:10px;cursor:pointer;" onclick="openProf('+p.id+')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#555,#333);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:700;color:var(--orL);">'+ini(p.nom)+'</div><div style="flex:1;"><div style="font-weight:700;color:var(--orL);">'+p.nom+'</div><div style="font-size:11px;color:var(--muted);">'+(p.zone||'—')+(p.identifiant?' · 🔑 '+p.identifiant:'')+'</div></div><div style="color:var(--vert);font-size:12px;">'+fmt(p.sal||10000)+' XPF/élève</div><div style="color:var(--or);margin-left:8px;">›</div></div>').join(''):'<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;">Aucun professeur.</p>';const la=document.getElementById('list-profs-arch');if(la)la.innerHTML=arch.length?arch.map(p=>'<div style="display:flex;align-items:center;padding:13px;gap:11px;background:var(--card);border:1px solid #2a2a2a;margin-bottom:10px;opacity:.5;"><div style="width:40px;height:40px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;color:var(--muted);">'+ini(p.nom)+'</div><div style="flex:1;"><div style="color:var(--muted);font-weight:700;">'+p.nom+'</div><span class="badge b-gris">Archivé</span></div><button class="btn-sm" onclick="reactiverProf('+p.id+')">↺</button></div>').join(''):'<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;">Aucun.</p>';}
 function openProf(id){prActif=id;const p=S.get('profs').find(x=>x.id===id);if(!p)return;document.getElementById('mpr-title').textContent='👨‍🏫 '+p.nom;document.getElementById('pr-nom2').value=p.nom||'';document.getElementById('pr-mail2').value=p.mail||'';document.getElementById('pr-tel2').value=p.tel||'';document.getElementById('pr-sal2').value=p.sal||10000;document.querySelectorAll('#modal-pr .mpanel').forEach(x=>x.classList.remove('on'));document.querySelectorAll('#modal-pr .mtab').forEach(x=>x.classList.remove('on'));document.getElementById('mpr-infos').classList.add('on');document.querySelectorAll('#modal-pr .mtab')[0].classList.add('on');document.getElementById('modal-pr').classList.add('on');}
-function saveProf(){const list=S.get('profs');const i=list.findIndex(p=>p.id===prActif);if(i<0)return;list[i].nom=document.getElementById('pr-nom2').value.trim()||list[i].nom;list[i].mail=document.getElementById('pr-mail2').value;list[i].tel=document.getElementById('pr-tel2').value;list[i].sal=parseFloat(document.getElementById('pr-sal2').value)||10000;S.set('profs',list);closeModal('modal-pr');renderProfs();renderDashboard();toast('✔ Sauvegardé !');}
+function saveProf(){const list=S.get('profs');const i=list.findIndex(p=>p.id===prActif);if(i<0)return;list[i].nom=document.getElementById('pr-nom2').value.trim()||list[i].nom;list[i].mail=document.getElementById('pr-mail2').value;list[i].tel=document.getElementById('pr-tel2').value;list[i].sal=parseFloat(document.getElementById('pr-sal2').value)||10000;S.set('profs',list);if(window.saveProfFirestore&&list[i].identifiant)window.saveProfFirestore(list[i].identifiant,list[i]);closeModal('modal-pr');renderProfs();renderDashboard();toast('✔ Sauvegardé — Firestore mis à jour !');}
 function departProf(){
   const list=S.get('profs');
   const i=list.findIndex(p=>p.id===prActif);
@@ -1679,9 +1690,10 @@ function chargerElevesProf(){
 function retirerProfEleve(eleveId){
   const eleves=S.get('eleves');const i=eleves.findIndex(e=>e.id===eleveId);
   if(i<0)return;delete eleves[i].profId;delete eleves[i].prof;S.set('eleves',eleves);
-  chargerElevesProf();renderEleves();toast('Élève retiré de ce prof.');
+  if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);
+  chargerElevesProf();renderEleves();toast('Élève retiré de ce prof — Firestore mis à jour.');
 }
-function reactiverProf(id){const list=S.get('profs');const i=list.findIndex(p=>p.id===id);if(i<0)return;list[i].actif=true;S.set('profs',list);renderProfs();renderDashboard();toast('✅ Réactivé !');}
+function reactiverProf(id){const list=S.get('profs');const i=list.findIndex(p=>p.id===id);if(i<0)return;list[i].actif=true;S.set('profs',list);if(window.saveProfFirestore&&list[i].identifiant)window.saveProfFirestore(list[i].identifiant,list[i]);renderProfs();renderDashboard();toast('✅ Réactivé — Firestore mis à jour !');}
 
 function assignerEleveAuProf(eleveId, profId){
   if(!eleveId||!profId){toast('⚠ Sélectionnez prof et élève');return;}
@@ -1690,7 +1702,8 @@ function assignerEleveAuProf(eleveId, profId){
   if(i<0||!prof)return;
   eleves[i].profId=parseInt(profId);eleves[i].prof=prof.nom;
   S.set('eleves',eleves);log('Élève '+eleves[i].nom+' assigné à '+prof.nom);
-  renderEleves();renderProfs();toast('✅ Élève assigné à '+prof.nom+' !');
+  if(window.saveEleveFirestore&&eleves[i].identifiant)window.saveEleveFirestore(eleves[i].identifiant,eleves[i]);
+  renderEleves();renderProfs();toast('✅ Élève assigné à '+prof.nom+' — Firestore mis à jour !');
 }
 
 // ════ CALENDRIER ════
@@ -1858,6 +1871,10 @@ function loadTarifs(){
   var iban=localStorage.getItem('mfhi5_rib_iban');var bic=localStorage.getItem('mfhi5_rib_bic');
   var elIban=document.getElementById('rib-iban-admin');var elBic=document.getElementById('rib-bic-admin');
   if(elIban&&iban)elIban.value=iban;if(elBic&&bic)elBic.value=bic;
+  // Charger liens Stripe/PayPal
+  var lienStripe=localStorage.getItem('mfhi5_lien_stripe');var lienPaypal=localStorage.getItem('mfhi5_lien_paypal');
+  var elStripe=document.getElementById('lien-stripe-admin');var elPaypal=document.getElementById('lien-paypal-admin');
+  if(elStripe&&lienStripe)elStripe.value=lienStripe;if(elPaypal&&lienPaypal)elPaypal.value=lienPaypal;
   // Charger checkbox recrutement
   chargerRecrutementCheckbox();
   // Charger toggle abonnements visibles
@@ -1879,17 +1896,18 @@ function saveRIB(){
   var bic=document.getElementById('rib-bic-admin').value.trim();
   if(iban)localStorage.setItem('mfhi5_rib_iban',iban);
   if(bic)localStorage.setItem('mfhi5_rib_bic',bic);
-  toast('✔ RIB enregistré — affiché sur les fiches domicile/promo !');
+  if(window.saveConfigFirestore)window.saveConfigFirestore('rib',{iban:iban,bic:bic});
+  toast('✔ RIB enregistré — Firestore mis à jour, affiché sur les fiches domicile/promo !');
 }
-function toggleRecrutement(actif){
-  // corrige dans les fonctions ajoutees en bas
-  toast(actif?'✅ Campagne recrutement activée sur le site !':'🚫 Campagne recrutement désactivée.');
+function saveLiensPaiement(){
+  var stripe=document.getElementById('lien-stripe-admin').value.trim();
+  var paypal=document.getElementById('lien-paypal-admin').value.trim();
+  localStorage.setItem('mfhi5_lien_stripe',stripe);
+  localStorage.setItem('mfhi5_lien_paypal',paypal);
+  if(window.saveConfigFirestore)window.saveConfigFirestore('paiement',{stripe:stripe,paypal:paypal});
+  toast('✔ Liens de paiement enregistrés — Firestore mis à jour !');
 }
 function cocherToutesFormules(val){['basique','starter','immersion','premium','coaching'].forEach(function(f){var el=document.getElementById('ch-form-'+f);if(el)el.checked=val;});}
-function chargerRecrutementCheckbox(){
-  var cb=document.getElementById('recrutement-actif');
-  if(cb)cb.checked=localStorage.getItem('mfhi5_recrutement_actif')==='1';
-}
 function saveOffre(){
   const lancEl=document.getElementById('t-lanc');const placesEl=document.getElementById('t-places');const msgEl=document.getElementById('t-msg');const statutEl=document.getElementById('t-statut');
   if(lancEl){localStorage.setItem('mfhi5_t_promo',lancEl.value);localStorage.setItem('mfhi5_t_lanc',lancEl.value);}
@@ -2092,10 +2110,10 @@ function exporterHTML(){
   const cid=document.getElementById('gen-chanson-select').value;
   if(cid){
     const list=S.get('chansons');const i=list.findIndex(c=>String(c.id)===String(cid));
-    if(i>-1){list[i].svg=html;S.set('chansons',list);log('Fiche HTML générée : '+list[i].titre);}
+    if(i>-1){list[i].svg=html;S.set('chansons',list);log('Fiche HTML générée : '+list[i].titre);if(window.saveChansonFirestore)window.saveChansonFirestore(list[i]);}
     document.getElementById('gen-export-ok').style.display='block';
     setTimeout(()=>document.getElementById('gen-export-ok').style.display='none',3000);
-    toast('✅ Fiche uploadée dans la chanson !');
+    toast('✅ Fiche uploadée dans la chanson — Firestore mis à jour !');
   }
   // Télécharger aussi
   const blob=new Blob([html],{type:'text/html'});const a=document.createElement('a');
@@ -2390,13 +2408,14 @@ function saveAudioPistes() {
   const list = S.get('chansons');
   const i = list.findIndex(c => String(c.id) === String(cid));
   if (i < 0) return;
-  list[i].audioUke = document.getElementById('audio-uke').value.trim();
-  list[i].audioChant = document.getElementById('audio-chant').value.trim();
-  list[i].audioPerc = document.getElementById('audio-perc').value.trim();
-  list[i].audioBasse = document.getElementById('audio-basse').value.trim();
+  list[i].audio_uke = document.getElementById('audio-uke').value.trim();
+  list[i].audio_chant = document.getElementById('audio-chant').value.trim();
+  list[i].audio_perc = document.getElementById('audio-perc').value.trim();
+  list[i].audio_basse = document.getElementById('audio-basse').value.trim();
   S.set('chansons', list);
   log('Pistes audio ajoutées : ' + list[i].titre);
-  toast('✅ Pistes audio enregistrées pour ' + list[i].titre + ' !');
+  if (window.saveChansonFirestore) window.saveChansonFirestore(list[i]);
+  toast('✅ Pistes audio enregistrées — Firestore mis à jour : ' + list[i].titre + ' !');
 }
 
 function saveVideoUrl() {
@@ -2410,7 +2429,8 @@ function saveVideoUrl() {
   list[i].video = url;
   S.set('chansons', list);
   log('Vidéo ajoutée : ' + list[i].titre);
-  toast('✅ Vidéo enregistrée pour ' + list[i].titre + ' !');
+  if (window.saveChansonFirestore) window.saveChansonFirestore(list[i]);
+  toast('✅ Vidéo enregistrée — Firestore mis à jour : ' + list[i].titre + ' !');
 }
 
 // ════ NOTIFICATIONS PROF ════
@@ -2790,6 +2810,7 @@ window.saveProfFirestore=async function(id,data){try{await setDoc(doc(db,'profs'
 window.saveAbonneFirestore=async function(id,data){try{await setDoc(doc(db,'abonnes',id),{...data,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveAbonneFirestore:',e);}};
 window.saveChansonFirestore=async function(chanson){try{await setDoc(doc(db,'chansons',String(chanson.id)),{...chanson,updatedAt:serverTimestamp()},{merge:true});}catch(e){console.warn('saveChansonFirestore:',e);}};
 window.deleteChansonFirestore=async function(id){try{const {deleteDoc:dd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");await dd(doc(db,'chansons',String(id)));}catch(e){console.warn('deleteChansonFirestore:',e);}};
+window.deleteAbonneFirestore=async function(identifiant){try{const {deleteDoc:dd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");await dd(doc(db,'abonnes',identifiant));}catch(e){console.warn('deleteAbonneFirestore:',e);}};
 window.supprimerFirestore=async function(col,identifiant){
   try{
     const {deleteDoc:dd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");

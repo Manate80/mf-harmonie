@@ -366,7 +366,7 @@ html,body{height:100%;background:var(--bg);color:var(--blanc);font-family:'Segoe
 <!-- ═══ FIREBASE SDK ═══ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
@@ -387,6 +387,20 @@ window.getProfFirestore = async function(identifiant) {
     if (docSnap.exists()) return docSnap.data();
     return null;
   } catch(e) { console.warn('getProfFirestore:', e); return null; }
+};
+
+// Enregistrer les modifications du prof lui-même (ex: changement de code)
+window.saveProfFirestoreProf = async function(identifiant, data) {
+  try {
+    await setDoc(doc(db, 'profs', identifiant), {...data, updatedAt: serverTimestamp()}, {merge: true});
+  } catch(e) { console.warn('saveProfFirestoreProf:', e); }
+};
+
+// Enregistrer les modifications d'un élève faites par son professeur (assignation chanson, rapport, planning)
+window.saveEleveFirestoreProf = async function(identifiant, data) {
+  try {
+    await setDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()}, {merge: true});
+  } catch(e) { console.warn('saveEleveFirestoreProf:', e); }
 };
 
 // Charger les élèves du prof depuis Firestore
@@ -753,9 +767,10 @@ function assignerChanson(eleveId) {
   if (!eleves[i].chansons) eleves[i].chansons = [];
   if (!eleves[i].chansons.includes(cid)) eleves[i].chansons.push(cid);
   S.set('eleves', eleves);
+  if (window.saveEleveFirestoreProf && eleves[i].identifiant) window.saveEleveFirestoreProf(eleves[i].identifiant, eleves[i]);
   // Notification flash pour l'élève
   envoyerNotifEleve(eleveId, '🌟 Nouveau cours de la semaine assigné par votre professeur !');
-  toast('✅ Chanson assignée — visible dans l\'espace élève !');
+  toast('✅ Chanson assignée — Firestore mis à jour !');
   chargerEleves();
 }
 
@@ -765,7 +780,8 @@ function retirerChansons(eleveId) {
   if (i < 0) return;
   eleves[i].chansons = [];
   S.set('eleves', eleves);
-  toast('Chansons retirées.');
+  if (window.saveEleveFirestoreProf && eleves[i].identifiant) window.saveEleveFirestoreProf(eleves[i].identifiant, eleves[i]);
+  toast('Chansons retirées — Firestore mis à jour.');
   chargerEleves();
 }
 
@@ -779,6 +795,7 @@ function validerRapport(eleveId) {
   if (!eleves[i].notes) eleves[i].notes = [];
   eleves[i].notes.unshift({ t: texte, d: new Date().toLocaleString('fr-FR') });
   S.set('eleves', eleves);
+  if (window.saveEleveFirestoreProf && eleves[i].identifiant) window.saveEleveFirestoreProf(eleves[i].identifiant, eleves[i]);
   textarea.value = '';
   // Planifier cours dans le calendrier
   const now = new Date();
@@ -787,7 +804,7 @@ function validerRapport(eleveId) {
   S.set('cours', cours);
   // Notification
   envoyerNotifEleve(eleveId, '📝 Votre professeur a laissé un nouveau rapport de cours. Consultez Mon Suivi !');
-  toast('✅ Rapport validé — Suivi élève mis à jour !');
+  toast('✅ Rapport validé — Firestore mis à jour !');
   chargerEleves();
 }
 
@@ -807,8 +824,9 @@ function modifierPlanning(eleveId) {
   eleves[i].jourCours = jour.value;
   eleves[i].heureCours = heure.value;
   S.set('eleves', eleves);
+  if (window.saveEleveFirestoreProf && eleves[i].identifiant) window.saveEleveFirestoreProf(eleves[i].identifiant, eleves[i]);
   envoyerNotifEleve(eleveId, '📅 Votre professeur a modifié votre planning de cours.');
-  toast('✅ Planning mis à jour !');
+  toast('✅ Planning mis à jour — Firestore mis à jour !');
   chargerEleves();
 }
 
@@ -1049,9 +1067,12 @@ function changerCode() {
   if (nouveau !== confirm) { toast('⚠ Les codes ne correspondent pas'); return; }
   const profs = S.getArr('profs');
   const i = profs.findIndex(p => p.id === profActif.id);
-  if (i >= 0) { profs[i].mdp = nouveau; profs[i].code = nouveau; S.set('profs', profs); profActif = profs[i]; }
+  if (i >= 0) {
+    profs[i].mdp = nouveau; profs[i].code = nouveau; S.set('profs', profs); profActif = profs[i];
+    if (window.saveProfFirestoreProf && profActif.identifiant) window.saveProfFirestoreProf(profActif.identifiant, profActif);
+  }
   ['p-old', 'p-new', 'p-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  toast('✅ Code changé !');
+  toast('✅ Code changé — Firestore mis à jour !');
 }
 
 function showTool(id, btn) {

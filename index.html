@@ -410,6 +410,15 @@ MF Harmonie des Îles ne s'arrête pas à un écran. Bientôt des événements c
         <div style="color:#2ecc71;font-weight:700;margin-bottom:6px;">✅ Activation automatique</div>
         <div style="color:#a89880;font-size:0.85rem;line-height:1.6;">Votre accès est activé dès validation du paiement en ligne.<br>Connectez-vous dès maintenant à votre espace élève.</div>
       </div>
+      <div id="bloc-paiement-en-ligne" style="display:none;background:rgba(212,175,55,0.08);border:2px solid var(--or);padding:20px;margin:16px 0;text-align:center;">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--or);font-weight:700;margin-bottom:14px;">💳 Finaliser mon paiement</div>
+        <div style="color:#a89880;font-size:0.85rem;margin-bottom:16px;line-height:1.6;">Choisissez votre moyen de paiement pour activer immédiatement votre abonnement <strong id="paiement-formule-nom" style="color:var(--or-light);">—</strong>.</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <a id="btn-stripe" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:#635bff;color:#fff;padding:13px 24px;font-weight:700;font-size:14px;text-decoration:none;border-radius:4px;">💳 Payer par carte (Stripe)</a>
+          <a id="btn-paypal" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:#ffc439;color:#003087;padding:13px 24px;font-weight:700;font-size:14px;text-decoration:none;border-radius:4px;">🅿️ Payer avec PayPal</a>
+        </div>
+        <div style="font-size:11px;color:#a89880;margin-top:14px;">Paiement sécurisé. Votre accès sera confirmé manuellement sous peu après réception.</div>
+      </div>
       <div id="confirm-msg-attente" style="display:none;background:rgba(230,126,34,0.08);border:1px solid rgba(230,126,34,0.35);padding:16px;margin:16px 0;text-align:left;">
         <div style="color:#e67e22;font-weight:700;margin-bottom:8px;">⏳ En attente de virement bancaire</div>
         <div style="color:#a89880;font-size:0.85rem;line-height:1.7;margin-bottom:10px;">Votre inscription est enregistrée. L'accès sera activé dès réception de votre virement.</div>
@@ -524,6 +533,8 @@ async function chargerConfigAdmin() {
     if(tarifsSnap.exists()){const t=tarifsSnap.data();Object.keys(t).forEach(k=>localStorage.setItem('mfhi5_'+k,t[k]));}
     const ribSnap = await getDoc(doc(db,'config','rib'));
     if(ribSnap.exists()){const r=ribSnap.data();if(r.iban)localStorage.setItem('mfhi5_rib_iban',r.iban);if(r.bic)localStorage.setItem('mfhi5_rib_bic',r.bic);}
+    const paiementSnap = await getDoc(doc(db,'config','paiement'));
+    if(paiementSnap.exists()){const pay=paiementSnap.data();if(pay.stripe)localStorage.setItem('mfhi5_lien_stripe',pay.stripe);if(pay.paypal)localStorage.setItem('mfhi5_lien_paypal',pay.paypal);}
     const paramSnap = await getDoc(doc(db,'config','params'));
     if(paramSnap.exists()){
       const p=paramSnap.data();
@@ -849,8 +860,21 @@ async function soumettre(){
   if(ribBic)ribBic.textContent=localStorage.getItem('mfhi5_rib_bic')||'— RIB à configurer —';
   if(ribRef)ribRef.textContent=identifiant;
   var msgAtt=document.getElementById('confirm-msg-attente');var msgOnline=document.getElementById('confirm-msg-online');var btnAcc=document.getElementById('confirm-btn-acces');
-  if(accesImmediat){if(msgOnline)msgOnline.style.display='block';if(msgAtt)msgAtt.style.display='none';if(btnAcc)btnAcc.style.display='block';}
-  else{if(msgOnline)msgOnline.style.display='none';if(msgAtt)msgAtt.style.display='block';if(btnAcc)btnAcc.style.display='none';}
+  var blocPaiement=document.getElementById('bloc-paiement-en-ligne');
+  if(accesImmediat){
+    if(msgOnline)msgOnline.style.display='block';if(msgAtt)msgAtt.style.display='none';if(btnAcc)btnAcc.style.display='block';
+    // Afficher le bloc paiement Stripe/PayPal pour les abonnés en ligne
+    if(blocPaiement){
+      blocPaiement.style.display='block';
+      var nomFormule=document.getElementById('paiement-formule-nom');if(nomFormule)nomFormule.textContent=formule;
+      var lienStripe=localStorage.getItem('mfhi5_lien_stripe')||'';
+      var lienPaypal=localStorage.getItem('mfhi5_lien_paypal')||'';
+      var btnStripe=document.getElementById('btn-stripe');var btnPaypal=document.getElementById('btn-paypal');
+      if(btnStripe){if(lienStripe){btnStripe.href=lienStripe;btnStripe.style.opacity='1';btnStripe.style.pointerEvents='auto';}else{btnStripe.href='#';btnStripe.style.opacity='0.5';btnStripe.style.pointerEvents='none';}}
+      if(btnPaypal){if(lienPaypal){btnPaypal.href=lienPaypal;btnPaypal.style.opacity='1';btnPaypal.style.pointerEvents='auto';}else{btnPaypal.href='#';btnPaypal.style.opacity='0.5';btnPaypal.style.pointerEvents='none';}}
+    }
+  }
+  else{if(msgOnline)msgOnline.style.display='none';if(msgAtt)msgAtt.style.display='block';if(btnAcc)btnAcc.style.display='none';if(blocPaiement)blocPaiement.style.display='none';}
   window.scrollTo(0,0);
 }
 
