@@ -721,7 +721,11 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           </div>
           <div class="svg-prev" id="svg-prev"><div id="svg-content"></div></div>
         </div>
-        <button class="btn" onclick="addChanson()">✚ Ajouter au répertoire</button>
+        <div id="edition-bandeau" style="display:none;align-items:center;gap:10px;background:rgba(0,188,212,.1);border:1px solid rgba(0,188,212,.4);padding:10px 14px;margin-bottom:10px;border-radius:4px;">
+          <span style="font-size:12px;color:#00bcd4;flex:1;">✏️ Mode édition — vous modifiez une chanson existante</span>
+          <button class="btn-sm" style="border-color:#666;color:#888;" onclick="annulerEdition()">✕ Annuler</button>
+        </div>
+        <button class="btn" id="btn-add-chanson" onclick="addChanson()">✚ Ajouter au répertoire</button>
       </div>
       <div class="card">
         <div class="card-title">Répertoire (<span id="nb-chansons">0</span>)</div>
@@ -768,6 +772,21 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <button onclick="coloriserSelection('orange')" style="padding:6px 12px;background:rgba(230,126,34,.2);border:1px solid #e67e22;color:#e67e22;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🟠 Transition</button>
           <button onclick="coloriserSelection('cyan')" style="padding:6px 12px;background:rgba(0,188,212,.2);border:1px solid #00bcd4;color:#00bcd4;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🩵 Choeur</button>
           <button onclick="coloriserSelection('blanc')" style="padding:6px 12px;background:rgba(255,255,255,.1);border:1px solid #666;color:#ccc;font-size:11px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">⚪ Normal</button>
+        </div>
+
+        <!-- COULEUR DES ACCORDS -->
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">🎸 Couleur des accords [entre crochets]</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+          <button onclick="setAccordCouleur('#c9600a')" style="width:30px;height:30px;border-radius:50%;background:#c9600a;border:2px solid #fff;cursor:pointer;" title="Orange (défaut)"></button>
+          <button onclick="setAccordCouleur('#e74c3c')" style="width:30px;height:30px;border-radius:50%;background:#e74c3c;border:2px solid #fff;cursor:pointer;" title="Rouge"></button>
+          <button onclick="setAccordCouleur('#2ecc71')" style="width:30px;height:30px;border-radius:50%;background:#2ecc71;border:2px solid #fff;cursor:pointer;" title="Vert"></button>
+          <button onclick="setAccordCouleur('#3498db')" style="width:30px;height:30px;border-radius:50%;background:#3498db;border:2px solid #fff;cursor:pointer;" title="Bleu"></button>
+          <button onclick="setAccordCouleur('#e8c96a')" style="width:30px;height:30px;border-radius:50%;background:#e8c96a;border:2px solid #fff;cursor:pointer;" title="Or"></button>
+          <button onclick="setAccordCouleur('#9b59b6')" style="width:30px;height:30px;border-radius:50%;background:#9b59b6;border:2px solid #fff;cursor:pointer;" title="Violet"></button>
+          <button onclick="setAccordCouleur('#00bcd4')" style="width:30px;height:30px;border-radius:50%;background:#00bcd4;border:2px solid #fff;cursor:pointer;" title="Cyan"></button>
+          <button onclick="setAccordCouleur('#ffffff')" style="width:30px;height:30px;border-radius:50%;background:#ffffff;border:2px solid #888;cursor:pointer;" title="Blanc"></button>
+          <input type="color" id="gen-accord-couleur-picker" value="#c9600a" onchange="setAccordCouleur(this.value)" style="width:34px;height:30px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:none;" title="Couleur personnalisée">
+          <span id="gen-accord-couleur-lbl" style="font-size:11px;color:var(--muted);margin-left:4px;">Orange (défaut)</span>
         </div>
 
         <!-- TRANSPOSITION -->
@@ -1717,8 +1736,8 @@ function loadSVG(file){
 function addChanson(){
   const titre=document.getElementById('ch-titre').value.trim();if(!titre){toast('⚠ Titre requis');return;}
   const list=S.get('chansons');const statut=document.getElementById('ch-statut').value;
-  const nouvelleChanson={
-    id:Date.now(),titre,
+  const donneesChanson={
+    titre,
     auteur:document.getElementById('ch-auteur').value,
     format:document.getElementById('ch-format').value,
     type:getChTypeValue(),
@@ -1738,9 +1757,26 @@ function addChanson(){
     audio_perc:document.getElementById('audio-perc').value.trim(),
     audio_basse:document.getElementById('audio-basse').value.trim(),
     pattern:document.getElementById('ch-pattern')?document.getElementById('ch-pattern').value.trim():'',
-    svg:svgData,statut,
-    dateAjout:new Date().toLocaleDateString('fr-FR')
+    svg:svgData,statut
   };
+
+  if (chansonEnEdition) {
+    // MODE ÉDITION — on met à jour la chanson existante
+    const i = list.findIndex(c => c.id === chansonEnEdition);
+    if (i < 0) { toast('⚠ Chanson introuvable'); chansonEnEdition = null; return; }
+    const chansonMaj = Object.assign({}, list[i], donneesChanson, { id: list[i].id, dateAjout: list[i].dateAjout });
+    list[i] = chansonMaj;
+    S.set('chansons', list);
+    log('Chanson modifiée : ' + titre);
+    if (window.saveChansonFirestore) window.saveChansonFirestore(chansonMaj);
+    annulerEdition();
+    renderChansons(); initGenSelect();
+    toast('✅ Chanson modifiée — Firestore mis à jour !');
+    return;
+  }
+
+  // MODE CRÉATION
+  const nouvelleChanson = Object.assign({ id: Date.now(), dateAjout: new Date().toLocaleDateString('fr-FR') }, donneesChanson);
   list.push(nouvelleChanson);
   S.set('chansons',list);log('Chanson ajoutée : '+titre);
   if(window.saveChansonFirestore)window.saveChansonFirestore(nouvelleChanson);
@@ -1771,7 +1807,7 @@ function renderChansons(){
     (c.video?'<div style="margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px;">🎬 Vidéo Google Drive</div><iframe src="'+c.video+'" style="width:100%;height:220px;border:none;border-radius:2px;" allowfullscreen></iframe></div>':'')+
     (c.audio?'<div style="margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px;">🎵 Audio Google Drive</div><iframe src="'+c.audio+'" style="width:100%;height:80px;border:none;" allow="autoplay"></iframe></div>':'')+
     (c.svg?'<div><div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:6px;">🎼 Fiche</div><div style="background:var(--card2);border:1px solid var(--border);padding:4px;overflow-x:auto;">'+(()=>{const s=c.svg.trim();if(s.startsWith('<!DOCTYPE')||s.startsWith('<html'))return'<iframe srcdoc="'+s.replace(/"/g,'&quot;')+'" sandbox="allow-scripts allow-same-origin" style="width:100%;height:400px;border:none;background:#fff;display:block;"></iframe>';if(s.startsWith('<svg')||s.startsWith('<'))return s;return'<img src="'+c.svg+'" style="max-width:100%;height:auto;">';})()+'</div></div>':'')+
-    '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">'+(c.statut!=='valide'?'<button class="btn-sm" onclick="event.stopPropagation();validerChanson('+c.id+')">✅ Valider — Publier dans espace élève</button>':'<button class="btn-sm" style="border-color:#666;color:#888;" onclick="event.stopPropagation();mettreEnBrouillon('+c.id+')">📁 Remettre en brouillon</button>')+'<span style="font-size:10px;color:var(--muted);align-self:center;">'+( c.dateAjout||'—')+'</span></div>'+
+    '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">'+(c.statut!=='valide'?'<button class="btn-sm" onclick="event.stopPropagation();validerChanson('+c.id+')">✅ Valider — Publier dans espace élève</button>':'<button class="btn-sm" style="border-color:#666;color:#888;" onclick="event.stopPropagation();mettreEnBrouillon('+c.id+')">📁 Remettre en brouillon</button>')+'<button class="btn-sm" style="border-color:rgba(0,188,212,.5);color:#00bcd4;" onclick="event.stopPropagation();modifierChanson('+c.id+')">✏️ Modifier</button><span style="font-size:10px;color:var(--muted);align-self:center;">'+( c.dateAjout||'—')+'</span></div>'+
     '</div></div>').join(''):'<p style="color:var(--muted);text-align:center;padding:20px;font-style:italic;">Aucune chanson.</p>';
 }
 
@@ -1973,18 +2009,40 @@ function parseLigne(ligne) {
   if (!tokens.length) {
     return '<div style="margin:4px 0;line-height:2;">' + rendreCouleurs(ligneTraitee) + '</div>';
   }
+  const accCol = (typeof genAccordCouleur !== 'undefined' && genAccordCouleur) ? genAccordCouleur : '#c9600a';
   let html = '<div style="display:flex;flex-wrap:wrap;align-items:flex-end;margin:2px 0;">';
   if (tokens[0].pos > 0) {
-    html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;"><span style="line-height:1.2;">&nbsp;</span><span>' + rendreCouleurs(ligneTraitee.slice(0, tokens[0].pos)) + '</span></div>';
+    // Texte avant le premier accord : on isole les espaces de fin pour qu'ils restent visibles
+    const segment = ligneTraitee.slice(0, tokens[0].pos);
+    const segmentSansEspaceFin = segment.replace(/\s+$/, '');
+    const espacesFin = segment.slice(segmentSansEspaceFin.length);
+    if (segmentSansEspaceFin) {
+      html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;"><span style="line-height:1.2;">&nbsp;</span><span>' + rendreCouleurs(segmentSansEspaceFin) + '</span></div>';
+    }
+    if (espacesFin) {
+      html += '<span style="white-space:pre;align-self:flex-end;">' + espacesFin + '</span>';
+    }
   }
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     const nextPos = i + 1 < tokens.length ? tokens[i + 1].pos : ligneTraitee.length;
-    const syllabes = ligneTraitee.slice(t.endPos, nextPos);
-    html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;margin-right:1px;">';
-    html += '<span style="color:#c9600a;font-weight:700;font-size:0.85em;line-height:1.2;white-space:nowrap;">' + t.accord + '</span>';
-    html += '<span style="white-space:pre;">' + (rendreCouleurs(syllabes) || ' ') + '</span>';
+    let syllabes = ligneTraitee.slice(t.endPos, nextPos);
+    // Séparer les espaces de DÉBUT du segment (avant le mot suivant) — ils ne doivent pas décaler l'accord
+    const espacesDebut = syllabes.match(/^\s+/);
+    if (espacesDebut) {
+      html += '<span style="white-space:pre;align-self:flex-end;">' + espacesDebut[0] + '</span>';
+      syllabes = syllabes.slice(espacesDebut[0].length);
+    }
+    // Séparer les espaces de FIN du segment — pour qu'ils restent visibles et ne soient pas collapsés
+    const segmentSansEspaceFin = syllabes.replace(/\s+$/, '');
+    const espacesFin = syllabes.slice(segmentSansEspaceFin.length);
+    html += '<div style="display:inline-flex;flex-direction:column;align-items:flex-start;">';
+    html += '<span style="color:' + accCol + ';font-weight:700;font-size:0.85em;line-height:1.2;white-space:nowrap;">' + t.accord + '</span>';
+    html += '<span style="white-space:pre;">' + (rendreCouleurs(segmentSansEspaceFin) || '\u00A0') + '</span>';
     html += '</div>';
+    if (espacesFin) {
+      html += '<span style="white-space:pre;align-self:flex-end;">' + espacesFin + '</span>';
+    }
   }
   html += '</div>';
   return html;
@@ -2056,7 +2114,17 @@ function copierHTML(){
 // ════ GÉNÉRATEUR AMÉLIORÉ ════
 let genMode = 'sombre';
 let genTranspose = 0;
+let genAccordCouleur = '#c9600a';
 let diagData = '';
+
+function setAccordCouleur(couleur) {
+  genAccordCouleur = couleur;
+  const picker = document.getElementById('gen-accord-couleur-picker');
+  if (picker) picker.value = couleur;
+  const lbl = document.getElementById('gen-accord-couleur-lbl');
+  if (lbl) lbl.textContent = couleur === '#c9600a' ? 'Orange (défaut)' : couleur;
+  genApercu();
+}
 
 const NOTES_CHROMATIQUES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const NOTES_ALT = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
@@ -2177,6 +2245,63 @@ async function importerPDF(file) {
 function syncCustom(selectId, customId) {
   const custom = document.getElementById(customId);
   if (custom) custom.value = '';
+}
+
+let chansonEnEdition = null;
+
+function modifierChanson(id) {
+  const list = S.get('chansons');
+  const c = list.find(x => x.id === id);
+  if (!c) return;
+  chansonEnEdition = id;
+  // S'assurer qu'on est sur la section Studio Musique, puis sur le sous-onglet Chansons
+  const btnSectionStudio = document.querySelector('.main-btn[onclick*="goSection(\'studio\'"]');
+  goSection('studio', btnSectionStudio);
+  const btnStab = document.querySelector('#section-studio [onclick*="goStab(\'stu\',\'chansons\'"]');
+  if (btnStab) goStab('stu', 'chansons', btnStab);
+  document.getElementById('ch-titre').value = c.titre || '';
+  document.getElementById('ch-auteur').value = c.auteur || '';
+  if (document.getElementById('ch-format')) document.getElementById('ch-format').value = c.format || '';
+  if (document.getElementById('ch-type')) document.getElementById('ch-type').value = c.type || '';
+  if (document.getElementById('ch-cat')) document.getElementById('ch-cat').value = c.cat || '';
+  if (document.getElementById('ch-orig')) document.getElementById('ch-orig').value = c.orig || '';
+  document.getElementById('ch-niv').value = c.niv || 'Débutant';
+  document.getElementById('ch-acc').value = (c.acc && c.acc !== '—') ? c.acc : '';
+  document.getElementById('ch-par').value = c.par || '';
+  document.getElementById('ch-trad').value = c.trad || '';
+  document.getElementById('ch-pron').value = c.pron || '';
+  document.getElementById('ch-ctx').value = c.ctx || '';
+  document.getElementById('ch-video').value = c.video || '';
+  document.getElementById('ch-audio').value = c.audio || '';
+  if (document.getElementById('ch-pattern')) document.getElementById('ch-pattern').value = c.pattern || '';
+  document.getElementById('ch-statut').value = c.statut || 'brouillon';
+  // Cases à cocher formules
+  const formules = c.form || [];
+  ['basique','starter','immersion','premium','coaching'].forEach(f => {
+    const el = document.getElementById('ch-form-' + f);
+    if (el) el.checked = formules.includes(f);
+  });
+  // Bouton devient "Enregistrer les modifications"
+  const btnAdd = document.getElementById('btn-add-chanson');
+  if (btnAdd) {
+    btnAdd.textContent = '💾 Enregistrer les modifications';
+    btnAdd.style.background = '#00bcd4';
+  }
+  const bandeau = document.getElementById('edition-bandeau');
+  if (bandeau) bandeau.style.display = 'flex';
+  toast('✏️ Modification de : ' + c.titre);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function annulerEdition() {
+  chansonEnEdition = null;
+  ['ch-titre','ch-auteur','ch-acc','ch-par','ch-trad','ch-pron','ch-ctx','ch-video','ch-audio'].forEach(x=>document.getElementById(x).value='');
+  ['basique','starter','immersion','premium','coaching','toutes'].forEach(function(f){var el=document.getElementById('ch-form-'+f);if(el)el.checked=false;});
+  const btnAdd = document.getElementById('btn-add-chanson');
+  if (btnAdd) { btnAdd.textContent = '✚ Ajouter au répertoire'; btnAdd.style.background = ''; }
+  const bandeau = document.getElementById('edition-bandeau');
+  if (bandeau) bandeau.style.display = 'none';
+  toast('Édition annulée.');
 }
 
 function getChTypeValue() {
