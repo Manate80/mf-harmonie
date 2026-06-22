@@ -809,8 +809,8 @@ async function soumettre(){
   if(typeInscription==='en-ligne'){var ch=document.querySelector('.radio-opt.checked .opt-label');if(!ch){alert('Veuillez choisir une formule.');if(btn){btn.disabled=false;btn.textContent='Envoyer ma demande d\'inscription ✦';}return;}formule=ch.textContent;}
   else if(typeInscription==='domicile'){formule=document.getElementById('formule-fixe-nom').textContent+' - '+document.getElementById('formule-fixe-prix').textContent;}
   else if(typeInscription==='promo'){formule='Tarif promotionnel - '+document.getElementById('formule-fixe-prix').textContent;}
-  var statut=(typeInscription==='en-ligne')?'Actif':'En attente de confirmation';
-  var accesImmediat=(typeInscription==='en-ligne');
+  var statut='En attente de confirmation';
+  var accesImmediat=false;
 
   if(typeInscription==='en-ligne'){
     // ═══ ABONNÉ EN LIGNE — uniquement dans la collection abonnes ═══
@@ -819,7 +819,7 @@ async function soumettre(){
       identifiant:identifiant,mdp:code,code:code,
       email:email,mail:email,tel:tel,pays:commune||'Polynésie française',adresse:commune,
       formule:formule,typeInscription:'en-ligne',
-      statut:'actif',actif:true,
+      statut:'En attente de confirmation',actif:false,
       date:new Date().toLocaleDateString('fr-FR'),dateInscription:new Date().toLocaleDateString('fr-FR'),
       niveau:document.getElementById('i-niveau').value,
       progression:0,chansons:[]
@@ -861,10 +861,13 @@ async function soumettre(){
   if(ribRef)ribRef.textContent=identifiant;
   var msgAtt=document.getElementById('confirm-msg-attente');var msgOnline=document.getElementById('confirm-msg-online');var btnAcc=document.getElementById('confirm-btn-acces');
   var blocPaiement=document.getElementById('bloc-paiement-en-ligne');
-  if(accesImmediat){
-    if(msgOnline)msgOnline.style.display='block';if(msgAtt)msgAtt.style.display='none';if(btnAcc)btnAcc.style.display='block';
-    // Afficher le bloc paiement Stripe/PayPal pour les abonnés en ligne
-    if(blocPaiement){
+  // Tous les types : message d'attente, accès refusé tant que Manate ne valide pas
+  if(msgOnline)msgOnline.style.display='none';
+  if(msgAtt)msgAtt.style.display='block';
+  if(btnAcc)btnAcc.style.display='none';
+  // Bloc paiement Stripe/PayPal visible uniquement pour abonnés en ligne (paiement avant validation)
+  if(blocPaiement){
+    if(typeInscription==='en-ligne'){
       blocPaiement.style.display='block';
       var nomFormule=document.getElementById('paiement-formule-nom');if(nomFormule)nomFormule.textContent=formule;
       var lienStripe=localStorage.getItem('mfhi5_lien_stripe')||'';
@@ -872,9 +875,10 @@ async function soumettre(){
       var btnStripe=document.getElementById('btn-stripe');var btnPaypal=document.getElementById('btn-paypal');
       if(btnStripe){if(lienStripe){btnStripe.href=lienStripe;btnStripe.style.opacity='1';btnStripe.style.pointerEvents='auto';}else{btnStripe.href='#';btnStripe.style.opacity='0.5';btnStripe.style.pointerEvents='none';}}
       if(btnPaypal){if(lienPaypal){btnPaypal.href=lienPaypal;btnPaypal.style.opacity='1';btnPaypal.style.pointerEvents='auto';}else{btnPaypal.href='#';btnPaypal.style.opacity='0.5';btnPaypal.style.pointerEvents='none';}}
+    } else {
+      blocPaiement.style.display='none';
     }
   }
-  else{if(msgOnline)msgOnline.style.display='none';if(msgAtt)msgAtt.style.display='block';if(btnAcc)btnAcc.style.display='none';if(blocPaiement)blocPaiement.style.display='none';}
   window.scrollTo(0,0);
 }
 
@@ -893,8 +897,15 @@ async function seConnecter(){
   var utilisateur=null;
   // Déterminer la collection par préfixe
   var col = id.startsWith('PROF_') ? 'profs' : id.startsWith('ABO_') ? 'abonnes' : 'eleves';
-  // Chercher dans Firestore
-  if(window.chercherUtilisateurFirestore){utilisateur=await window.chercherUtilisateurFirestore(id);}
+  // Chercher dans Firestore avec timeout de sécurité (évite un blocage si réseau lent/coupé)
+  if(window.chercherUtilisateurFirestore){
+    try{
+      utilisateur = await Promise.race([
+        window.chercherUtilisateurFirestore(id),
+        new Promise((resolve)=>setTimeout(()=>resolve(null), 4000))
+      ]);
+    }catch(e){ utilisateur = null; }
+  }
   // Fallback localStorage
   if(!utilisateur){
     var list=JSON.parse(localStorage.getItem('mfhi5_'+col)||'[]');

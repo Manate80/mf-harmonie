@@ -169,6 +169,9 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 /* NOTIF */
 .notif-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .notif-dot{width:10px;height:10px;border-radius:50%;background:var(--or);margin-top:4px;flex-shrink:0;}
+.notif-bell-btn{position:relative;background:transparent;border:1px solid rgba(201,146,42,.4);color:var(--orL);padding:5px 10px;font-size:16px;cursor:pointer;font-family:inherit;border-radius:3px;}
+.notif-bell-badge{position:absolute;top:-6px;right:-6px;background:#e74c3c;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:pulse-red 1s infinite;}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,.6);}50%{box-shadow:0 0 0 6px rgba(231,76,60,0);}}
 
 /* MODAL */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;overflow-y:auto;padding:10px;}
@@ -221,6 +224,9 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <div class="header-sub">Administration</div>
     </div>
     <div class="header-right">
+      <button class="notif-bell-btn" id="notif-bell-btn" onclick="goSection('pilotage',document.querySelector('.main-btn'));setTimeout(function(){document.getElementById('notif-panel').scrollIntoView({behavior:'smooth'});},200);" style="display:none;">
+        🔔<span class="notif-bell-badge" id="notif-bell-count">0</span>
+      </button>
       <button class="btn-sm" onclick="if(window.syncFirestore)window.syncFirestore();" style="border-color:rgba(39,174,96,.5);color:#2ecc71;font-size:10px;padding:5px 10px;">🔄 Sync</button>
       <a href="index.html" class="hlink" style="display:none;" id="hlink-site">← Site</a>
       <a href="mf-eleve.html" class="hlink" style="display:none;" id="hlink-eleve">🎓 Élève</a>
@@ -1385,14 +1391,16 @@ function renderNotifs(){
   var notifs=JSON.parse(localStorage.getItem('mfhi5_notifs')||'[]').filter(function(n){return !n.lu;});
   var panel=document.getElementById('notif-panel');
   if(!panel)return;
-  if(!notifs.length){panel.innerHTML='';return;}
+  if(!notifs.length){panel.innerHTML='';
+    var bellBtn=document.getElementById('notif-bell-btn');if(bellBtn)bellBtn.style.display='none';
+    return;}
   panel.innerHTML='';
   var card=document.createElement('div');
   card.className='card';
   card.style.cssText='border-color:rgba(201,146,42,.5);margin-bottom:14px;';
   card.innerHTML='<div class="card-title" style="color:var(--orL);">🔔 Nouvelles inscriptions ('+notifs.length+')</div>';
   notifs.forEach(function(n,i){
-    var needsVal=n.needsValidation||n.type==='domicile'||n.type==='promo'||n.type==='professeur';
+    var needsVal=n.needsValidation||n.type==='domicile'||n.type==='promo'||n.type==='professeur'||n.type==='en-ligne';
     var item=document.createElement('div');item.className='notif-item';
     var dot=document.createElement('div');dot.className='notif-dot';
     var info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';
@@ -1414,6 +1422,10 @@ function renderNotifs(){
     item.appendChild(dot);item.appendChild(info);item.appendChild(btns);card.appendChild(item);
   });
   panel.appendChild(card);
+  // Mettre à jour le badge cloche dans le header
+  var bellBtn=document.getElementById('notif-bell-btn');
+  var bellCount=document.getElementById('notif-bell-count');
+  if(bellBtn&&bellCount){bellBtn.style.display=notifs.length?'':'none';bellCount.textContent=notifs.length;}
 }
 function marquerNotifLue(idx){
   const notifs=JSON.parse(localStorage.getItem('mfhi5_notifs')||'[]');
@@ -1426,6 +1438,10 @@ function validerInscription(identifiant,idx){
     var profs=S.get('profs');var i=profs.findIndex(p=>p.identifiant===identifiant);
     if(i>-1){profs[i].statut='Actif';S.set('profs',profs);log('✅ Prof validé : '+profs[i].nom);if(window.saveProfFirestore)window.saveProfFirestore(identifiant,profs[i]);}
     marquerNotifLue(idx);renderProfs();renderDashboard();toast('✅ Candidature professeur validée — Firestore mis à jour !');
+  }else if(identifiant.startsWith('ABO_')){
+    var abonnes=S.get('abonnes');var ia=abonnes.findIndex(a=>a.identifiant===identifiant);
+    if(ia>-1){abonnes[ia].statut='Actif';abonnes[ia].actif=true;S.set('abonnes',abonnes);log('✅ Abonnement validé : '+abonnes[ia].nom);if(window.saveAbonneFirestore)window.saveAbonneFirestore(identifiant,abonnes[ia]);}
+    marquerNotifLue(idx);renderAbonnes();renderAbonnesCards();renderDashboard();toast('✅ Abonnement en ligne validé — Firestore mis à jour !');
   }else{
     var eleves=S.get('eleves');var ie=eleves.findIndex(e=>e.identifiant===identifiant);
     if(ie>-1){eleves[ie].statut='Actif';S.set('eleves',eleves);log('✅ Inscription validée : '+eleves[ie].nom);if(window.saveEleveFirestore)window.saveEleveFirestore(identifiant,eleves[ie]);}
@@ -1437,7 +1453,7 @@ function validerInscription(identifiant,idx){
 function renderDashboard(){
   const eleves=S.get('eleves');const abonnes=S.get('abonnes');
   const actifs=eleves.filter(e=>e.actif!==false&&e.statut!=='En attente de confirmation');
-  const aboActifs=abonnes.filter(a=>a.statut==='actif');
+  const aboActifs=abonnes.filter(a=>a.statut==='Actif'||a.statut==='actif');
   const t=getTarifs();
   const caDom=actifs.reduce((s,e)=>s+(e.paiement||0),0);
   const caAbo=aboActifs.reduce((s,a)=>s+(t[a.formule]||0),0);

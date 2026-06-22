@@ -1192,9 +1192,9 @@ function creerCarteChangonHTML(c) {
 }
 
 function creerCarteChangon(c) {
-  const div = document.createElement('div'); div.className = 'chanson-card';
-  div.innerHTML = creerCarteChangonHTML(c).replace('<div class="chanson-card">','').replace(/<\/div>$/,'');
-  return div;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = creerCarteChangonHTML(c);
+  return wrap.firstElementChild;
 }
 
 function buildCorpsChanson(c) {
