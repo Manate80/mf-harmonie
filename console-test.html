@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>🎛️ Console Test v5 — Plein écran</title>
+<script src="https://player.vimeo.com/api/player.js"></script>
+<style>
+  :root {
+    --or: #D4AF37; --orD: #b8942c; --orL: #e6c860;
+    --card2: rgba(255,255,255,.08); --border: rgba(255,255,255,.15); --muted: #bbb; --blanc: #eee; --rouge: #e74c3c;
+    --vh100: 100vh;
+  }
+  html, body {
+    margin:0; padding:0; height:100%; background:#0a0a0a; overflow:hidden;
+    overscroll-behavior:none; touch-action:none;
+  }
+  body { font-family:'Lato',Arial,sans-serif; color:var(--blanc); }
+
+  /* ══ ÉCRAN DE CONFIGURATION (colle tes vrais liens ici) ══ */
+  #config-screen {
+    position:fixed; inset:0; overflow-y:auto; touch-action:pan-y;
+    background:#0a0a0a; padding:20px; box-sizing:border-box; z-index:10;
+  }
+  #config-screen h1 { font-family:'Cormorant Garamond',serif; color:var(--or); font-size:20px; text-align:center; margin:0 0 4px; }
+  #config-screen .sous-titre { text-align:center; color:var(--muted); font-size:11px; margin-bottom:18px; }
+  #config-screen .fg { margin-bottom:12px; max-width:480px; margin-left:auto; margin-right:auto; }
+  #config-screen label { display:block; font-size:11px; color:var(--orL); font-weight:700; margin-bottom:4px; }
+  #config-screen input {
+    width:100%; box-sizing:border-box; padding:10px; background:#161616; border:1px solid var(--border);
+    border-radius:5px; color:var(--blanc); font-size:13px;
+  }
+  #config-screen button.lancer {
+    display:block; width:100%; max-width:480px; margin:18px auto 0; padding:13px;
+    background:linear-gradient(135deg,var(--or),var(--orD)); border:none; border-radius:6px;
+    color:#000; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  #config-screen .astuce { max-width:480px; margin:14px auto 0; font-size:11px; color:var(--muted); line-height:1.6; text-align:center; }
+
+  /* ══ Scène vidéo plein écran (portrait ET paysage) — hauteur recalculée en JS (--vh100) ══ */
+  .video-stage { position:fixed; inset:0; width:100vw; height:var(--vh100); background:#000; touch-action:none; display:none; }
+  .video-stage.actif { display:block; }
+  .video-stage iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; pointer-events:none; }
+
+  .tap-catcher { position:absolute; inset:0; z-index:1; background:transparent; }
+
+  /* Bandeau compact : hauteur réduite, paddings resserrés */
+  .console-overlay {
+    position:absolute; left:0; right:0; bottom:0; z-index:2;
+    background:linear-gradient(to top, rgba(0,0,0,.95), rgba(0,0,0,.82) 60%, transparent);
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+    max-height:34%; overflow-y:auto;
+    opacity:0; transform:translateY(10px); pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .console-overlay.visible { opacity:1; transform:translateY(0); pointer-events:auto; }
+  .console-overlay::-webkit-scrollbar { width:4px; }
+  .console-overlay::-webkit-scrollbar-thumb { background:rgba(212,175,55,.4); border-radius:2px; }
+
+  /* Compactage du bandeau (sans toucher aux fonctions partagées avec le site) */
+  .console-overlay .console-maitre { padding:6px 8px !important; margin-bottom:6px !important; }
+  .console-overlay .console-maitre > div:first-child { margin-bottom:4px !important; gap:8px !important; }
+  .console-overlay .console-maitre > div:first-child button { width:32px !important; height:32px !important; font-size:13px !important; }
+  .console-overlay .console-maitre input[type="range"] { height:14px !important; }
+  .console-overlay .console-maitre > div:last-child { gap:10px !important; }
+  .console-overlay .console-maitre [style*="font-size:9px"] { font-size:8px !important; margin-bottom:2px !important; }
+  .console-overlay .media-label { font-size:9px !important; margin-bottom:3px !important; }
+  .console-overlay .console-audio { padding:6px 8px !important; margin-bottom:0 !important; }
+  .console-overlay [style*="min-width:110px"] { min-width:78px !important; padding:5px 7px !important; }
+
+  .indice-tap {
+    position:absolute; top:12px; left:0; right:0; text-align:center; z-index:2;
+    font-size:11px; color:rgba(255,255,255,.55); pointer-events:none;
+    opacity:1; transition:opacity .4s ease;
+  }
+  .indice-tap.cache { opacity:0; }
+  .btn-retour-config {
+    position:absolute; top:10px; left:10px; z-index:3; background:rgba(0,0,0,.5); color:var(--muted);
+    border:1px solid var(--border); border-radius:4px; padding:5px 9px; font-size:10px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ ÉCRAN 1 — CONFIGURATION : colle tes vrais liens ══ -->
+<div id="config-screen">
+  <h1>🎛️ Console — Configuration du test</h1>
+  <div class="sous-titre">Colle tes vrais liens ci-dessous, puis lance la Console</div>
+
+  <div class="fg"><label>🎬 Vidéo (Vimeo ou Google Drive)</label><input id="cfg-video" placeholder="https://vimeo.com/... ou lien Drive"></div>
+
+  <div class="fg"><label>🎤 Voix lead</label><input id="cfg-voix_lead" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🎵 Chœurs</label><input id="cfg-choeurs" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🎸 Uku mélodie</label><input id="cfg-uke_melodie" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🎸 Uku harmonie</label><input id="cfg-uke_harmonie" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🎸 Guitare</label><input id="cfg-guitare" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🪈 Vivo</label><input id="cfg-vivo" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🎶 Basse</label><input id="cfg-basse" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🥁 To'ere 🔒 (ne transpose jamais)</label><input id="cfg-toere" placeholder="Lien Google Drive"></div>
+  <div class="fg"><label>🌊 Ambiance 🔒 (ne transpose jamais)</label><input id="cfg-ambiance" placeholder="Lien Google Drive"></div>
+
+  <button class="lancer" onclick="lancerConsoleAvecMesPistes()">▶ Lancer la Console</button>
+  <div class="astuce">Laisse vide les pistes que tu n'as pas — seules les pistes remplies apparaîtront.<br>Les liens sont normalisés automatiquement (comme dans le Générateur).</div>
+</div>
+
+<!-- ══ ÉCRAN 2 — CONSOLE PLEIN ÉCRAN ══ -->
+<div class="video-stage" id="stage-consTEST">
+  <button class="btn-retour-config" onclick="retourConfig()">← Config</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// ══ CONSOLE UNIFIÉE — contrôle maître commun (vidéo Vimeo + toutes les pistes audio) ══
+// Play/Pause, Position et Vitesse pilotent TOUT en même temps (vidéo + audio).
+// Le Volume maître est un fader qui se multiplie par-dessus le volume propre
+// de chaque piste (comme une table de mixage) — ne remplace pas les réglages individuels.
+// Mute et Transposition restent des réglages LOCAUX à chaque piste/groupe.
+// ══════════════════════════════════════════════════════════════
+const _consoleMaitreState = {}; // masterUid → { vitesse, volume, enLecture }
+const _maitreIntervals = {};    // masterUid → id du setInterval de suivi (vidéo seule, sans piste audio de référence)
+
+function _getMaitreState(masterUid) {
+  if (!_consoleMaitreState[masterUid]) _consoleMaitreState[masterUid] = { vitesse: 1.0, volume: 1.0, enLecture: false };
+  return _consoleMaitreState[masterUid];
+}
+function _getConsoleWrap(masterUid) { return document.getElementById('cw-' + masterUid); }
+function _getConsoleAudios(masterUid) {
+  const wrap = _getConsoleWrap(masterUid);
+  return wrap ? Array.from(wrap.querySelectorAll('audio')) : [];
+}
+function _getConsoleVideoFrames(masterUid) {
+  const wrap = _getConsoleWrap(masterUid);
+  return wrap ? Array.from(wrap.querySelectorAll('iframe.vimeo-master-frame')) : [];
+}
+// Initialise les lecteurs Vimeo (API) une seule fois par vidéo, dès que la Console est ouverte
+function initConsoleVideos(masterUid) {
+  if (typeof Vimeo === 'undefined') return;
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (!fr._vimeoPlayer) {
+      fr._vimeoPlayer = new Vimeo.Player(fr);
+      fr._vimeoPlayer.setVolume(0).catch(() => {}); // vidéo muette par défaut (l'audio vient des pistes Drive)
+    }
+  });
+}
+// Recalcule playbackRate/volume de chaque piste à partir de : vitesse maître + volume maître
+// + réglages locaux (transposition, volume propre, mute) stockés en data-attributes sur chaque <audio>
+function _recalcMoteurConsole(masterUid) {
+  const mState = _getMaitreState(masterUid);
+  _getConsoleAudios(masterUid).forEach(a => {
+    const transpo = parseFloat(a.dataset.transpo || '0');
+    const verrou = a.dataset.verrou === '1';
+    const baseVol = a.dataset.basevol !== undefined ? parseFloat(a.dataset.basevol) : 1;
+    const muted = a.dataset.muted === '1';
+    const facteurTranspo = verrou ? 1 : Math.pow(2, transpo / 12);
+    a.playbackRate = mState.vitesse * facteurTranspo;
+    a.volume = muted ? 0 : Math.max(0, Math.min(1, baseVol * mState.volume));
+  });
+  initConsoleVideos(masterUid);
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (fr._vimeoPlayer) fr._vimeoPlayer.setPlaybackRate(mState.vitesse).catch(() => {});
+  });
+}
+function toggleConsoleMaitre(masterUid) {
+  initConsoleVideos(masterUid);
+  _recalcMoteurConsole(masterUid);
+  const state = _getMaitreState(masterUid);
+  const btn = document.getElementById('maitre-play-' + masterUid);
+  const audios = _getConsoleAudios(masterUid);
+  const frames = _getConsoleVideoFrames(masterUid);
+  state.enLecture = !state.enLecture;
+  if (state.enLecture) {
+    audios.forEach(a => a.play().catch(() => {}));
+    frames.forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.play().catch(() => {}));
+    if (btn) btn.textContent = '⏸';
+    _demarrerSuiviMaitre(masterUid, audios, frames);
+  } else {
+    audios.forEach(a => a.pause());
+    frames.forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.pause().catch(() => {}));
+    if (btn) btn.textContent = '▶';
+    clearInterval(_maitreIntervals[masterUid]);
+  }
+}
+function _demarrerSuiviMaitre(masterUid, audios, frames) {
+  const seek = document.getElementById('maitre-seek-' + masterUid);
+  const time = document.getElementById('maitre-time-' + masterUid);
+  clearInterval(_maitreIntervals[masterUid]);
+  if (audios.length) {
+    // Référence : la première piste audio (la vidéo, muette, suit sans piloter la barre)
+    const ref = audios[0];
+    ref.ontimeupdate = () => {
+      if (seek && ref.duration) seek.value = (ref.currentTime / ref.duration) * 100;
+      if (time) { const m = Math.floor(ref.currentTime / 60); const s = Math.floor(ref.currentTime % 60); time.textContent = m + ':' + (s < 10 ? '0' : '') + s; }
+    };
+    ref.onended = () => {
+      const btn = document.getElementById('maitre-play-' + masterUid);
+      if (btn) btn.textContent = '▶';
+      _getMaitreState(masterUid).enLecture = false;
+      audios.forEach(a => a.pause());
+      frames.forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.pause().catch(() => {}));
+    };
+  } else if (frames.length) {
+    // Pas de piste audio (vidéo seule) : suivi de la progression via l'API Vimeo
+    const fr = frames[0];
+    _maitreIntervals[masterUid] = setInterval(() => {
+      if (!fr._vimeoPlayer) return;
+      Promise.all([fr._vimeoPlayer.getCurrentTime(), fr._vimeoPlayer.getDuration()]).then(([t, d]) => {
+        if (seek && d) seek.value = (t / d) * 100;
+        if (time) { const m = Math.floor(t / 60); const s = Math.floor(t % 60); time.textContent = m + ':' + (s < 10 ? '0' : '') + s; }
+      }).catch(() => {});
+    }, 400);
+  }
+}
+function seekConsoleMaitre(masterUid, value) {
+  const pct = value / 100;
+  const enLecture = _getMaitreState(masterUid).enLecture;
+  _getConsoleAudios(masterUid).forEach(a => { if (a.duration) a.currentTime = pct * a.duration; });
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (!fr._vimeoPlayer) return;
+    fr._vimeoPlayer.getDuration().then(d => fr._vimeoPlayer.setCurrentTime(pct * d)).then(() => {
+      if (enLecture) fr._vimeoPlayer.play().catch(() => {}); // Vimeo met parfois en pause après un seek — on relance
+    }).catch(() => {});
+  });
+}
+function ajusterVitesseMaitre(masterUid, delta) {
+  const state = _getMaitreState(masterUid);
+  state.vitesse = Math.max(0.5, Math.min(1.5, Math.round((state.vitesse + delta) * 10) / 10));
+  const lbl = document.getElementById('maitre-vitesse-' + masterUid);
+  if (lbl) lbl.textContent = state.vitesse.toFixed(1) + 'x';
+  _recalcMoteurConsole(masterUid);
+  if (state.enLecture) {
+    _getConsoleVideoFrames(masterUid).forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.play().catch(() => {})); // relance si Vimeo a mis en pause après le changement de vitesse
+  }
+}
+function ajusterVolumeMaitre(masterUid, value) {
+  const state = _getMaitreState(masterUid);
+  state.volume = Math.max(0, Math.min(1, value / 100));
+  _recalcMoteurConsole(masterUid);
+  initConsoleVideos(masterUid);
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (fr._vimeoPlayer) fr._vimeoPlayer.setVolume(state.volume).catch(() => {});
+  });
+}
+
+// ── Réglages LOCAUX conservés par piste : transposition, volume propre, mute ──
+// (la vitesse et le play/pause/position sont désormais exclusivement pilotés par le maître ci-dessus)
+function ajusterTransposition(audioUid, masterUid, delta) {
+  const player = document.getElementById('player-' + audioUid);
+  if (!player) return;
+  const val = Math.max(-6, Math.min(6, parseFloat(player.dataset.transpo || '0') + delta));
+  player.dataset.transpo = val;
+  const lbl = document.getElementById('console-transpo-' + audioUid);
+  if (lbl) lbl.textContent = (val > 0 ? '+' : '') + val;
+  _recalcMoteurConsole(masterUid);
+}
+function ajusterTranspositionMulti(masterUid, delta) {
+  const lbl = document.getElementById('console-transpo-' + masterUid);
+  const pistes = _getConsoleAudios(masterUid).filter(a => a.id.startsWith('mp-' + masterUid + '-'));
+  if (!pistes.length) return;
+  const actuel = parseFloat(pistes[0].dataset.transpo || '0');
+  const val = Math.max(-6, Math.min(6, actuel + delta));
+  if (lbl) lbl.textContent = (val > 0 ? '+' : '') + val;
+  // Transposition ignorée sur les pistes verrouillées (To'ere, Ambiance) — elles gardent leur hauteur naturelle
+  pistes.forEach(p => { if (p.dataset.verrou !== '1') p.dataset.transpo = val; });
+  _recalcMoteurConsole(masterUid);
+}
+// Couper/réactiver une piste précise — fonctionne pendant la lecture, sans interrompre les autres pistes
+function togglePisteMute(masterUid, pisteKey, btn) {
+  const player = document.getElementById('mp-' + masterUid + '-' + pisteKey);
+  if (!player) return;
+  const estCoupee = btn.dataset.muted === '1';
+  player.dataset.muted = estCoupee ? '0' : '1';
+  btn.dataset.muted = estCoupee ? '0' : '1';
+  btn.textContent = estCoupee ? '🔊' : '🔇';
+  btn.style.color = estCoupee ? '#2ecc71' : 'var(--rouge)';
+  _recalcMoteurConsole(masterUid);
+}
+// Curseur de volume par piste — réglage progressif, indépendant du mute, combiné au volume maître
+function ajusterVolumePiste(masterUid, pisteKey, value) {
+  const player = document.getElementById('mp-' + masterUid + '-' + pisteKey);
+  if (!player) return;
+  player.dataset.basevol = Math.max(0, Math.min(1, value / 100));
+  _recalcMoteurConsole(masterUid);
+}
+// Barre de contrôle maître (Play/Pause + Position + Vitesse + Volume — pilote vidéo ET audio ensemble)
+function buildBarreMaitre(masterUid) {
+  return '<div class="console-maitre" style="background:rgba(212,175,55,.08);border:2px solid rgba(212,175,55,.35);border-radius:8px;padding:14px;margin-bottom:14px;">'
+    + '<div style="font-size:10px;color:var(--or);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;text-align:center;">🎛️ Contrôle maître — vidéo + audio synchronisés</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+    + '<button onclick="toggleConsoleMaitre(\'' + masterUid + '\')" id="maitre-play-' + masterUid + '" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--orD));border:none;color:#000;font-size:18px;cursor:pointer;flex-shrink:0;">▶</button>'
+    + '<input type="range" min="0" max="100" value="0" id="maitre-seek-' + masterUid + '" oninput="seekConsoleMaitre(\'' + masterUid + '\',this.value)" style="flex:1;accent-color:var(--or);">'
+    + '<span id="maitre-time-' + masterUid + '" style="font-size:11px;color:var(--muted);min-width:38px;">0:00</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+    + '<div style="flex:1;min-width:130px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🐢 Vitesse générale <span style="color:#888;">(vidéo + audio)</span></div>'
+    + '<div style="display:flex;align-items:center;gap:6px;">'
+    + '<button onclick="ajusterVitesseMaitre(\'' + masterUid + '\',-0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">−</button>'
+    + '<span id="maitre-vitesse-' + masterUid + '" style="font-size:12px;color:var(--orL);min-width:38px;text-align:center;font-weight:700;">1.0x</span>'
+    + '<button onclick="ajusterVitesseMaitre(\'' + masterUid + '\',0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">+</button>'
+    + '</div></div>'
+    + '<div style="flex:1;min-width:130px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🔊 Volume général <span style="color:#888;">(vidéo + audio)</span></div>'
+    + '<input type="range" min="0" max="100" value="100" id="maitre-volume-' + masterUid + '" oninput="ajusterVolumeMaitre(\'' + masterUid + '\',this.value)" style="width:100%;accent-color:var(--or);">'
+    + '</div>'
+    + '</div></div>';
+}
+
+
+
+
+// ══ CONSOLE AUDIO (piste "version complète") — Transposition locale uniquement ══
+// Play/Pause/Position/Vitesse sont désormais pilotés par le Contrôle maître de la Console.
+function buildConsoleAudio(audioUid, masterUid) {
+  return '<div class="console-audio" oncontextmenu="return false;" style="background:rgba(201,146,42,.05);border:1px solid rgba(201,146,42,.18);border-radius:6px;padding:12px;-webkit-user-select:none;user-select:none;">'
+    + '<div style="display:flex;align-items:center;gap:6px;justify-content:center;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-right:6px;">🎵 Transposer cette piste</div>'
+    + '<button onclick="ajusterTransposition(\'' + audioUid + '\',\'' + masterUid + '\',-1)" style="padding:4px 8px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:11px;cursor:pointer;border-radius:3px;">−</button>'
+    + '<span id="console-transpo-' + audioUid + '" style="font-size:11px;color:var(--orL);min-width:34px;text-align:center;">0</span>'
+    + '<button onclick="ajusterTransposition(\'' + audioUid + '\',\'' + masterUid + '\',1)" style="padding:4px 8px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:11px;cursor:pointer;border-radius:3px;">+</button>'
+    + '</div></div>';
+}
+
+// ══ CONSOLE MULTI-PISTES — mute + volume individuel par piste, transposition partagée ══
+// Play/Pause/Position/Vitesse sont désormais pilotés par le Contrôle maître de la Console.
+// Pistes : ukulélé, chant, percussion, basse — jouées en simultané via le maître.
+// Chaque piste peut être coupée/réactivée ou baissée en plein milieu de la lecture (pour s'entraîner).
+function buildConsoleMultiPistes(masterUid, pistes) {
+  // pistes = [{key:'voix_lead', label:'🎤 Voix lead', url:'...', verrou:false}, ...]
+  // verrou:true = ne transpose jamais (To'ere, Ambiance) mais suit toujours la vitesse maître
+  let audiosHtml = '';
+  let pistesControles = '';
+  pistes.forEach(p => {
+    audiosHtml += '<audio id="mp-' + masterUid + '-' + p.key + '" src="' + p.url + '" preload="none" style="display:none;" data-verrou="' + (p.verrou ? '1' : '0') + '" data-transpo="0" data-basevol="1" data-muted="0"></audio>';
+    pistesControles += '<div style="background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:8px 10px;min-width:110px;flex:1;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'
+      + '<span style="font-size:10px;color:var(--orL);font-weight:700;">' + p.label + (p.verrou ? ' 🔒' : '') + '</span>'
+      + '<button onclick="togglePisteMute(\'' + masterUid + '\',\'' + p.key + '\',this)" id="mp-mute-' + masterUid + '-' + p.key + '" data-muted="0" style="background:transparent;border:none;color:#2ecc71;font-size:14px;cursor:pointer;padding:0;">🔊</button>'
+      + '</div>'
+      + '<input type="range" min="0" max="100" value="100" id="mp-vol-' + masterUid + '-' + p.key + '" oninput="ajusterVolumePiste(\'' + masterUid + '\',\'' + p.key + '\',this.value)" style="width:100%;accent-color:var(--or);height:14px;">'
+      + '</div>';
+  });
+  return '<div class="console-audio" oncontextmenu="return false;" style="background:rgba(201,146,42,.05);border:1px solid rgba(201,146,42,.18);border-radius:6px;padding:12px;-webkit-user-select:none;user-select:none;">'
+    + audiosHtml
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎚️ Pistes séparées — coupez, baissez ou montez chacune à tout moment (lecture pilotée par le contrôle maître ci-dessus)</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' + pistesControles + '</div>'
+    + '<div style="display:flex;justify-content:center;">'
+    + '<div style="min-width:140px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;text-align:center;">🎵 Transposer les pistes <span style="color:#888;">(sauf 🔒)</span></div>'
+    + '<div style="display:flex;align-items:center;gap:6px;justify-content:center;">'
+    + '<button onclick="ajusterTranspositionMulti(\'' + masterUid + '\',-1)" style="padding:4px 8px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:11px;cursor:pointer;border-radius:3px;">−</button>'
+    + '<span id="console-transpo-' + masterUid + '" style="font-size:11px;color:var(--orL);min-width:34px;text-align:center;">0</span>'
+    + '<button onclick="ajusterTranspositionMulti(\'' + masterUid + '\',1)" style="padding:4px 8px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:11px;cursor:pointer;border-radius:3px;">+</button>'
+    + '</div></div></div></div>';
+}
+
+
+
+// ══ Normalisation des liens (identique au Générateur admin) ══
+function normaliserLienMedia(url) {
+  if (!url) return '';
+  url = url.trim();
+  let m = url.match(/(?:player\.)?vimeo\.com\/(?:channels\/[^\/?#]+\/|video\/|manage\/videos\/)?(\d{6,12})/i);
+  if (m) return 'https://player.vimeo.com/video/' + m[1];
+  if (/drive\.google\.com|docs\.google\.com/i.test(url)) {
+    m = url.match(/\/file\/d\/([a-zA-Z0-9_-]{10,})/) || url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+    if (m) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+  }
+  return url;
+}
+
+// ══ Hauteur réelle de l'écran (corrige le "faux 100vh" des navigateurs mobiles) ══
+function _ajusterHauteurEcran() {
+  document.documentElement.style.setProperty('--vh100', window.innerHeight + 'px');
+}
+window.addEventListener('resize', _ajusterHauteurEcran);
+window.addEventListener('orientationchange', _ajusterHauteurEcran);
+_ajusterHauteurEcran();
+
+// ══ Superposition auto-masquée (apparaît au triple-tap, se cache après 4s d'inactivité) ══
+let _overlayHideTimer = null;
+function _showOverlayConsole(masterUid) {
+  const ov = document.getElementById('overlay-' + masterUid);
+  if (!ov) return;
+  ov.classList.add('visible');
+  clearTimeout(_overlayHideTimer);
+  _overlayHideTimer = setTimeout(() => { ov.classList.remove('visible'); }, 4000);
+}
+
+// ══ Détection de triple-tap ══
+let _tapTimestamps = [];
+function _gererTapCatcher(masterUid, indiceEl) {
+  const maintenant = Date.now();
+  _tapTimestamps = _tapTimestamps.filter(t => maintenant - t < 800);
+  _tapTimestamps.push(maintenant);
+  if (_tapTimestamps.length >= 3) {
+    _tapTimestamps = [];
+    _showOverlayConsole(masterUid);
+    if (indiceEl) indiceEl.classList.add('cache');
+  }
+}
+
+function retourConfig() {
+  document.getElementById('config-screen').style.display = 'block';
+  document.getElementById('stage-consTEST').classList.remove('actif');
+}
+
+// ══ Construit la Console à partir des liens saisis dans l'écran de configuration ══
+function lancerConsoleAvecMesPistes() {
+  const videoBrut = document.getElementById('cfg-video').value.trim();
+  const video = normaliserLienMedia(videoBrut);
+
+  const defsPistes = [
+    {key:'voix_lead', label:'🎤 Voix lead'},
+    {key:'choeurs', label:'🎵 Chœurs'},
+    {key:'uke_melodie', label:'🎸 Uku mélodie'},
+    {key:'uke_harmonie', label:'🎸 Uku harmonie'},
+    {key:'guitare', label:'🎸 Guitare'},
+    {key:'vivo', label:'🪈 Vivo'},
+    {key:'basse', label:'🎶 Basse'},
+    {key:'toere', label:'🥁 To\'ere', verrou:true},
+    {key:'ambiance', label:'🌊 Ambiance', verrou:true}
+  ];
+  const pistesListe = [];
+  defsPistes.forEach(d => {
+    const brut = document.getElementById('cfg-' + d.key).value.trim();
+    if (brut) pistesListe.push({key:d.key, label:d.label, url:normaliserLienMedia(brut), verrou:!!d.verrou});
+  });
+
+  if (!video && !pistesListe.length) { alert('Colle au moins une vidéo ou une piste avant de lancer.'); return; }
+
+  document.getElementById('config-screen').style.display = 'none';
+  const stage = document.getElementById('stage-consTEST');
+  stage.classList.add('actif');
+  construireConsole(video, pistesListe);
+}
+
+function construireConsole(videoUrl, pistesListe) {
+  const masterUid = 'consTEST';
+  const stage = document.getElementById('stage-' + masterUid);
+
+  const videoHtml = videoUrl
+    ? '<iframe class="vimeo-master-frame" id="vidfr-' + masterUid + '-1" src="' + videoUrl + (videoUrl.includes('?') ? '&' : '?') + 'controls=0" allow="autoplay; fullscreen; picture-in-picture"></iframe>'
+    : '';
+
+  const htmlAudio = pistesListe.length
+    ? '<div class="media-label">🎚️ Pistes séparées</div>' + buildConsoleMultiPistes(masterUid, pistesListe)
+    : '<p style="color:var(--muted);font-size:11px;">Aucune piste audio.</p>';
+
+  const overlay = '<div class="console-overlay" id="overlay-' + masterUid + '">'
+    + buildBarreMaitre(masterUid)
+    + htmlAudio
+    + '</div>';
+
+  stage.innerHTML = '<button class="btn-retour-config" onclick="retourConfig()">← Config</button>'
+    + '<div id="cw-' + masterUid + '">'
+    + videoHtml
+    + '<div class="tap-catcher" id="tap-' + masterUid + '"></div>'
+    + '<div class="indice-tap" id="indice-' + masterUid + '">👆 Triple-tap pour afficher les commandes</div>'
+    + overlay
+    + '</div>';
+
+  if (videoUrl) initConsoleVideos(masterUid);
+
+  const tapCatcher = document.getElementById('tap-' + masterUid);
+  const indiceEl = document.getElementById('indice-' + masterUid);
+  tapCatcher.addEventListener('click', () => _gererTapCatcher(masterUid, indiceEl));
+
+  const overlayEl = document.getElementById('overlay-' + masterUid);
+  ['input', 'pointerdown'].forEach(evt => {
+    overlayEl.addEventListener(evt, () => _showOverlayConsole(masterUid));
+  });
+}
+</script>
+</body>
+</html>
