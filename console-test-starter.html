@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>🎛️ Console Test v6 — Tone.js</title>
+<script src="https://player.vimeo.com/api/player.js"></script>
+<script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<style>
+  :root {
+    --or: #D4AF37; --orD: #b8942c; --orL: #e6c860;
+    --card2: rgba(255,255,255,.08); --border: rgba(255,255,255,.15); --muted: #bbb; --blanc: #eee; --rouge: #e74c3c;
+    --vh100: 100vh;
+  }
+  html, body {
+    margin:0; padding:0; height:100%; background:#0a0a0a; overflow:hidden;
+    overscroll-behavior:none; touch-action:none;
+  }
+  body { font-family:'Lato',Arial,sans-serif; color:var(--blanc); }
+
+  #config-screen {
+    position:fixed; inset:0; overflow-y:auto; touch-action:pan-y;
+    background:#0a0a0a; padding:20px; box-sizing:border-box; z-index:10;
+  }
+  #config-screen h1 { font-family:'Cormorant Garamond',serif; color:var(--or); font-size:20px; text-align:center; margin:0 0 4px; }
+  #config-screen .sous-titre { text-align:center; color:var(--muted); font-size:11px; margin-bottom:18px; }
+  #config-screen .fg { margin-bottom:12px; max-width:480px; margin-left:auto; margin-right:auto; }
+  #config-screen label { display:block; font-size:11px; color:var(--orL); font-weight:700; margin-bottom:4px; }
+  #config-screen input {
+    width:100%; box-sizing:border-box; padding:10px; background:#161616; border:1px solid var(--border);
+    border-radius:5px; color:var(--blanc); font-size:13px;
+    touch-action:manipulation; -webkit-user-select:text; user-select:text;
+  }
+  #config-screen button.lancer {
+    display:block; width:100%; max-width:480px; margin:18px auto 0; padding:13px;
+    background:linear-gradient(135deg,var(--or),var(--orD)); border:none; border-radius:6px;
+    color:#000; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  #config-screen .astuce { max-width:480px; margin:14px auto 0; font-size:11px; color:var(--muted); line-height:1.6; text-align:center; }
+
+  .video-stage { position:fixed; inset:0; width:100vw; height:var(--vh100); background:#000; touch-action:none; display:none; }
+  .video-stage.actif { display:block; }
+  .video-stage.sans-video { overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+  .video-stage iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; pointer-events:none; }
+
+  .panneau-fixe { position:relative; padding:16px 12px calc(16px + env(safe-area-inset-bottom)); }
+
+  .tap-catcher { position:absolute; inset:0; z-index:1; background:transparent; }
+
+  .console-overlay {
+    position:absolute; left:0; right:0; bottom:0; z-index:2;
+    background:linear-gradient(to top, rgba(0,0,0,.95), rgba(0,0,0,.82) 60%, transparent);
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+    max-height:60%; overflow-y:auto;
+    opacity:0; transform:translateY(10px); pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .console-overlay.visible { opacity:1; transform:translateY(0); pointer-events:auto; }
+  .console-overlay::-webkit-scrollbar { width:4px; }
+  .console-overlay::-webkit-scrollbar-thumb { background:rgba(212,175,55,.4); border-radius:2px; }
+
+  .console-overlay .console-maitre { padding:6px 8px !important; margin-bottom:6px !important; }
+  .console-overlay .console-maitre > div:first-child { margin-bottom:4px !important; gap:8px !important; }
+  .console-overlay .console-maitre > div:first-child button { width:32px !important; height:32px !important; font-size:13px !important; }
+  .console-overlay .console-maitre input[type="range"] { height:14px !important; }
+  input[type="range"] { touch-action:manipulation; }
+  .console-overlay .console-maitre > div:last-child { gap:10px !important; }
+  .console-overlay .console-maitre [style*="font-size:9px"] { font-size:8px !important; margin-bottom:2px !important; }
+  .console-overlay .media-label { font-size:9px !important; margin-bottom:3px !important; }
+  .console-overlay .console-audio { padding:6px 8px !important; margin-bottom:0 !important; }
+  .console-overlay [style*="min-width:110px"] { min-width:78px !important; padding:5px 7px !important; }
+
+  .indice-tap {
+    position:absolute; top:12px; left:0; right:0; text-align:center; z-index:2;
+    font-size:11px; color:rgba(255,255,255,.55); pointer-events:none;
+    opacity:1; transition:opacity .4s ease;
+  }
+  .indice-tap.cache { opacity:0; }
+  .btn-retour-config {
+    position:absolute; top:10px; left:10px; z-index:3; background:rgba(0,0,0,.5); color:var(--muted);
+    border:1px solid var(--border); border-radius:4px; padding:5px 9px; font-size:10px; cursor:pointer;
+  }
+  .diag-zone {
+    margin-top:12px; background:#050505; border:1px solid var(--border); border-radius:6px;
+    padding:8px 10px; font-family:monospace; font-size:10px; color:#8f8; max-height:140px; overflow-y:auto;
+  }
+  .diag-zone div { margin-bottom:3px; white-space:pre-wrap; word-break:break-word; }
+  .diag-titre { font-family:'Lato',Arial,sans-serif; font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin:10px 0 4px; }
+
+  /* ══ Écran de visualisation plein-écran (style Moises) ══ */
+  /* ══ Prompteur vertical — paroles exactes du JSON, défilement continu vers le haut ══ */
+  .prompteur {
+    position:absolute; top:0; left:0; right:0; bottom:0; z-index:2;
+    overflow:hidden; pointer-events:none;
+  }
+  .prompteur-repere {
+    position:absolute; top:30%; left:0; right:0; height:1px;
+    border-top:1px dashed rgba(212,175,55,.25); z-index:1;
+  }
+  .prompteur-lignes {
+    position:absolute; left:0; right:0; top:0;
+    padding:0 20px; box-sizing:border-box;
+    transition:transform .05s linear;
+  }
+  .prompt-ligne {
+    position:absolute; left:20px; right:20px; pointer-events:auto; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center; font-size:19px; color:rgba(255,255,255,.35);
+    line-height:1.3; transition:color .15s ease, font-size .15s ease, font-weight .15s ease;
+  }
+  .prompt-ligne.active { color:var(--or); font-size:24px; font-weight:700; }
+  .prompt-ligne.selectionnee { outline:2px dashed var(--or); }
+
+  .ligne-ctrl {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:6;
+    background:rgba(0,0,0,.92); border:1px solid var(--or); border-radius:10px;
+    padding:10px 14px; display:none; align-items:center; gap:10px; pointer-events:auto;
+  }
+  .ligne-ctrl.visible { display:flex; }
+  .ligne-ctrl-texte { font-size:12px; color:var(--blanc); max-width:140px; }
+
+  /* ══ Panneau de calage du pattern de frappe (Pulse) ══ */
+  .frappe-ctrl {
+    position:absolute; left:0; right:0; bottom:222px; z-index:7;
+    background:rgba(0,0,0,.95); border-top:1px solid var(--or);
+    padding:14px 20px; display:none; flex-direction:column; align-items:center; gap:10px;
+    pointer-events:auto;
+  }
+  .frappe-ctrl.visible { display:flex; }
+  .frappe-ctrl-titre { font-size:12px; color:var(--or); text-transform:uppercase; letter-spacing:1.5px; font-weight:700; }
+  .frappe-ctrl-compteur { font-size:13px; color:var(--blanc); }
+  .frappe-pulse-btn {
+    width:100px; height:100px; border-radius:50%; background:linear-gradient(135deg,var(--or),var(--orD));
+    border:none; color:#000; font-size:16px; font-weight:700; cursor:pointer;
+  }
+  .frappe-pulse-btn:active { transform:scale(0.94); }
+  .frappe-ctrl-btns { display:flex; gap:8px; }
+  .frappe-ctrl-btn { padding:6px 12px; background:var(--card2); border:1px solid var(--border); color:var(--muted); border-radius:4px; cursor:pointer; font-size:11px; }
+
+  /* ══ Bande d'accords défilante — en haut de l'écran, toujours visible ══ */
+  .ticker-accords {
+    position:absolute; left:0; right:0; top:0; z-index:3;
+    height:60px; overflow:hidden; background:rgba(0,0,0,.85);
+    border-bottom:1px solid var(--border);
+    pointer-events:none;
+  }
+  .ticker-ligne { position:relative; height:50px; overflow:hidden; }
+  .ticker-cases {
+    position:absolute; top:0; bottom:0; left:0; display:flex; align-items:center;
+    transition:transform .05s linear;
+  }
+  .ticker-case {
+    flex-shrink:0; width:60px; height:44px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; font-weight:700; color:var(--muted);
+    background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:8px;
+    box-sizing:border-box; transition:background .1s ease, color .1s ease, border-color .1s ease;
+  }
+  .ticker-case.active { background:linear-gradient(135deg,var(--or),var(--orD)); color:#000; border-color:var(--or); }
+
+  /* ══ Barre de frappe (pattern de rythme, ex. Hula) — au-dessus du bandeau de diagrammes ══ */
+  .bandeau-frappe {
+    position:absolute; left:0; right:0; bottom:170px; z-index:3;
+    height:52px; overflow-x:auto; overflow-y:hidden; background:rgba(0,0,0,.85);
+    border-top:1px solid var(--border);
+    pointer-events:auto; transition:bottom .25s ease;
+    display:flex; align-items:center; justify-content:safe center; gap:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .frappe-tag { font-size:11px; font-weight:700; color:var(--or); letter-spacing:1.5px; text-transform:uppercase; flex-shrink:0; cursor:pointer; pointer-events:auto; }
+  .frappe-symbole {
+    display:inline-block; width:20px; text-align:center; font-family:'Courier New',monospace;
+    font-weight:900; font-size:22px; flex-shrink:0; transition:transform .08s ease, opacity .08s ease;
+  }
+  .frappe-symbole.actif { transform:scale(1.35); }
+
+  /* ══ Bandeau de diagrammes — remplace l'ancien emplacement du ticker, au-dessus de la console ══ */
+  .bandeau-diagramme {
+    position:absolute; left:0; right:0; bottom:0; z-index:3;
+    height:170px; overflow-x:auto; overflow-y:hidden; background:rgba(0,0,0,.85);
+    border-top:1px solid var(--border);
+    pointer-events:auto; transition:bottom .25s ease;
+    display:flex; align-items:center; justify-content:safe center;
+    -webkit-overflow-scrolling:touch;
+  }
+  .diag-horiz-nom { font-family:Georgia,serif; font-size:13px; font-weight:700; color:var(--orL); margin-right:10px; min-width:34px; text-align:center; }
+  .fleche-deplacement {
+    position:absolute; top:50%; margin-top:-15px; font-size:26px; font-weight:900; color:var(--or); z-index:3;
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    background:rgba(212,175,55,.28); border-radius:50%; backdrop-filter:blur(1px);
+    text-shadow:0 0 6px rgba(0,0,0,.9);
+  }
+  .fleche-deplacement.vers-droite { right:-20px; animation:flotteDroite 0.9s ease-in-out infinite; }
+  .fleche-deplacement.vers-gauche { left:-20px; animation:flotteGauche 0.9s ease-in-out infinite; }
+  .fleche-deplacement.vers-haut { top:-24px; margin-top:0; animation:flotteHaut 0.9s ease-in-out infinite; }
+  .fleche-deplacement.vers-bas { top:auto; bottom:-24px; margin-top:0; animation:flotteBas 0.9s ease-in-out infinite; }
+  @keyframes flotteDroite { 0%,100% { transform:translateX(0); opacity:.55; } 50% { transform:translateX(7px); opacity:1; } }
+  @keyframes flotteGauche { 0%,100% { transform:translateX(0); opacity:.55; } 50% { transform:translateX(-7px); opacity:1; } }
+  @keyframes flotteHaut { 0%,100% { transform:translateY(0); opacity:.55; } 50% { transform:translateY(-6px); opacity:1; } }
+  @keyframes flotteBas { 0%,100% { transform:translateY(0); opacity:.55; } 50% { transform:translateY(6px); opacity:1; } }
+
+  /* ══ Bandeau console — repliable en bas ══ */
+  .bandeau-bas {
+    position:absolute; left:0; right:0; bottom:0; z-index:3;
+    background:linear-gradient(to top, rgba(0,0,0,.95), rgba(0,0,0,.82) 70%, transparent);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    opacity:1; transform:translateY(0); pointer-events:auto;
+  }
+  .bandeau-ligne1 { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .bandeau-ligne2 { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; }
+  .bandeau-groupe { display:flex; align-items:center; gap:6px; }
+  .bandeau-btn {
+    padding:6px 11px; background:var(--card2); border:1px solid var(--border); color:var(--orL);
+    font-size:12px; cursor:pointer; border-radius:4px;
+  }
+  .bandeau-play {
+    width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,var(--or),var(--orD));
+    border:none; color:#000; font-size:16px; cursor:pointer; flex-shrink:0;
+  }
+  .bandeau-label { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .bandeau-valeur { font-size:12px; color:var(--orL); min-width:34px; text-align:center; font-weight:700; }
+
+  /* ══ Tiroir des pistes séparées ══ */
+  .tiroir-pistes {
+    position:absolute; inset:0; z-index:4; background:rgba(6,6,6,.98);
+    transform:translateY(100%); transition:transform .25s ease; overflow-y:auto;
+    padding:18px 14px calc(18px + env(safe-area-inset-bottom)); box-sizing:border-box;
+  }
+  .tiroir-pistes.visible { transform:translateY(0); }
+  .tiroir-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .tiroir-titre { font-size:12px; color:var(--or); text-transform:uppercase; letter-spacing:1.5px; font-weight:700; }
+  .tiroir-fermer { background:var(--card2); border:1px solid var(--border); color:var(--muted); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; }
+  .export-box {
+    position:absolute; inset:0; z-index:5; background:rgba(6,6,6,.98);
+    transform:translateY(100%); transition:transform .25s ease; overflow-y:auto;
+    padding:18px 14px calc(18px + env(safe-area-inset-bottom)); box-sizing:border-box;
+  }
+  .export-box.visible { transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="config-screen">
+  <h1>🎛️ Console — v6 (Tone.js)</h1>
+  <div class="sous-titre">Colle tes vrais liens Firebase Storage ci-dessous</div>
+
+  <div class="fg" style="background:rgba(212,175,55,.08);border:1px solid var(--or);border-radius:6px;padding:12px;">
+    <label>📂 Charger une chanson depuis l'admin (titre exact)</label>
+    <div style="display:flex;gap:6px;">
+      <input id="cfg-titre-recherche" placeholder="Ex: Papa" style="flex:1;">
+      <button type="button" onclick="chargerDepuisAdmin()" style="padding:0 14px;background:linear-gradient(135deg,var(--or),var(--orD));border:none;border-radius:5px;color:#000;font-weight:700;cursor:pointer;">⬇ Charger</button>
+    </div>
+    <div id="cfg-charge-statut" style="font-size:10px;color:var(--muted);margin-top:6px;"></div>
+  </div>
+
+  <div class="fg"><label>🎬 Vidéo (Vimeo)</label><input id="cfg-video" placeholder="https://vimeo.com/..."></div>
+
+  <div class="fg"><label>🎤 Voix lead</label><input id="cfg-voix_lead" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-voix_lead" style="margin-top:4px;"></div>
+  <div class="fg"><label>🎵 Chœurs</label><input id="cfg-choeurs" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-choeurs" style="margin-top:4px;"></div>
+  <div class="fg"><label>🎸 Uku mélodie</label><input id="cfg-uke_melodie" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-uke_melodie" style="margin-top:4px;"></div>
+  <div class="fg"><label>🎸 Uku harmonie</label><input id="cfg-uke_harmonie" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-uke_harmonie" style="margin-top:4px;"></div>
+  <div class="fg"><label>🎸 Guitare</label><input id="cfg-guitare" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-guitare" style="margin-top:4px;"></div>
+  <div class="fg"><label>🪈 Vivo</label><input id="cfg-vivo" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-vivo" style="margin-top:4px;"></div>
+  <div class="fg"><label>🎶 Basse</label><input id="cfg-basse" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-basse" style="margin-top:4px;"></div>
+  <div class="fg"><label>🥁 To'ere 🔒 (ne transpose jamais)</label><input id="cfg-toere" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-toere" style="margin-top:4px;"></div>
+  <div class="fg"><label>🌊 Ambiance 🔒 (ne transpose jamais)</label><input id="cfg-ambiance" placeholder="Lien Firebase Storage"><input type="file" accept="*/*" id="file-ambiance" style="margin-top:4px;"></div>
+
+  <button class="lancer" onclick="lancerConsoleAvecMesPistes()">▶ Lancer la Console</button>
+  <div class="astuce">Vraie transposition (Tone.js) : la hauteur change sans changer la vitesse.<br>Fichier local sélectionné = prioritaire sur le lien Firebase.<br>Recalage automatique vidéo/audio toutes les 4 secondes si besoin.</div>
+</div>
+
+<div class="video-stage" id="stage-consTEST"></div>
+<canvas id="cvs-export-prompteur" width="1280" height="720" style="display:none;"></canvas>
+
+<script>
+function buildBarreMaitre(masterUid) {
+  return '<div class="console-maitre" style="background:rgba(212,175,55,.08);border:2px solid rgba(212,175,55,.35);border-radius:8px;padding:14px;margin-bottom:14px;">'
+    + '<div style="font-size:10px;color:var(--or);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;text-align:center;">🎛️ Contrôle maître — vidéo + audio synchronisés</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+    + '<button onclick="toggleConsoleMaitre(\'' + masterUid + '\')" id="maitre-play-' + masterUid + '" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--orD));border:none;color:#000;font-size:18px;cursor:pointer;flex-shrink:0;">▶</button>'
+    + '<input type="range" min="0" max="100" value="0" id="maitre-seek-' + masterUid + '" oninput="seekConsoleMaitre(\'' + masterUid + '\',this.value)" style="flex:1;accent-color:var(--or);">'
+    + '<span id="maitre-time-' + masterUid + '" style="font-size:11px;color:var(--muted);min-width:38px;">0:00</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+    + '<div style="flex:1;min-width:130px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🐢 Vitesse générale <span style="color:#888;">(vidéo + audio)</span></div>'
+    + '<div style="display:flex;align-items:center;gap:6px;">'
+    + '<button onclick="ajusterVitesseMaitre(\'' + masterUid + '\',-0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">−</button>'
+    + '<span id="maitre-vitesse-' + masterUid + '" style="font-size:12px;color:var(--orL);min-width:38px;text-align:center;font-weight:700;">1.0x</span>'
+    + '<button onclick="ajusterVitesseMaitre(\'' + masterUid + '\',0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">+</button>'
+    + '</div></div>'
+    + '<div style="flex:1;min-width:130px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🔊 Volume général <span style="color:#888;">(vidéo + audio)</span></div>'
+    + '<input type="range" min="0" max="100" value="100" id="maitre-volume-' + masterUid + '" oninput="ajusterVolumeMaitre(\'' + masterUid + '\',this.value)" style="width:100%;accent-color:var(--or);">'
+    + '</div>'
+    + '<div style="flex:1;min-width:130px;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🔄 Décalage vidéo <span style="color:#888;">(−2s à +2s)</span></div>'
+    + '<div style="display:flex;align-items:center;gap:6px;">'
+    + '<button onclick="ajusterDecalageVideo(\'' + masterUid + '\',-0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">−</button>'
+    + '<span id="maitre-decalage-' + masterUid + '" style="font-size:12px;color:var(--orL);min-width:42px;text-align:center;font-weight:700;">+0.0s</span>'
+    + '<button onclick="ajusterDecalageVideo(\'' + masterUid + '\',0.1)" style="padding:5px 10px;background:var(--card2);border:1px solid var(--border);color:var(--orL);font-size:12px;cursor:pointer;border-radius:3px;">+</button>'
+    + '</div></div>'
+    + '</div></div>';
+}
+
+
+// ══ Aide vidéo (Vimeo) — inchangé ══
+function _getConsoleWrap(masterUid) { return document.getElementById('cw-' + masterUid); }
+function _getConsoleVideoFrames(masterUid) {
+  const wrap = _getConsoleWrap(masterUid);
+  return wrap ? Array.from(wrap.querySelectorAll('iframe.vimeo-master-frame')) : [];
+}
+function initConsoleVideos(masterUid) {
+  if (typeof Vimeo === 'undefined') return;
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (!fr._vimeoPlayer) {
+      fr._vimeoPlayer = new Vimeo.Player(fr);
+      _forcerMuteVideo(fr);
+      fr._vimeoPlayer.on('play', () => _forcerMuteVideo(fr));
+      fr._vimeoPlayer.on('loaded', () => _forcerMuteVideo(fr));
+    }
+  });
+}
+function _forcerMuteVideo(fr) {
+  if (!fr._vimeoPlayer) return;
+  if (typeof fr._vimeoPlayer.setMuted === 'function') fr._vimeoPlayer.setMuted(true).catch(() => {});
+  fr._vimeoPlayer.setVolume(0).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════════
+// ══ MOTEUR CONSOLE v6 — Tone.js (vraie transposition, hauteur indépendante de la vitesse) ══
+// + Synchro sample-accurate entre pistes (même horloge audio) + recalage automatique vidéo/audio.
+// ══════════════════════════════════════════════════════════════
+const _tonePistes = {};    // masterUid → { key: {player, pitchShift, gain, label, verrou, baseVol, muted} }
+const _toneState = {};     // masterUid → { offset, vitesse, volume, transposition, enLecture, startCtxTime }
+const _driftIntervals = {};
+const _progressRAF = {};
+
+// ══ Écran de visualisation plein-écran (style Moises) — grille 4 temps + paroles, calée sur le BPM ══
+const _CHANSON_PAPA = {"mesures": [{"temps": ["C", "C", "C", "C"], "paroles": "", "section": "COUPLET 1/4", "mesure": 1}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 2}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 3}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 4}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 5}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 6}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 7}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 8}, {"temps": ["C", "C", "C", "C"], "paroles": "", "section": "COUPLET 2/4", "mesure": 9}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 10}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 11}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 12}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 13}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 14}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 15}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 16}, {"temps": ["C", "C", "C", "C"], "paroles": "", "section": "COUPLET 3/4", "mesure": 17}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 18}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 19}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 20}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 21}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 22}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 23}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "(Transition)", "mesure": 24}, {"temps": ["C", "C", "C", "C"], "paroles": "", "section": "COUPLET 4/4", "mesure": 25}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 26}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 27}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 28}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 29}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 30}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 31}, {"temps": ["E7", "E7", "E7", "E7"], "paroles": "(Transition)", "mesure": 32}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "Himene mai 3x. A ori mai 3x", "section": "REFRAIN 1/4", "mesure": 33}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 34}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 35}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 36}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "A ata mai 3x. A here mai 3x", "section": "REFRAIN 2/4", "mesure": 37}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 38}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 39}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 40}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "Himene mai 3x. A ori mai 3x", "section": "REFRAIN 3/4", "mesure": 41}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 42}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 43}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 44}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "A ata mai 3x. A here mai 3x", "section": "REFRAIN 4/4", "mesure": 45}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 46}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 47}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 48}, {"temps": ["F", "F", "G7", "G7"], "paroles": "'O 'oe, 'o 'oe tō'u pāpā", "section": "FINALE 1/2", "mesure": 49}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 50}, {"temps": ["F", "F", "G7", "G7"], "paroles": "'O 'oe, 'o 'oe tō'u pāpā", "section": "FINALE 2/2", "mesure": 51}, {"temps": ["C", "C", "E7", "E7"], "paroles": "", "mesure": 52}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "section": "REFRAIN 1/2 (soliste)", "mesure": 53}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 54}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 55}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 56}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "section": "REFRAIN 2/2 (soliste)", "mesure": 57}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 58}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 59}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 60}, {"temps": ["F", "F", "G7", "G7"], "paroles": "", "section": "FINALE (soliste)", "mesure": 61}, {"temps": ["C", "C", "G7", "G7"], "paroles": "", "mesure": 62}, {"temps": ["C", "C", "C", "C"], "paroles": "(Transition Couplet)", "section": "TRANSITION", "mesure": 63}, {"temps": ["C", "C", "C", "C"], "paroles": "", "section": "COUPLET UNIQUE", "mesure": 64}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 65}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "", "mesure": 66}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 67}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 68}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 69}, {"temps": ["E7", "E7", "E7", "E7"], "paroles": "(Transition Refrain)", "mesure": 70}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "Himene mai 3x. A ori mai 3x", "section": "REFRAIN 1/4", "mesure": 71}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 72}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 73}, {"temps": ["G7", "G7", "G7", "G7"], "paroles": "", "mesure": 74}, {"temps": ["Am", "Am", "Am", "Am"], "paroles": "A ata mai 3x. A here mai 3x", "section": "REFRAIN 2/4", "mesure": 75}, {"temps": ["F", "F", "F", "F"], "paroles": "", "mesure": 76}, {"temps": ["C", "C", "C", "C"], "paroles": "", "mesure": 77}, {"temps": ["G7", "G7", "A7", "A7"], "paroles": "(Transition)", "mesure": 78}, {"temps": ["Bm", "Bm", "Bm", "Bm"], "paroles": "Himene mai 3x. A ori mai 3x", "section": "REFRAIN 3/4", "mesure": 79}, {"temps": ["G", "G", "G", "G"], "paroles": "", "mesure": 80}, {"temps": ["D", "D", "D", "D"], "paroles": "", "mesure": 81}, {"temps": ["A7", "A7", "A7", "A7"], "paroles": "(Transition)", "mesure": 82}, {"temps": ["Bm", "Bm", "Bm", "Bm"], "paroles": "A ata mai 3x. A here mai 3x", "section": "REFRAIN 4/4", "mesure": 83}, {"temps": ["G", "G", "G", "G"], "paroles": "", "mesure": 84}, {"temps": ["D", "D", "D", "D"], "paroles": "", "mesure": 85}, {"temps": ["A7", "A7", "A7", "A7"], "paroles": "(Transition)", "mesure": 86}, {"temps": ["G", "G", "A7", "A7"], "paroles": "'O 'oe, 'o 'oe tō'u pāpā", "section": "FINALE 1/4", "mesure": 87}, {"temps": ["D", "D", "D", "D"], "paroles": "", "mesure": 88}, {"temps": ["G", "G", "A7", "A7"], "paroles": "", "section": "FINALE 2/4", "mesure": 89}, {"temps": ["D", "D", "D", "D"], "paroles": "", "mesure": 90}, {"temps": ["G", "G", "A7", "A7"], "paroles": "", "section": "FINALE 3/4", "mesure": 91}, {"temps": ["D", "D", "D", "D"], "paroles": "", "mesure": 92}, {"temps": ["G", "G", "A7", "A7"], "paroles": "", "section": "FINALE 4/4 (FIN)", "mesure": 93}, {"temps": ["D", "D", "D", "D"], "paroles": "(Fin sur Ré)", "mesure": 94}], "bpm": 80};
+let _chansonActive = _CHANSON_PAPA; // remplacée par _chargerChanson() si une autre chanson est chargée depuis l'admin
+const _chansonsVisuel = {}; // masterUid → { bpm, mesures }
+const _dernierActifTicker = {}; // masterUid → idCaseActive
+const _NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+// ══ Diagrammes d'accords — SOURCE UNIQUE : copié depuis admin-mf-final-v2.html (ACCORDS_DICT officiel) ══
+const CLR_D = {index:'#2980b9',majeur:'#27ae60',annulaire:'#e74c3c',auriculaire:'#8e44ad'};
+const CORDES_N = ['G','C','E','A'];
+const ACCORDS_DICT = {C:{nom:'C/Do',dessus:['o','o','o',''],pts:[[3,3,'annulaire']]},Cm:{nom:'Cm/Dom',dessus:['o','','',''],pts:[[3,1,'annulaire'],[3,2,'annulaire'],[3,3,'annulaire']]},C7:{nom:'C7/Do7',dessus:['o','o','o',''],pts:[[1,3,'index']]},D:{nom:'D/Re',dessus:['','','','o'],pts:[[2,0,'index'],[2,1,'majeur'],[2,2,'annulaire']]},Dm:{nom:'Dm/Rem',dessus:['','','','o'],pts:[[2,0,'index'],[2,1,'majeur'],[1,2,'index']]},D7:{nom:'D7/Re7',dessus:['','o','','o'],pts:[[2,0,'index'],[2,2,'majeur']]},E:{nom:'E/Mi',dessus:['','','',''],pts:[[4,0,'auriculaire'],[4,1,'annulaire'],[4,2,'majeur'],[2,3,'index']]},Em:{nom:'Em/Mim',dessus:['o','','',''],pts:[[4,1,'annulaire'],[3,2,'majeur'],[2,3,'index']]},E7:{nom:'E7/Mi7',dessus:['','','o',''],pts:[[1,0,'index'],[2,1,'majeur'],[2,3,'annulaire']]},F:{nom:'F/Fa',dessus:['','o','','o'],pts:[[2,0,'majeur'],[1,2,'index']]},Fm:{nom:'Fm/Fam',dessus:['','o','',''],pts:[[1,0,'index'],[1,2,'index'],[3,3,'annulaire']]},F7:{nom:'F7/Fa7',dessus:['','','',''],pts:[[2,0,'majeur'],[3,1,'annulaire'],[1,2,'index'],[3,3,'annulaire']]},G:{nom:'G/Sol',dessus:['o','','',''],pts:[[2,1,'index'],[3,2,'annulaire'],[2,3,'majeur']]},Gm:{nom:'Gm/Solm',dessus:['o','','',''],pts:[[1,3,'index'],[2,1,'majeur'],[3,2,'annulaire']]},G7:{nom:'G7/Sol7',dessus:['o','','',''],pts:[[1,2,'index'],[2,1,'majeur'],[2,3,'annulaire']]},A:{nom:'A/La',dessus:['','o','o','o'],pts:[[2,0,'majeur']]},Am:{nom:'Am/Lam',dessus:['','o','o','o'],pts:[[2,0,'majeur']]},A7:{nom:'A7/La7',dessus:['o','o','o','o'],pts:[]},B:{nom:'B/Si',dessus:['','','',''],pts:[[2,0,'index'],[3,1,'majeur'],[4,2,'annulaire'],[2,3,'index']]},Bm:{nom:'Bm/Sim',dessus:['','','',''],pts:[[2,0,'index'],[2,1,'index'],[4,2,'annulaire'],[3,3,'annulaire']]},B7:{nom:'B7/Si7',dessus:['','','',''],pts:[[1,0,'index'],[2,1,'majeur'],[3,2,'annulaire'],[2,3,'index']]},
+'C#':{nom:'C#/Db',dessus:['','','',''],pts:[[1,0,'index'],[1,1,'index'],[1,2,'index'],[1,3,'index']]},
+'C#7':{nom:'C#7/Db7',dessus:['','','',''],pts:[[1,0,'index'],[1,1,'index'],[1,2,'index'],[2,3,'majeur']]},
+'D#':{nom:'D#/Eb',dessus:['','','',''],pts:[[3,0,'annulaire'],[3,1,'annulaire'],[3,2,'annulaire'],[1,3,'index']]},
+'D#m':{nom:'D#m/Ebm',dessus:['','','',''],pts:[[3,0,'annulaire'],[3,1,'auriculaire'],[2,2,'majeur'],[1,3,'index']]},
+'F#':{nom:'F#/Gb',dessus:['','','',''],pts:[[3,0,'auriculaire'],[1,1,'index'],[2,2,'annulaire'],[1,3,'majeur']]},
+'G#':{nom:'G#/Ab',dessus:['','','',''],pts:[[1,0,'index'],[3,1,'majeur'],[4,2,'auriculaire'],[3,3,'annulaire']]},
+'A#':{nom:'A#/Bb',dessus:['','','',''],pts:[[3,0,'annulaire'],[2,1,'majeur'],[1,2,'index'],[1,3,'index']]},
+'C#m':{nom:'C#m/Dbm',dessus:['','','o',''],pts:[[1,0,'index'],[1,1,'majeur'],[4,3,'auriculaire']]},
+'D#7':{nom:'D#7/Eb7',dessus:['','','',''],pts:[[3,0,'index'],[3,1,'index'],[3,2,'index'],[4,3,'majeur']]}
+};
+
+// Petite main gauche avec pastilles colorées au bout des doigts — code couleur = CLR_D (identique à l'admin)
+function _svgMainDoigts() {
+  return '<svg width="46" height="64" viewBox="0 0 80 112" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">'
+    + '<ellipse cx="40" cy="86" rx="28" ry="22" fill="#c8a882" stroke="#9a7850" stroke-width="1"/>'
+    + '<ellipse cx="11" cy="73" rx="7" ry="11" fill="#c8a882" stroke="#9a7850" stroke-width="1" transform="rotate(-28,11,73)"/>'
+    + '<rect x="14" y="27" width="13" height="40" rx="6" fill="#c8a882" stroke="#9a7850" stroke-width="1"/>'
+    + '<rect x="29" y="19" width="13" height="46" rx="6" fill="#c8a882" stroke="#9a7850" stroke-width="1"/>'
+    + '<rect x="44" y="23" width="12" height="43" rx="6" fill="#c8a882" stroke="#9a7850" stroke-width="1"/>'
+    + '<rect x="57" y="33" width="10" height="35" rx="5" fill="#c8a882" stroke="#9a7850" stroke-width="1"/>'
+    + '<circle cx="20.5" cy="33" r="7.2" fill="' + CLR_D.index + '" stroke="#0A0A0A" stroke-width="0.6"/>'
+    + '<circle cx="35.5" cy="25" r="7.2" fill="' + CLR_D.majeur + '" stroke="#0A0A0A" stroke-width="0.6"/>'
+    + '<circle cx="50" cy="29" r="6.7" fill="' + CLR_D.annulaire + '" stroke="#0A0A0A" stroke-width="0.6"/>'
+    + '<circle cx="62" cy="39" r="5.8" fill="' + CLR_D.auriculaire + '" stroke="#0A0A0A" stroke-width="0.6"/>'
+    + '</svg>';
+}
+
+// Légende verticale (en cascade) des couleurs de doigts — compacte, posée juste sous la main
+function _legendeVerticale() {
+  return '<div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;">'
+    + [['index','Index'],['majeur','Majeur'],['annulaire','Annulaire'],['auriculaire','Auriculaire']].map(function(f){
+        return '<div style="display:flex;align-items:center;gap:4px;"><div style="width:8px;height:8px;border-radius:50%;background:' + CLR_D[f[0]] + ';flex-shrink:0;"></div><span style="font-size:8px;color:var(--muted);white-space:nowrap;">' + f[1] + '</span></div>';
+      }).join('')
+    + '</div>';
+}
+
+// Diagramme HORIZONTAL/ALLONGÉ (rotation 90° du diagramme standard) — cordes en lignes, frettes en colonnes,
+// sillet à droite (comme si on regardait le manche en jouant). Taille alignée sur le modèle fourni le 10/07.
+// nomAccord est TOUJOURS l'accord courant (base opaque, calée sur la même horloge que le ticker).
+// infoApercu (optionnel) = { chord, opacite } : accord suivant, affiché en points fantômes translucides
+// uniquement pour les doigts nouveaux ou déplacés (un doigt identique — même corde, même case — reste
+// simplement opaque, sans double affichage).
+function _genDiagHorizontal(nomAccord, infoApercu) {
+  const acc = ACCORDS_DICT[nomAccord];
+  if (!acc) return '<div style="font-size:11px;color:var(--muted);">' + (nomAccord || '—') + '</div>';
+  const accSuivant = infoApercu && infoApercu.chord && infoApercu.chord !== nomAccord ? ACCORDS_DICT[infoApercu.chord] : null;
+  const maxFret = Math.max(acc.pts.reduce((m, p) => Math.max(m, p[0]), 0), accSuivant ? accSuivant.pts.reduce((m, p) => Math.max(m, p[0]), 0) : 0);
+  const NF = Math.max(4, maxFret);
+  const cW = 44, cH = 26, capW = 24, dotSz = 18; // manche allongé : large (horizontal) et étroit (vertical), réduit pour tenir sur l'écran
+  // grille[corde][frette] = doigt (accord courant, base opaque)
+  const grille = [0, 1, 2, 3].map(() => Array(NF).fill(null));
+  acc.pts.forEach(p => { if (p[0] - 1 >= 0 && p[0] - 1 < NF) grille[p[1]][p[0] - 1] = p[2]; });
+  // position (corde, frette) par doigt sur l'accord courant, pour repérer les déplacements
+  const posActuelleParDoigt = {};
+  acc.pts.forEach(p => { posActuelleParDoigt[p[2]] = { fret: p[0], corde: p[1] }; });
+  // fantômes translucides : points de l'accord suivant absents (à cette exacte position) du diagramme courant
+  const fantomeGrille = [0, 1, 2, 3].map(() => Array(NF).fill(null));
+  if (accSuivant) {
+    accSuivant.pts.forEach(p => {
+      const [fret, corde, doigt] = p;
+      if (grille[corde][fret - 1] === doigt) return; // déjà opaque à l'identique, rien à ajouter
+      if (fret - 1 >= 0 && fret - 1 < NF) fantomeGrille[corde][fret - 1] = doigt;
+    });
+  }
+
+  let h = '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;">';
+  h += '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">' + _svgMainDoigts() + _legendeVerticale() + '</div>';
+  h += '<div style="display:flex;align-items:center;">';
+  h += '<div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:var(--orL);margin-right:14px;min-width:44px;text-align:center;">' + nomAccord + '</div>';
+  h += '<div style="display:flex;flex-direction:column;">';
+  for (let s = 0; s < 4; s++) {
+    h += '<div style="display:flex;align-items:center;position:relative;">';
+    h += '<div style="width:16px;font-size:12px;color:#7a7060;font-family:Georgia,serif;font-weight:700;text-align:center;">' + CORDES_N[s] + '</div>';
+    for (let f = NF - 1; f >= 0; f--) {
+      const pt = grille[s][f];
+      const fant = fantomeGrille[s][f];
+      let fleche = '';
+      if (pt && accSuivant) {
+        const cible = posActuelleParDoigt[pt] && accSuivant.pts.find(p => p[2] === pt);
+        if (cible && (cible[1] !== s || cible[0] !== f + 1)) {
+          const op = infoApercu.opacite;
+          if (cible[1] !== s) {
+            fleche = '<div class="fleche-deplacement ' + (cible[1] < s ? 'vers-haut' : 'vers-bas') + '" style="opacity:' + op + ';">' + (cible[1] < s ? '↑' : '↓') + '</div>';
+          } else {
+            const versSillet = cible[0] < f + 1;
+            fleche = '<div class="fleche-deplacement ' + (versSillet ? 'vers-droite' : 'vers-gauche') + '" style="opacity:' + op + ';">' + (versSillet ? '→' : '←') + '</div>';
+          }
+        }
+      }
+      // la corde : ligne horizontale continue, le point de doigt vient "se poser" dessus
+      h += '<div style="width:' + cW + 'px;height:' + cH + 'px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;position:relative;">';
+      h += '<div style="position:absolute;left:0;right:0;top:50%;height:1px;background:#4a4a4a;"></div>';
+      h += '<div style="position:absolute;top:0;bottom:0;left:0;width:1px;background:#3a3a3a;"></div>';
+      if (pt) h += '<div style="width:' + dotSz + 'px;height:' + dotSz + 'px;border-radius:50%;background:' + (CLR_D[pt] || '#C9922A') + ';position:relative;z-index:2;box-shadow:0 0 0 2px rgba(0,0,0,.4);"></div>' + fleche;
+      else if (fant) h += '<div style="width:' + dotSz + 'px;height:' + dotSz + 'px;border-radius:50%;background:' + (CLR_D[fant] || '#C9922A') + ';opacity:' + infoApercu.opacite + ';position:relative;z-index:2;"></div>';
+      h += '</div>';
+    }
+    // sillet (cordon blanc) + case ouverte/mute à droite
+    const ouvert = acc.dessus[s] === 'o';
+    h += '<div style="width:3px;height:' + cH + 'px;background:#fff;margin:0 2px;"></div>';
+    h += '<div style="width:' + capW + 'px;height:' + cH + 'px;display:flex;align-items:center;justify-content:center;font-size:13px;color:' + (ouvert ? '#4CAF50' : 'transparent') + ';">' + (ouvert ? 'O' : '') + '</div>';
+    h += '</div>';
+  }
+  // numéros de frettes sous la grille (décroissants vers le sillet, comme au jeu)
+  h += '<div style="display:flex;margin-left:16px;">';
+  for (let f = NF - 1; f >= 0; f--) h += '<div style="width:' + cW + 'px;text-align:center;font-size:10px;color:var(--muted);">' + (f + 1) + '</div>';
+  h += '</div>';
+  h += '</div></div></div>';
+  return h;
+}
+
+function _transposerAccordAffichage(nomAccord, demiTons) {
+  if (!demiTons) return nomAccord;
+  const m = nomAccord.match(/^([A-G]#?)(.*)$/);
+  if (!m) return nomAccord;
+  let idx = _NOTES_SHARP.indexOf(m[1]);
+  if (idx === -1) return nomAccord;
+  idx = ((idx + demiTons) % 12 + 12) % 12;
+  return _NOTES_SHARP[idx] + m[2];
+}
+let HAUTEUR_LIGNE = 46; // px, hauteur de chaque ligne du prompteur (ajustable en direct)
+let DECALAGE_ACCORDS_SEC = 0.5; // secondes — ajustable en direct via les boutons Sync +/-
+const LARGEUR_CASE_TICKER = 60; // px, largeur de chaque case d'accord — DOIT correspondre exactement à .ticker-case en CSS
+
+// Calage précis des 3 couplets chantés (décalage en mesures depuis le début du bloc)
+const GABARIT_COUPLET_CHANTE = [
+  { decalage: 0,   texte: "Pāpā" },
+  { decalage: 1.5, texte: "Aito no te fenua" },
+  { decalage: 2.0, texte: "Ari'i no tō'u here" },
+  { decalage: 2.5, texte: "Ari'i no tō'u a'au" },
+  { decalage: 3.0, texte: "Tō'u pāpā" }
+];
+const DEBUTS_COUPLETS_CHANTES = [17, 25, 64]; // mesures 1-indexées
+const GABARIT_REFRAIN_CHANTE = [
+  { decalage: 0, texte: null }, // texte déjà présent sur la mesure (Himene mai / A ata mai), pas de doublon
+  { decalage: 1.5, texte: "No tō tātou," },
+  { decalage: 2.5, texte: "no tō tātou metuā tāne" }
+];
+const DEBUTS_REFRAINS_CHANTES = [33, 37, 41, 45, 71, 75, 79, 83];
+
+function _construireLignesPrompteur() {
+  const chanson = _CHANSON_PAPA;
+  const lignes = [];
+  chanson.mesures.forEach((m, i) => {
+    if (DEBUTS_COUPLETS_CHANTES.includes(m.mesure)) {
+      GABARIT_COUPLET_CHANTE.forEach(g => lignes.push({ t: i + g.decalage, texte: g.texte }));
+      return;
+    }
+    if (DEBUTS_REFRAINS_CHANTES.includes(m.mesure)) {
+      GABARIT_REFRAIN_CHANTE.forEach(g => {
+        if (g.texte) lignes.push({ t: i + g.decalage, texte: g.texte });
+      });
+      // ligne 0 (Himene mai / A ata mai) reste celle déjà écrite sur la mesure
+      if (m.paroles) lignes.push({ t: i, texte: m.paroles });
+      return;
+    }
+    const texte = m.paroles && !m.paroles.startsWith('(') ? m.paroles : '';
+    if (texte) lignes.push({ t: i, texte: texte });
+  });
+  lignes.sort((a, b) => a.t - b.t);
+  return lignes;
+}
+let _LIGNES_PROMPTEUR = _construireLignesPrompteur(); // Papa par défaut (GABARIT calibré à la main, inchangé)
+
+// ── Constructeur GÉNÉRIQUE, pour toute chanson chargée depuis l'admin (starter_data) ──
+// Contrairement à Papa, ces chansons ont déjà les paroles directement sur chaque mesure
+// (générées par le convertisseur ChordPro de l'admin) — pas besoin de GABARIT séparé.
+function _construireLignesPrompteurGenerique(mesures) {
+  const lignes = [];
+  mesures.forEach((m, i) => {
+    const texte = m.paroles && !m.paroles.startsWith('(') ? m.paroles : '';
+    if (texte) lignes.push({ t: i, texte: texte });
+  });
+  return lignes;
+}
+function _chargerChanson(chansonData) {
+  _chansonActive = { mesures: chansonData.mesures, bpm: chansonData.bpm || 80 };
+  _LIGNES_PROMPTEUR = _construireLignesPrompteurGenerique(_chansonActive.mesures);
+}
+
+// Ajustements figés (calage validé par l'utilisateur, 11/07/2026) — appliqués en dur, indépendants de localStorage
+const _OVERRIDES_LIGNES_FIGES = {
+  1: 17.5, 2: 19.5, 3: 20.3, 4: 21.4, 5: 24, 7: 27.4, 8: 28.5, 9: 29.5, 10: 31.9,
+  11: 34, 12: 34.5, 13: 35.9, 14: 37.9, 15: 38.4, 16: 39.9, 17: 42, 19: 43.9, 20: 46,
+  24: 62.1, 25: 63.5, 26: 65.4, 27: 66.3, 28: 67.4, 29: 69.9, 30: 72, 31: 72.5,
+  32: 73.9, 33: 76, 34: 76.5, 35: 77.9, 36: 79.8, 39: 84
+};
+Object.keys(_OVERRIDES_LIGNES_FIGES).forEach(i => {
+  if (_LIGNES_PROMPTEUR[i]) _LIGNES_PROMPTEUR[i].t = _OVERRIDES_LIGNES_FIGES[i];
+});
+
+function buildPrompteur(masterUid) {
+  let divs = '';
+  _LIGNES_PROMPTEUR.forEach((l, i) => {
+    divs += '<div class="prompt-ligne" id="prompt-ligne-' + masterUid + '-' + i + '" onclick="selectionnerLignePrompteur(\'' + masterUid + '\',' + i + ')" style="top:' + (l.t * HAUTEUR_LIGNE) + 'px;height:' + HAUTEUR_LIGNE + 'px;">' + l.texte + '</div>';
+  });
+  return '<div class="prompteur" id="prompteur-' + masterUid + '">'
+    + '<div class="prompteur-repere"></div>'
+    + '<div class="prompteur-lignes" id="prompteur-lignes-' + masterUid + '">' + divs + '</div>'
+    + '</div>'
+    + '<div class="ligne-ctrl" id="ligne-ctrl-' + masterUid + '">'
+    + '<span class="ligne-ctrl-texte" id="ligne-ctrl-texte-' + masterUid + '"></span>'
+    + '<button class="edit-ctrl-btn" onclick="ajusterEspacementLigne(\'' + masterUid + '\',-0.1)">▲</button>'
+    + '<button class="edit-ctrl-btn" onclick="ajusterEspacementLigne(\'' + masterUid + '\',0.1)">▼</button>'
+    + '<button class="edit-fermer" onclick="fermerLignePrompteur(\'' + masterUid + '\')">✕</button>'
+    + '</div>';
+}
+
+function _buildLigneTicker(masterUid, chanson, decalageMesures, numLigne) {
+  let cases = '';
+  const totalMesures = chanson.mesures.length;
+  for (let mi = 0; mi < totalMesures; mi++) {
+    const mReelle = mi + decalageMesures;
+    const m = mReelle < totalMesures ? chanson.mesures[mReelle] : null;
+    let dernierAccord = null;
+    for (let ti = 0; ti < 4; ti++) {
+      const accord = m ? m.temps[ti] : '';
+      const texte = (accord && accord !== dernierAccord) ? accord : '';
+      dernierAccord = accord;
+      cases += '<div class="ticker-case" id="ticker-case-' + masterUid + '-' + numLigne + '-' + mi + '-' + ti + '" style="width:' + LARGEUR_CASE_TICKER + 'px;">' + texte + '</div>';
+    }
+  }
+  return cases;
+}
+function buildTickerAccords(masterUid) {
+  const chanson = _chansonActive;
+  const ligne1 = _buildLigneTicker(masterUid, chanson, 0, 1);
+  return '<div class="ticker-accords" id="ticker-' + masterUid + '">'
+    + '<div class="ticker-ligne">'
+    + '<div class="ticker-cases" id="ticker-cases-' + masterUid + '-1">' + ligne1 + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+// ══ Pattern de frappe HULA — repris tel quel de l'admin (B=bas/rouge, H=haut/vert, -=silence) ══
+// Séquence à 12 positions (3 par temps) : B-HH B-HH BHBH — suit automatiquement le BPM du morceau.
+const FRAPPE_HULA = ['B','H','H','B','H','H','B','H','B','H']; // B / HHB / HHBHBH — espaces retirés le 11/07
+const _dernierIdxFrappe = {};
+
+// ══ Calage manuel du pattern de frappe par tapotement (Pulse), en suivant le chant ══
+const _CLE_FRAPPE_TAPS = 'mf_papa_frappe_taps';
+const _INDICES_FLECHES_FRAPPE = FRAPPE_HULA.map((f, i) => f !== '-' ? i : -1).filter(i => i >= 0); // positions des vraies frappes (hors silences)
+let _frappeTapsCustom = null; // tableau de décalages en temps (beats) depuis la 1ère frappe, ou null si pas encore calé
+try {
+  const brut = localStorage.getItem(_CLE_FRAPPE_TAPS);
+  if (brut) _frappeTapsCustom = JSON.parse(brut);
+} catch (e) {}
+let _frappeRecEnCours = false;
+let _frappeRecTaps = []; // positions brutes (secondes) pendant l'enregistrement
+
+function ouvrirCalageFrappe(masterUid) {
+  const ctrl = document.getElementById('frappe-ctrl-' + masterUid);
+  if (ctrl) ctrl.classList.add('visible');
+  _frappeRecEnCours = false;
+  _frappeRecTaps = [];
+  const compteurEl = document.getElementById('frappe-ctrl-compteur-' + masterUid);
+  if (compteurEl) compteurEl.textContent = 'Tape "Pulse" sur chaque frappe (' + _INDICES_FLECHES_FRAPPE.length + ' au total), en suivant le chant.';
+}
+function fermerCalageFrappe(masterUid) {
+  const ctrl = document.getElementById('frappe-ctrl-' + masterUid);
+  if (ctrl) ctrl.classList.remove('visible');
+  _frappeRecEnCours = false;
+}
+function reinitialiserFrappeTaps(masterUid) {
+  _frappeTapsCustom = null;
+  try { localStorage.removeItem(_CLE_FRAPPE_TAPS); } catch (e) {}
+  _frappeRecEnCours = false;
+  _frappeRecTaps = [];
+  const compteurEl = document.getElementById('frappe-ctrl-compteur-' + masterUid);
+  if (compteurEl) compteurEl.textContent = 'Calage réinitialisé — retour au rythme régulier. Tape "Pulse" pour recalibrer.';
+}
+function pulseFrappe(masterUid) {
+  const posActuelle = _calculerPositionActuelle(masterUid);
+  if (!_frappeRecEnCours) { _frappeRecEnCours = true; _frappeRecTaps = []; }
+  _frappeRecTaps.push(posActuelle);
+  const compteurEl = document.getElementById('frappe-ctrl-compteur-' + masterUid);
+  const n = _frappeRecTaps.length, total = _INDICES_FLECHES_FRAPPE.length;
+  if (compteurEl) compteurEl.textContent = n + ' / ' + total + ' frappes enregistrées';
+  if (n >= total) {
+    // Conversion en décalages beats depuis la 1ère frappe, avec le BPM courant
+    const chanson = _chansonsVisuel[masterUid];
+    const beatDur = 60 / (chanson ? chanson.bpm : 80);
+    const t0 = _frappeRecTaps[0];
+    _frappeTapsCustom = _frappeRecTaps.map(t => Math.round(((t - t0) / beatDur) * 100) / 100);
+    try { localStorage.setItem(_CLE_FRAPPE_TAPS, JSON.stringify(_frappeTapsCustom)); } catch (e) {}
+    _frappeRecEnCours = false;
+    if (compteurEl) compteurEl.textContent = '✅ Calage enregistré — ferme et écoute le résultat.';
+  }
+}
+
+function buildFrappeHula(masterUid) {
+  const finsDeGroupe = [0, 3]; // index du dernier symbole de chaque groupe (B | HHB | HHBHBH) → espace plus large après
+  const symboles = FRAPPE_HULA.map((f, i) => {
+    const marge = finsDeGroupe.includes(i) ? 'margin-right:18px;' : '';
+    if (f === '-') return '<span class="frappe-symbole" id="frappe-' + masterUid + '-' + i + '" style="color:var(--muted);opacity:.4;' + marge + '">·</span>';
+    const couleur = f === 'B' ? 'var(--rouge)' : '#27ae60';
+    const fleche = f === 'B' ? '↓' : '↑';
+    return '<span class="frappe-symbole" id="frappe-' + masterUid + '-' + i + '" style="color:' + couleur + ';' + marge + '">' + fleche + '</span>';
+  }).join('');
+  return '<div class="bandeau-frappe" id="frappebar-' + masterUid + '">'
+    + '<span class="frappe-tag" onclick="ouvrirCalageFrappe(\'' + masterUid + '\')">🥁 Hula ⚙</span>' + symboles
+    + '</div>'
+    + '<div class="frappe-ctrl" id="frappe-ctrl-' + masterUid + '">'
+    + '<div class="frappe-ctrl-titre">🎯 Calage du pattern — Pulse</div>'
+    + '<div class="frappe-ctrl-compteur" id="frappe-ctrl-compteur-' + masterUid + '">Tape "Pulse" sur chaque frappe (' + FRAPPE_HULA.filter(f => f !== '-').length + ' au total), en suivant le chant.</div>'
+    + '<button class="frappe-pulse-btn" onclick="pulseFrappe(\'' + masterUid + '\')">PULSE</button>'
+    + '<div class="frappe-ctrl-btns">'
+    + '<button class="frappe-ctrl-btn" onclick="reinitialiserFrappeTaps(\'' + masterUid + '\')">🔄 Recommencer</button>'
+    + '<button class="frappe-ctrl-btn" onclick="fermerCalageFrappe(\'' + masterUid + '\')">✕ Fermer</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function buildBandeauDiagramme(masterUid) {
+  return '<div class="bandeau-diagramme" id="diagacc-' + masterUid + '">'
+    + '<div id="diagacc-contenu-' + masterUid + '" style="flex-shrink:0;transition:opacity .15s linear;"></div>'
+    + '</div>';
+}
+const _dernierAccordDiag = {};
+
+function _majEcranVisuel(masterUid, pos) {
+  const chanson = _chansonsVisuel[masterUid];
+  if (!chanson) return;
+  const beatDur = 60 / chanson.bpm;
+  const totalBeats = Math.max(0, pos) / beatDur; // paroles — inchangé
+  const mesureContinue = totalBeats / 4;
+  const totalBeatsAccords = Math.max(0, pos - DECALAGE_ACCORDS_SEC) / beatDur; // accords — décalés
+
+  // ── Prompteur vertical : défile vers le haut, ligne courante centrée ──
+  const lignesEl = document.getElementById('prompteur-lignes-' + masterUid);
+  const prompteurEl = document.getElementById('prompteur-' + masterUid);
+  if (lignesEl && prompteurEl) {
+    const hauteurConteneur = prompteurEl.clientHeight || 400;
+    const offsetPx = mesureContinue * HAUTEUR_LIGNE - (hauteurConteneur * 0.30 - HAUTEUR_LIGNE / 2);
+    lignesEl.style.transform = 'translateY(' + (-offsetPx) + 'px)';
+  }
+  // Ligne active = dernière ligne dont le déclenchement (t) est déjà passé
+  let idxActif = -1;
+  for (let i = 0; i < _LIGNES_PROMPTEUR.length; i++) {
+    if (_LIGNES_PROMPTEUR[i].t <= mesureContinue) idxActif = i; else break;
+  }
+  for (let i = Math.max(0, idxActif - 2); i <= Math.min(_LIGNES_PROMPTEUR.length - 1, idxActif + 2); i++) {
+    const el = document.getElementById('prompt-ligne-' + masterUid + '-' + i);
+    if (el) el.classList.toggle('active', i === idxActif);
+  }
+
+  // ── Bande d'accords horizontale (1 ligne) : défile vers la gauche, décalée de DECALAGE_ACCORDS_SEC ──
+  const state = _getToneState(masterUid);
+  const demiTons = state.transposition || 0;
+  const tickerEl = document.getElementById('ticker-' + masterUid);
+  const cases1El = document.getElementById('ticker-cases-' + masterUid + '-1');
+  if (tickerEl && cases1El) {
+    const largeurConteneur = tickerEl.clientWidth || 350;
+    const offsetPx = totalBeatsAccords * LARGEUR_CASE_TICKER - (largeurConteneur / 2 - LARGEUR_CASE_TICKER / 2);
+    cases1El.style.transform = 'translateX(' + (-offsetPx) + 'px)';
+  }
+  // Illumination de la case actuellement au centre
+  const beatIdxCentre = Math.floor(totalBeatsAccords + 0.5);
+  const miCentre = Math.floor(beatIdxCentre / 4), tiCentre = beatIdxCentre % 4;
+  const idNouveau = 'ticker-case-' + masterUid + '-1-' + miCentre + '-' + tiCentre;
+  const idAncien = _dernierActifTicker[masterUid];
+  if (idAncien !== idNouveau) {
+    if (idAncien) { const elAncien = document.getElementById(idAncien); if (elAncien) elAncien.classList.remove('active'); }
+    const elNouveau = document.getElementById(idNouveau);
+    if (elNouveau) elNouveau.classList.add('active');
+    _dernierActifTicker[masterUid] = idNouveau;
+  }
+  if (demiTons) {
+    const beatIdxActuel = Math.max(0, Math.round(totalBeatsAccords));
+    const totalMesures = chanson.mesures.length;
+    for (let bi = Math.max(0, beatIdxActuel - 3); bi <= beatIdxActuel + 3; bi++) {
+      const mi = Math.floor(bi / 4), ti = bi % 4;
+      if (mi >= totalMesures) continue;
+      const el = document.getElementById('ticker-case-' + masterUid + '-1-' + mi + '-' + ti);
+      if (el && el.textContent) el.textContent = _transposerAccordAffichage(chanson.mesures[mi].temps[ti], demiTons);
+    }
+  }
+
+  // ── Bandeau de diagrammes : diagramme allongé de l'accord actuellement au centre + flèche vers le suivant ──
+  const mAccordCourant = miCentre < chanson.mesures.length ? chanson.mesures[miCentre] : null;
+  let nomAccordCourant = mAccordCourant ? mAccordCourant.temps[tiCentre] : null;
+  if (nomAccordCourant && demiTons) nomAccordCourant = _transposerAccordAffichage(nomAccordCourant, demiTons);
+
+  // Recherche de l'accord suivant, du temps où il commence, ET de sa propre durée (pour le délai d'aperçu adaptatif)
+  let nomAccordSuivant = null, beatIdxSuivant = null, dureeSuivant = null;
+  if (nomAccordCourant) {
+    const totalMesures = chanson.mesures.length;
+    let bi = beatIdxCentre + 1;
+    while (bi < totalMesures * 4) {
+      const mi = Math.floor(bi / 4), ti = bi % 4;
+      let a = chanson.mesures[mi].temps[ti];
+      if (demiTons) a = _transposerAccordAffichage(a, demiTons);
+      if (a && a !== nomAccordCourant) { nomAccordSuivant = a; beatIdxSuivant = bi; break; }
+      bi++;
+    }
+    // durée du prochain accord = jusqu'à ce qu'un autre accord (différent de lui) apparaisse
+    if (nomAccordSuivant !== null) {
+      let bi2 = beatIdxSuivant + 1;
+      while (bi2 < totalMesures * 4) {
+        const mi2 = Math.floor(bi2 / 4), ti2 = bi2 % 4;
+        let a2 = chanson.mesures[mi2].temps[ti2];
+        if (demiTons) a2 = _transposerAccordAffichage(a2, demiTons);
+        if (a2 && a2 !== nomAccordSuivant) break;
+        bi2++;
+      }
+      dureeSuivant = Math.max(1, bi2 - beatIdxSuivant);
+    }
+  }
+  // Délai d'aperçu : accord qui tient ≥2 temps → aperçu 2 temps avant ; accord d'1 seul temps → aperçu 1 temps avant
+  const delaiApercu = dureeSuivant !== null ? Math.min(2, dureeSuivant) : 1;
+  const beatsAvantSuivant = beatIdxSuivant !== null ? (beatIdxSuivant - totalBeatsAccords) : null;
+  const enApercu = beatsAvantSuivant !== null && beatsAvantSuivant <= delaiApercu && beatsAvantSuivant > 0;
+  const opaciteApercu = enApercu ? Math.max(0.2, 1 - (beatsAvantSuivant / delaiApercu) * 0.8) : 0;
+  const opaciteArrondie = Math.round(opaciteApercu * 20) / 20; // quantifié pour limiter les reconstructions DOM
+
+  // La base affichée est TOUJOURS l'accord courant — même horloge que le ticker, donc jamais de décalage.
+  const cleAffichage = nomAccordCourant + '|' + (enApercu ? nomAccordSuivant : '') + '|' + opaciteArrondie;
+  if (cleAffichage !== _dernierAccordDiag[masterUid]) {
+    _dernierAccordDiag[masterUid] = cleAffichage;
+    const diagEl = document.getElementById('diagacc-contenu-' + masterUid);
+    if (diagEl) diagEl.innerHTML = nomAccordCourant ? _genDiagHorizontal(nomAccordCourant, enApercu ? { chord: nomAccordSuivant, opacite: opaciteArrondie } : null) : '';
+  }
+
+  // ── Barre de frappe Hula : suit automatiquement le BPM courant (chanson.bpm, ajustable en direct) ──
+  // ── Barre de frappe Hula : suit le calage manuel (Pulse) si disponible, sinon un rythme régulier ──
+  let idxFrappe;
+  if (_frappeTapsCustom && _frappeTapsCustom.length === _INDICES_FLECHES_FRAPPE.length) {
+    const dernierOffset = _frappeTapsCustom[_frappeTapsCustom.length - 1];
+    const avantDernierOffset = _frappeTapsCustom.length > 1 ? _frappeTapsCustom[_frappeTapsCustom.length - 2] : 0;
+    const loopBeats = Math.max(1, dernierOffset + (dernierOffset - avantDernierOffset));
+    const beatsDansLaBoucle = ((totalBeatsAccords % loopBeats) + loopBeats) % loopBeats;
+    let j = 0;
+    for (let k = 0; k < _frappeTapsCustom.length; k++) { if (_frappeTapsCustom[k] <= beatsDansLaBoucle) j = k; else break; }
+    idxFrappe = _INDICES_FLECHES_FRAPPE[j];
+  } else {
+    // Calé sur la même mesure que le bandeau d'accords (miCentre) : 1 mesure d'accords = 1 cycle de pattern.
+    // Évite toute dérive progressive liée à un décompte absolu depuis le début du morceau.
+    const positionDansLaMesure = totalBeatsAccords - miCentre * 4; // 0 à 4 temps à l'intérieur de la mesure courante
+    idxFrappe = Math.max(0, Math.floor(positionDansLaMesure * (FRAPPE_HULA.length / 4))) % FRAPPE_HULA.length;
+  }
+  if (idxFrappe !== _dernierIdxFrappe[masterUid]) {
+    const ancien = document.getElementById('frappe-' + masterUid + '-' + _dernierIdxFrappe[masterUid]);
+    if (ancien) ancien.classList.remove('actif');
+    const nouveau = document.getElementById('frappe-' + masterUid + '-' + idxFrappe);
+    if (nouveau) nouveau.classList.add('actif');
+    _dernierIdxFrappe[masterUid] = idxFrappe;
+  }
+}
+
+// ══ Ajustement BPM en direct (+/-) pendant l'écoute ══
+function ajusterBpmVisuel(masterUid, delta) {
+  const chanson = _chansonsVisuel[masterUid];
+  if (!chanson) return;
+  chanson.bpm = Math.max(20, Math.round((chanson.bpm + delta) * 10) / 10);
+  const el = document.getElementById('bpm-visuel-' + masterUid);
+  if (el) el.textContent = chanson.bpm;
+}
+
+// ══ Ajustement du décalage accords/audio (+/-) en direct ══
+function ajusterDecalageAccords(masterUid, delta) {
+  DECALAGE_ACCORDS_SEC = Math.round((DECALAGE_ACCORDS_SEC + delta) * 10) / 10;
+  const el = document.getElementById('sync-visuel-' + masterUid);
+  if (el) el.textContent = (DECALAGE_ACCORDS_SEC >= 0 ? '+' : '') + DECALAGE_ACCORDS_SEC + 's';
+  _majEcranVisuel(masterUid, _calculerPositionActuelle(masterUid));
+}
+
+// ══ Ajustement de l'interligne du prompteur (+/-) en direct ══
+// ══ Ajustement de l'interligne du prompteur (+/-) en direct — toutes les lignes ══
+function ajusterInterligne(masterUid, delta) {
+  HAUTEUR_LIGNE = Math.max(20, Math.min(100, HAUTEUR_LIGNE + delta));
+  _LIGNES_PROMPTEUR.forEach((l, i) => {
+    const el = document.getElementById('prompt-ligne-' + masterUid + '-' + i);
+    if (el) { el.style.top = (l.t * HAUTEUR_LIGNE) + 'px'; el.style.height = HAUTEUR_LIGNE + 'px'; }
+  });
+  const affichage = document.getElementById('interligne-visuel-' + masterUid);
+  if (affichage) affichage.textContent = HAUTEUR_LIGNE;
+  _majEcranVisuel(masterUid, _calculerPositionActuelle(masterUid));
+}
+
+// ══ Sélection d'une ligne précise du prompteur, pour ajuster SA position individuellement ══
+const _CLE_OVERRIDES_LIGNES = 'mf_papa_overrides_lignes';
+let _ligneSelectionnee = null; // index dans _LIGNES_PROMPTEUR
+let _overridesLignes = {};
+try {
+  const brut = localStorage.getItem(_CLE_OVERRIDES_LIGNES);
+  if (brut) {
+    _overridesLignes = JSON.parse(brut);
+    Object.keys(_overridesLignes).forEach(i => { if (_LIGNES_PROMPTEUR[i]) _LIGNES_PROMPTEUR[i].t = _overridesLignes[i]; });
+  }
+} catch (e) {}
+
+function selectionnerLignePrompteur(masterUid, index) {
+  _ligneSelectionnee = index;
+  const l = _LIGNES_PROMPTEUR[index];
+  const ctrl = document.getElementById('ligne-ctrl-' + masterUid);
+  const texteEl = document.getElementById('ligne-ctrl-texte-' + masterUid);
+  if (texteEl) texteEl.textContent = (l.texte || '(vide)') + ' — t=' + Math.round(l.t * 100) / 100;
+  if (ctrl) ctrl.classList.add('visible');
+  for (let i = 0; i < _LIGNES_PROMPTEUR.length; i++) {
+    const el = document.getElementById('prompt-ligne-' + masterUid + '-' + i);
+    if (el) el.classList.toggle('selectionnee', i === index);
+  }
+}
+function ajusterEspacementLigne(masterUid, delta) {
+  if (_ligneSelectionnee === null) return;
+  const l = _LIGNES_PROMPTEUR[_ligneSelectionnee];
+  l.t = Math.max(0, Math.round((l.t + delta) * 100) / 100);
+  _overridesLignes[_ligneSelectionnee] = l.t;
+  try { localStorage.setItem(_CLE_OVERRIDES_LIGNES, JSON.stringify(_overridesLignes)); } catch (e) {}
+  const el = document.getElementById('prompt-ligne-' + masterUid + '-' + _ligneSelectionnee);
+  if (el) el.style.top = (l.t * HAUTEUR_LIGNE) + 'px';
+  const texteEl = document.getElementById('ligne-ctrl-texte-' + masterUid);
+  if (texteEl) texteEl.textContent = (l.texte || '(vide)') + ' — t=' + Math.round(l.t * 100) / 100;
+  _majEcranVisuel(masterUid, _calculerPositionActuelle(masterUid));
+}
+function fermerLignePrompteur(masterUid) {
+  _ligneSelectionnee = null;
+  const ctrl = document.getElementById('ligne-ctrl-' + masterUid);
+  if (ctrl) ctrl.classList.remove('visible');
+  for (let i = 0; i < _LIGNES_PROMPTEUR.length; i++) {
+    const el = document.getElementById('prompt-ligne-' + masterUid + '-' + i);
+    if (el) el.classList.remove('selectionnee');
+  }
+}
+
+function buildExportBox(masterUid) {
+  return '<div class="export-box" id="export-box-' + masterUid + '">'
+    + '<div class="tiroir-header"><span class="tiroir-titre">💾 Réglages figés</span>'
+    + '<button class="tiroir-fermer" onclick="fermerExportBox(\'' + masterUid + '\')">✕ Fermer</button></div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Copie ce texte et renvoie-le pour figer ces réglages dans le code définitif :</div>'
+    + '<textarea id="export-texte-' + masterUid + '" readonly style="width:100%;height:220px;background:#111;color:#ccc;border:1px solid var(--border);border-radius:5px;font-size:10px;padding:8px;box-sizing:border-box;"></textarea>'
+    + '<button class="bandeau-btn" style="margin-top:10px;" onclick="copierExport(\'' + masterUid + '\')">📋 Copier</button>'
+    + '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">'
+    + '<div style="font-size:11px;color:#3498db;font-weight:700;margin-bottom:8px;">⚡ Ou enregistrer directement dans l\'admin (Firestore)</div>'
+    + '<input id="export-chanson-id-' + masterUid + '" placeholder="Titre ou ID de la chanson dans l\'admin (ex: Papa)" style="width:100%;padding:8px 10px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;border-radius:4px;box-sizing:border-box;margin-bottom:8px;">'
+    + '<button class="bandeau-btn" style="width:100%;background:linear-gradient(135deg,#3498db,#21618c);" onclick="enregistrerDirectementFirestore(\'' + masterUid + '\')">⚡ Enregistrer dans starter_data</button>'
+    + '<div id="export-statut-' + masterUid + '" style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px;"></div>'
+    + '</div>'
+    + '</div>';
+}
+function exporterReglages(masterUid) {
+  const chanson = _chansonsVisuel[masterUid];
+  const donnees = {
+    bpm: chanson.bpm,
+    decalageAccordsSec: DECALAGE_ACCORDS_SEC,
+    hauteurLigne: HAUTEUR_LIGNE,
+    ajustementsLignes: _overridesLignes
+  };
+  const texteEl = document.getElementById('export-texte-' + masterUid);
+  if (texteEl) texteEl.value = JSON.stringify(donnees, null, 2);
+  const box = document.getElementById('export-box-' + masterUid);
+  if (box) box.classList.add('visible');
+}
+function fermerExportBox(masterUid) {
+  const box = document.getElementById('export-box-' + masterUid);
+  if (box) box.classList.remove('visible');
+}
+function copierExport(masterUid) {
+  const texteEl = document.getElementById('export-texte-' + masterUid);
+  if (!texteEl) return;
+  texteEl.select();
+  navigator.clipboard.writeText(texteEl.value).catch(() => document.execCommand('copy'));
+}
+
+async function enregistrerDirectementFirestore(masterUid) {
+  const idEl = document.getElementById('export-chanson-id-' + masterUid);
+  const statutEl = document.getElementById('export-statut-' + masterUid);
+  const ref = idEl ? idEl.value.trim() : '';
+  if (!ref) { if (statutEl) { statutEl.textContent = '⚠ Indique le titre ou l\'ID de la chanson'; statutEl.style.color = 'var(--rouge)'; } return; }
+  if (!window._ecrireStarterDataFirestore) { if (statutEl) { statutEl.textContent = '⚠ Connexion Firestore non disponible'; statutEl.style.color = 'var(--rouge)'; } return; }
+  const chanson = _chansonsVisuel[masterUid];
+  const donnees = {
+    bpm: chanson.bpm,
+    decalageAccordsSec: DECALAGE_ACCORDS_SEC,
+    hauteurLigne: HAUTEUR_LIGNE,
+    ajustementsLignes: _overridesLignes,
+    mesures: _chansonActive.mesures
+  };
+  if (statutEl) { statutEl.textContent = 'Enregistrement en cours…'; statutEl.style.color = 'var(--muted)'; }
+  const ok = await window._ecrireStarterDataFirestore(ref, donnees);
+  if (statutEl) {
+    statutEl.textContent = ok ? '✅ Enregistré dans Firestore — visible dans l\'admin' : '❌ Chanson introuvable dans l\'admin (vérifie le titre/ID)';
+    statutEl.style.color = ok ? 'var(--vert)' : 'var(--rouge)';
+  }
+}
+
+function buildTiroirPistes(masterUid, pistes) {
+  const contenu = pistes.length
+    ? buildConsoleMultiPistesUI(masterUid, pistes)
+    : '<p style="color:var(--muted);font-size:11px;">Aucune piste audio.</p>';
+  return '<div class="tiroir-pistes" id="tiroir-' + masterUid + '">'
+    + '<div class="tiroir-header"><span class="tiroir-titre">🎚️ Pistes séparées</span>'
+    + '<button class="tiroir-fermer" onclick="toggleTiroirPistes(\'' + masterUid + '\')">✕ Fermer</button></div>'
+    + contenu
+    + '<div class="diag-titre">🩺 Diagnostic (pour signalement)</div><div class="diag-zone" id="diag-' + masterUid + '"></div>'
+    + '</div>';
+}
+function toggleTiroirPistes(masterUid) {
+  const tiroir = document.getElementById('tiroir-' + masterUid);
+  if (tiroir) tiroir.classList.toggle('visible');
+}
+
+// ══ Bandeau console compact — repliable en bas ══
+function buildBandeauBas(masterUid, avecVideo) {
+  let html = '<div class="bandeau-bas" id="overlay-' + masterUid + '">'
+    + '<div class="bandeau-ligne1">'
+    + '<button onclick="toggleConsoleMaitre(\'' + masterUid + '\')" id="maitre-play-' + masterUid + '" class="bandeau-play">▶</button>'
+    + '<input type="range" min="0" max="100" value="0" id="maitre-seek-' + masterUid + '" oninput="seekConsoleMaitre(\'' + masterUid + '\',this.value)" style="flex:1;accent-color:var(--or);">'
+    + '<span id="maitre-time-' + masterUid + '" style="font-size:11px;color:var(--muted);min-width:38px;">0:00</span>'
+    + '</div>'
+    + '<div class="bandeau-ligne2">'
+    + '<div class="bandeau-groupe"><span class="bandeau-label">🐢 Vitesse</span>'
+    + '<button class="bandeau-btn" onclick="ajusterVitesseMaitre(\'' + masterUid + '\',-0.1)">−</button>'
+    + '<span class="bandeau-valeur" id="maitre-vitesse-' + masterUid + '">1.0x</span>'
+    + '<button class="bandeau-btn" onclick="ajusterVitesseMaitre(\'' + masterUid + '\',0.1)">+</button></div>'
+    + '<div class="bandeau-groupe"><span class="bandeau-label">🎵 Transpo</span>'
+    + '<button class="bandeau-btn" onclick="ajusterTranspositionMulti(\'' + masterUid + '\',-1)">−</button>'
+    + '<span class="bandeau-valeur" id="console-transpo-' + masterUid + '">0</span>'
+    + '<button class="bandeau-btn" onclick="ajusterTranspositionMulti(\'' + masterUid + '\',1)">+</button></div>';
+  if (avecVideo) {
+    html += '<div class="bandeau-groupe"><span class="bandeau-label">🔄 Décalage</span>'
+      + '<button class="bandeau-btn" onclick="ajusterDecalageVideo(\'' + masterUid + '\',-0.1)">−</button>'
+      + '<span class="bandeau-valeur" id="maitre-decalage-' + masterUid + '">+0.0s</span>'
+      + '<button class="bandeau-btn" onclick="ajusterDecalageVideo(\'' + masterUid + '\',0.1)">+</button></div>';
+  }
+  html += '<div class="bandeau-groupe"><span class="bandeau-label">🥁 BPM</span>'
+    + '<button class="bandeau-btn" onclick="ajusterBpmVisuel(\'' + masterUid + '\',-0.5)">−</button>'
+    + '<span class="bandeau-valeur" id="bpm-visuel-' + masterUid + '">' + _chansonActive.bpm + '</span>'
+    + '<button class="bandeau-btn" onclick="ajusterBpmVisuel(\'' + masterUid + '\',0.5)">+</button></div>'
+    + '<div class="bandeau-groupe"><span class="bandeau-label">↕️ Interligne</span>'
+    + '<button class="bandeau-btn" onclick="ajusterInterligne(\'' + masterUid + '\',-2)">−</button>'
+    + '<span class="bandeau-valeur" id="interligne-visuel-' + masterUid + '">' + HAUTEUR_LIGNE + '</span>'
+    + '<button class="bandeau-btn" onclick="ajusterInterligne(\'' + masterUid + '\',2)">+</button></div>'
+    + '<div class="bandeau-groupe"><span class="bandeau-label">🔄 Sync</span>'
+    + '<button class="bandeau-btn" onclick="ajusterDecalageAccords(\'' + masterUid + '\',-0.5)">−</button>'
+    + '<span class="bandeau-valeur" id="sync-visuel-' + masterUid + '">+' + DECALAGE_ACCORDS_SEC + 's</span>'
+    + '<button class="bandeau-btn" onclick="ajusterDecalageAccords(\'' + masterUid + '\',0.5)">+</button></div>'
+    + '<button class="bandeau-btn" onclick="toggleTiroirPistes(\'' + masterUid + '\')">🎚️ Pistes</button>'
+    + '<button class="bandeau-btn" onclick="exporterReglages(\'' + masterUid + '\')">💾 Sauvegarder</button>'
+    + '<button class="bandeau-btn" id="btn-export-prompteur-' + masterUid + '" onclick="toggleExportPrompteur(\'' + masterUid + '\')" style="background:rgba(231,76,60,.15);border-color:var(--rouge);color:#ff8a80;">🎬 MP4 (paroles)</button>'
+    + '</div></div>';
+  return html;
+}
+
+function _getToneState(masterUid) {
+  if (!_toneState[masterUid]) _toneState[masterUid] = { offset:0, vitesse:1.0, volume:1.0, transposition:0, enLecture:false, startCtxTime:0 };
+  return _toneState[masterUid];
+}
+function _logDiag(masterUid, msg) {
+  const zone = document.getElementById('diag-' + masterUid);
+  if (!zone) return;
+  const ligne = document.createElement('div');
+  const t = new Date();
+  const hh = String(t.getHours()).padStart(2,'0'), mm = String(t.getMinutes()).padStart(2,'0'), ss = String(t.getSeconds()).padStart(2,'0');
+  ligne.textContent = hh+':'+mm+':'+ss + ' — ' + msg;
+  zone.prepend(ligne);
+}
+function creerPistesTone(masterUid, pistesListe) {
+  _tonePistes[masterUid] = {};
+  pistesListe.forEach(p => {
+    const pitchShift = new Tone.PitchShift(0).toDestination();
+    const gain = new Tone.Gain(1).connect(pitchShift);
+    const player = new Tone.Player({
+      url: p.url,
+      onload: () => {
+        _logDiag(masterUid, '✅ ' + p.label + ' — prête');
+        const state = _getToneState(masterUid);
+        if (state.enLecture) {
+          // La lecture a déjà démarré pendant que cette piste chargeait — on la rattrape immédiatement.
+          _appliquerGainsEtPitch(masterUid);
+          player.start(Tone.now() + 0.05, _calculerPositionActuelle(masterUid));
+        }
+      },
+      onerror: (e) => _logDiag(masterUid, '❌ ' + p.label + ' (' + (p.local ? 'fichier local' : 'lien: ' + p.url.slice(0,40)) + ') — ' + (e && e.message ? e.message : e))
+    }).connect(gain);
+    _tonePistes[masterUid][p.key] = { player, pitchShift, gain, label:p.label, verrou:!!p.verrou, baseVol:1, muted:false };
+  });
+  _logDiag(masterUid, 'Console construite — ' + pistesListe.length + ' piste(s) (moteur Tone.js)');
+}
+function _dureeReference(masterUid) {
+  const pistes = _tonePistes[masterUid] || {};
+  let d = 0;
+  Object.values(pistes).forEach(pi => { if (pi.player.loaded && pi.player.buffer.duration > d) d = pi.player.buffer.duration; });
+  return d;
+}
+function _calculerPositionActuelle(masterUid) {
+  const state = _getToneState(masterUid);
+  if (!state.enLecture) return state.offset;
+  return state.offset + (Tone.now() - state.startCtxTime) * state.vitesse;
+}
+function _appliquerGainsEtPitch(masterUid) {
+  const state = _getToneState(masterUid);
+  const pistes = _tonePistes[masterUid] || {};
+  // La vitesse (playbackRate) modifie naturellement la hauteur — on calcule une compensation
+  // automatique pour l'annuler, afin que Vitesse = tempo seul, et Transpose = hauteur seule.
+  const compensationVitesse = -12 * Math.log2(state.vitesse);
+  Object.values(pistes).forEach(pi => {
+    pi.gain.gain.value = pi.muted ? 0 : Math.max(0, Math.min(1, pi.baseVol * state.volume));
+    pi.pitchShift.pitch = pi.verrou ? compensationVitesse : (state.transposition + compensationVitesse);
+    pi.player.playbackRate = state.vitesse;
+  });
+}
+async function toggleConsoleMaitre(masterUid) {
+  await Tone.start().catch(() => {});
+  initConsoleVideos(masterUid);
+  const state = _getToneState(masterUid);
+  const btn = document.getElementById('maitre-play-' + masterUid);
+  const pistes = _tonePistes[masterUid] || {};
+  const frames = _getConsoleVideoFrames(masterUid);
+
+  if (!state.enLecture) {
+    _appliquerGainsEtPitch(masterUid);
+    const startAt = Tone.now() + 0.12;
+    state.startCtxTime = startAt;
+    state.enLecture = true;
+    let compte = 0;
+    Object.values(pistes).forEach(pi => { if (pi.player.loaded) { pi.player.start(startAt, state.offset); compte++; } });
+    frames.forEach(fr => fr._vimeoPlayer && (_forcerMuteVideo(fr), fr._vimeoPlayer.play().catch(() => {})));
+    if (btn) btn.textContent = '⏸';
+    _logDiag(masterUid, '▶ Lecture demandée (' + compte + '/' + Object.keys(pistes).length + ' piste(s) prêtes)');
+    _demarrerSuiviMaitre(masterUid);
+    _demarrerCorrectionDerive(masterUid);
+  } else {
+    state.offset = _calculerPositionActuelle(masterUid);
+    state.enLecture = false;
+    Object.values(pistes).forEach(pi => { try { pi.player.stop(); } catch(e) {} });
+    frames.forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.pause().catch(() => {}));
+    if (btn) btn.textContent = '▶';
+    cancelAnimationFrame(_progressRAF[masterUid]);
+    clearInterval(_driftIntervals[masterUid]);
+  }
+}
+function _demarrerSuiviMaitre(masterUid) {
+  const seek = document.getElementById('maitre-seek-' + masterUid);
+  const time = document.getElementById('maitre-time-' + masterUid);
+  function boucle() {
+    const state = _getToneState(masterUid);
+    if (!state.enLecture) return;
+    const duree = _dureeReference(masterUid);
+    const pos = _calculerPositionActuelle(masterUid);
+    if (duree > 0 && seek) seek.value = Math.min(100, (pos / duree) * 100);
+    if (time) { const m = Math.floor(pos/60), s = Math.floor(pos%60); time.textContent = m+':'+(s<10?'0':'')+s; }
+    _majEcranVisuel(masterUid, pos);
+    if (duree > 0 && pos >= duree) { toggleConsoleMaitre(masterUid); return; }
+    _progressRAF[masterUid] = requestAnimationFrame(boucle);
+  }
+  _progressRAF[masterUid] = requestAnimationFrame(boucle);
+}
+function _demarrerCorrectionDerive(masterUid) {
+  clearInterval(_driftIntervals[masterUid]);
+  const frames = _getConsoleVideoFrames(masterUid);
+  if (!frames.length) return;
+  const fr = frames[0];
+  const verifier = () => {
+    const state = _getToneState(masterUid);
+    if (!state.enLecture || !fr._vimeoPlayer) return;
+    const posAudio = _calculerPositionActuelle(masterUid);
+    const cible = posAudio + (state.decalageVideo || 0);
+    fr._vimeoPlayer.getCurrentTime().then(posVideo => {
+      const ecart = cible - posVideo;
+      if (Math.abs(ecart) > 0.3) {
+        fr._vimeoPlayer.setCurrentTime(cible).catch(() => {});
+        _logDiag(masterUid, '🔄 Recalage vidéo (écart ' + ecart.toFixed(2) + 's)');
+      }
+    }).catch(() => {});
+  };
+  setTimeout(verifier, 1000); // premier recalage rapide juste après le démarrage
+  _driftIntervals[masterUid] = setInterval(verifier, 4000);
+}
+function ajusterDecalageVideo(masterUid, delta) {
+  const state = _getToneState(masterUid);
+  state.decalageVideo = Math.round(Math.max(-2, Math.min(2, (state.decalageVideo || 0) + delta)) * 10) / 10;
+  const lbl = document.getElementById('maitre-decalage-' + masterUid);
+  if (lbl) lbl.textContent = (state.decalageVideo > 0 ? '+' : '') + state.decalageVideo.toFixed(1) + 's';
+}
+function seekConsoleMaitre(masterUid, value) {
+  const state = _getToneState(masterUid);
+  const duree = _dureeReference(masterUid);
+  const nouvelleOffset = (value/100) * duree;
+  state.offset = nouvelleOffset;
+  _majEcranVisuel(masterUid, nouvelleOffset);
+  const pistes = _tonePistes[masterUid] || {};
+  if (state.enLecture) {
+    Object.values(pistes).forEach(pi => { if (pi.player.loaded) try { pi.player.stop(); } catch(e) {} });
+    const startAt = Tone.now() + 0.08;
+    state.startCtxTime = startAt;
+    Object.values(pistes).forEach(pi => { if (pi.player.loaded) pi.player.start(startAt, nouvelleOffset); });
+  }
+  _getConsoleVideoFrames(masterUid).forEach(fr => {
+    if (!fr._vimeoPlayer) return;
+    fr._vimeoPlayer.getDuration().then(dv => fr._vimeoPlayer.setCurrentTime((value/100) * dv)).then(() => {
+      if (state.enLecture) fr._vimeoPlayer.play().catch(() => {});
+    }).catch(() => {});
+  });
+}
+function ajusterVitesseMaitre(masterUid, delta) {
+  const state = _getToneState(masterUid);
+  const enLecture = state.enLecture;
+  const posActuelle = _calculerPositionActuelle(masterUid);
+  state.vitesse = Math.max(0.5, Math.min(1.5, Math.round((state.vitesse+delta)*10)/10));
+  state.offset = posActuelle;
+  const lbl = document.getElementById('maitre-vitesse-' + masterUid);
+  if (lbl) lbl.textContent = state.vitesse.toFixed(1)+'x';
+  _appliquerGainsEtPitch(masterUid);
+  const pistes = _tonePistes[masterUid] || {};
+  if (enLecture) {
+    Object.values(pistes).forEach(pi => { if (pi.player.loaded) try { pi.player.stop(); } catch(e) {} });
+    const startAt = Tone.now()+0.06;
+    state.startCtxTime = startAt;
+    Object.values(pistes).forEach(pi => { if (pi.player.loaded) pi.player.start(startAt, posActuelle); });
+  }
+  initConsoleVideos(masterUid);
+  _getConsoleVideoFrames(masterUid).forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.setPlaybackRate(state.vitesse).catch(() => {}));
+}
+function ajusterVolumeMaitre(masterUid, value) {
+  const state = _getToneState(masterUid);
+  state.volume = Math.max(0, Math.min(1, value/100));
+  _appliquerGainsEtPitch(masterUid);
+  initConsoleVideos(masterUid);
+  _getConsoleVideoFrames(masterUid).forEach(fr => fr._vimeoPlayer && fr._vimeoPlayer.setVolume(state.volume).catch(() => {}));
+}
+function ajusterTranspositionMulti(masterUid, delta) {
+  const state = _getToneState(masterUid);
+  state.transposition = Math.max(-6, Math.min(6, state.transposition+delta));
+  const lbl = document.getElementById('console-transpo-' + masterUid);
+  if (lbl) lbl.textContent = (state.transposition>0?'+':'')+state.transposition;
+  _appliquerGainsEtPitch(masterUid);
+  _majEcranVisuel(masterUid, _calculerPositionActuelle(masterUid));
+}
+function togglePisteMute(masterUid, pisteKey, btn) {
+  const pi = (_tonePistes[masterUid]||{})[pisteKey];
+  if (!pi) return;
+  pi.muted = !pi.muted;
+  btn.textContent = pi.muted ? '🔇' : '🔊';
+  btn.style.color = pi.muted ? 'var(--rouge)' : '#2ecc71';
+  _appliquerGainsEtPitch(masterUid);
+}
+function ajusterVolumePiste(masterUid, pisteKey, value) {
+  const pi = (_tonePistes[masterUid]||{})[pisteKey];
+  if (!pi) return;
+  pi.baseVol = Math.max(0, Math.min(1, value/100));
+  _appliquerGainsEtPitch(masterUid);
+}
+
+// ══ UI des pistes (sans balise <audio> — Tone.js gère le son séparément) ══
+function buildConsoleMultiPistesUI(masterUid, pistes) {
+  let pistesControles = '';
+  pistes.forEach(p => {
+    pistesControles += '<div style="background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:8px 10px;min-width:110px;flex:1;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'
+      + '<span style="font-size:10px;color:var(--orL);font-weight:700;">' + p.label + (p.verrou ? ' 🔒' : '') + '</span>'
+      + '<button onclick="togglePisteMute(\'' + masterUid + '\',\'' + p.key + '\',this)" data-muted="0" style="background:transparent;border:none;color:#2ecc71;font-size:14px;cursor:pointer;padding:0;">🔊</button>'
+      + '</div>'
+      + '<input type="range" min="0" max="100" value="100" oninput="ajusterVolumePiste(\'' + masterUid + '\',\'' + p.key + '\',this.value)" style="width:100%;accent-color:var(--or);height:14px;">'
+      + '</div>';
+  });
+  return '<div class="console-audio" oncontextmenu="return false;" style="background:rgba(201,146,42,.05);border:1px solid rgba(201,146,42,.18);border-radius:6px;padding:12px;-webkit-user-select:none;user-select:none;">'
+    + '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎚️ Pistes séparées — coupez, baissez ou montez chacune à tout moment</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + pistesControles + '</div>'
+    + '</div>';
+}
+
+// ══ Hauteur réelle de l'écran ══
+// ══════════════════════════════════════════════════════════════
+// ══ EXPORT MP4 — bloc central (prompteur) uniquement ══
+// Même principe que karaoke-papa.html : dessine sur un canvas caché, séparé de l'interface.
+// Ticker d'accords, manche animé et barre de frappe ne sont JAMAIS inclus dans l'export —
+// ils restent des widgets vivants, uniquement dans la Console de calibration admin.
+// Vidéo silencieuse : le son final vient des pistes séparées, pas de cette vidéo.
+// ══════════════════════════════════════════════════════════════
+let _mrecExport = null, _mchunksExport = [], _drawActiveExport = false;
+
+function toggleExportPrompteur(masterUid) {
+  const btn = document.getElementById('btn-export-prompteur-' + masterUid);
+  if (_mrecExport && _mrecExport.state === 'recording') {
+    _mrecExport.stop();
+    _drawActiveExport = false;
+    if (btn) { btn.textContent = '⏳ Génération…'; btn.disabled = true; }
+    return;
+  }
+  const cvs = document.getElementById('cvs-export-prompteur');
+  const stream = cvs.captureStream(24);
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  _mchunksExport = [];
+  _mrecExport = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
+  _mrecExport.ondataavailable = e => { if (e.data.size > 0) _mchunksExport.push(e.data); };
+  _mrecExport.onstop = () => _finaliserExportPrompteur(masterUid);
+  _mrecExport.start(100);
+  if (btn) { btn.textContent = '⏹ Stop'; btn.style.background = 'var(--rouge)'; btn.style.color = '#fff'; }
+  _drawActiveExport = true;
+  _dessinerFrameExportPrompteur(masterUid, cvs.getContext('2d'));
+}
+
+function _dessinerFrameExportPrompteur(masterUid, ctx) {
+  if (!_drawActiveExport) return;
+  const chanson = _chansonsVisuel[masterUid];
+  const NOIR = '#0a0a0a', OR = '#D4AF37', DIM = 'rgba(255,255,255,.4)';
+  ctx.fillStyle = NOIR;
+  ctx.fillRect(0, 0, 1280, 720);
+  if (chanson) {
+    const pos = _calculerPositionActuelle(masterUid);
+    const beatDur = 60 / chanson.bpm;
+    const mesureContinue = (Math.max(0, pos) / beatDur) / 4;
+    const hauteurConteneur = 720;
+    const offsetPx = mesureContinue * HAUTEUR_LIGNE - (hauteurConteneur * 0.30 - HAUTEUR_LIGNE / 2);
+    let idxActif = -1;
+    for (let i = 0; i < _LIGNES_PROMPTEUR.length; i++) {
+      if (_LIGNES_PROMPTEUR[i].t <= mesureContinue) idxActif = i; else break;
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = Math.max(0, idxActif - 3); i <= Math.min(_LIGNES_PROMPTEUR.length - 1, idxActif + 3); i++) {
+      const l = _LIGNES_PROMPTEUR[i];
+      const y = (l.t * HAUTEUR_LIGNE) - offsetPx;
+      if (y < -60 || y > 780) continue;
+      const actif = i === idxActif;
+      ctx.font = actif ? '700 34px Georgia, serif' : '400 27px Georgia, serif';
+      ctx.fillStyle = actif ? OR : DIM;
+      ctx.fillText(l.texte, 640, y);
+    }
+  }
+  requestAnimationFrame(() => _dessinerFrameExportPrompteur(masterUid, ctx));
+}
+
+async function _finaliserExportPrompteur(masterUid) {
+  const btn = document.getElementById('btn-export-prompteur-' + masterUid);
+  const blob = new Blob(_mchunksExport, { type: 'video/webm' });
+  const blobURL = URL.createObjectURL(blob);
+  if (typeof FFmpeg !== 'undefined' && FFmpeg.createFFmpeg) {
+    try {
+      const { createFFmpeg, fetchFile } = FFmpeg;
+      const ff = createFFmpeg({ log: false });
+      await ff.load();
+      const inputData = await fetchFile(blobURL);
+      ff.FS('writeFile', 'input.webm', inputData);
+      await ff.run('-i', 'input.webm', '-c:v', 'libx264', '-vf', 'scale=1280:720', '-an', '-movflags', '+faststart', '-preset', 'medium', '-crf', '18', 'output.mp4');
+      const data = ff.FS('readFile', 'output.mp4');
+      const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(mp4Blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'starter-paroles.mp4'; a.click();
+      if (btn) { btn.textContent = '✅ MP4 prêt !'; }
+    } catch (e) {
+      const a = document.createElement('a');
+      a.href = blobURL; a.download = 'starter-paroles.webm'; a.click();
+      if (btn) { btn.textContent = '✅ WebM téléchargé'; }
+    }
+  } else {
+    const a = document.createElement('a');
+    a.href = blobURL; a.download = 'starter-paroles.webm'; a.click();
+    if (btn) { btn.textContent = '✅ WebM téléchargé'; }
+  }
+  if (btn) {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = '🎬 MP4 (paroles)'; btn.style.background = 'rgba(231,76,60,.15)'; btn.style.color = '#ff8a80'; }, 3000);
+  }
+}
+
+function _ajusterHauteurEcran() { document.documentElement.style.setProperty('--vh100', window.innerHeight + 'px'); }
+window.addEventListener('resize', _ajusterHauteurEcran);
+window.addEventListener('orientationchange', _ajusterHauteurEcran);
+_ajusterHauteurEcran();
+
+// ══ Superposition auto-masquée ══
+let _overlayHideTimer = null;
+function _showOverlayConsole(masterUid) {
+  const ov = document.getElementById('overlay-' + masterUid);
+  const diag = document.getElementById('diagacc-' + masterUid);
+  const frappe = document.getElementById('frappebar-' + masterUid);
+  if (!ov) return;
+  ov.classList.add('visible');
+  if (diag) diag.style.bottom = ov.offsetHeight + 'px'; // reste au-dessus de la console, en permanence
+  if (frappe) frappe.style.bottom = (ov.offsetHeight + (diag ? diag.offsetHeight : 92)) + 'px'; // reste au-dessus du diagramme
+}
+let _tapTimestamps = [];
+function _gererTapCatcher(masterUid, indiceEl) {
+  const maintenant = Date.now();
+  _tapTimestamps = _tapTimestamps.filter(t => maintenant - t < 800);
+  _tapTimestamps.push(maintenant);
+  if (_tapTimestamps.length >= 3) {
+    _tapTimestamps = [];
+    _showOverlayConsole(masterUid);
+    if (indiceEl) indiceEl.classList.add('cache');
+  }
+}
+function retourConfig() {
+  document.getElementById('config-screen').style.display = 'block';
+  document.getElementById('stage-consTEST').classList.remove('actif');
+}
+
+async function chargerDepuisAdmin() {
+  const titre = (document.getElementById('cfg-titre-recherche').value || '').trim();
+  const statutEl = document.getElementById('cfg-charge-statut');
+  if (!titre) { if (statutEl) { statutEl.textContent = '⚠ Tape un titre'; statutEl.style.color = 'var(--rouge)'; } return; }
+  if (!window._chargerChansonFirestore) { if (statutEl) { statutEl.textContent = '⚠ Connexion Firestore non disponible'; statutEl.style.color = 'var(--rouge)'; } return; }
+  if (statutEl) { statutEl.textContent = 'Recherche…'; statutEl.style.color = 'var(--muted)'; }
+
+  const c = await window._chargerChansonFirestore(titre);
+  if (!c) { if (statutEl) { statutEl.textContent = '❌ Chanson introuvable — vérifie le titre exact'; statutEl.style.color = 'var(--rouge)'; } return; }
+
+  // Pré-remplir vidéo + pistes (les mêmes liens que dans admin, rien à retaper)
+  if (c.video) document.getElementById('cfg-video').value = c.video;
+  ['voix_lead','choeurs','uke_melodie','uke_harmonie','guitare','vivo','basse','toere','ambiance'].forEach(k => {
+    const champ = document.getElementById('cfg-' + k);
+    if (champ && c['audio_' + k]) champ.value = c['audio_' + k];
+  });
+
+  // Charger la grille (paroles + accords + structure), si déjà générée dans l'admin
+  if (c.starter_data && c.starter_data.mesures && c.starter_data.mesures.length) {
+    _chargerChanson(c.starter_data);
+    if (statutEl) { statutEl.textContent = '✅ "' + c.titre + '" chargée — ' + c.starter_data.mesures.length + ' mesures, vidéo/pistes pré-remplies. Lance la Console.'; statutEl.style.color = 'var(--vert)'; }
+  } else {
+    if (statutEl) { statutEl.textContent = '⚠ Vidéo/pistes pré-remplies, mais aucune grille starter_data — génère-la d\'abord dans l\'admin (onglet Parole).'; statutEl.style.color = 'var(--rouge)'; }
+  }
+}
+
+function lancerConsoleAvecMesPistes() {
+  const videoBrut = document.getElementById('cfg-video').value.trim();
+  let video = videoBrut;
+  const srcMatch = video.match(/src=["']([^"']+)["']/i);
+  if (srcMatch) video = srcMatch[1];
+  let m = video.match(/(?:player\.)?vimeo\.com\/(?:channels\/[^\/?#]+\/|video\/|manage\/videos\/|share\/)?(\d{6,12})/i);
+  if (m) video = 'https://player.vimeo.com/video/' + m[1];
+
+  const defsPistes = [
+    {key:'voix_lead', label:'🎤 Voix lead'}, {key:'choeurs', label:'🎵 Chœurs'},
+    {key:'uke_melodie', label:'🎸 Uku mélodie'}, {key:'uke_harmonie', label:'🎸 Uku harmonie'},
+    {key:'guitare', label:'🎸 Guitare'}, {key:'vivo', label:'🪈 Vivo'}, {key:'basse', label:'🎶 Basse'},
+    {key:'toere', label:'🥁 To\'ere', verrou:true}, {key:'ambiance', label:'🌊 Ambiance', verrou:true}
+  ];
+  const pistesListe = [];
+  defsPistes.forEach(d => {
+    const fichier = document.getElementById('file-' + d.key).files[0];
+    const brut = document.getElementById('cfg-' + d.key).value.trim();
+    if (fichier) {
+      pistesListe.push({key:d.key, label:d.label, url:URL.createObjectURL(fichier), verrou:!!d.verrou, local:true});
+    } else if (brut) {
+      pistesListe.push({key:d.key, label:d.label, url:brut, verrou:!!d.verrou});
+    }
+  });
+
+  if (!video && !pistesListe.length) { alert('Colle au moins une vidéo ou une piste avant de lancer.'); return; }
+
+  document.getElementById('config-screen').style.display = 'none';
+  const stage = document.getElementById('stage-consTEST');
+  stage.classList.add('actif');
+  construireConsole(video, pistesListe);
+}
+
+function construireConsole(videoUrl, pistesListe) {
+  const masterUid = 'consTEST';
+  const stage = document.getElementById('stage-' + masterUid);
+
+  const prompteur = buildPrompteur(masterUid);
+  const ticker = buildTickerAccords(masterUid);
+  const frappeBar = buildFrappeHula(masterUid);
+  const diagBandeau = buildBandeauDiagramme(masterUid);
+  const bandeau = buildBandeauBas(masterUid, !!videoUrl);
+  const tiroir = buildTiroirPistes(masterUid, pistesListe);
+  const exportBox = buildExportBox(masterUid);
+
+  if (videoUrl) {
+    const videoHtml = '<iframe class="vimeo-master-frame" id="vidfr-' + masterUid + '-1" src="' + videoUrl + (videoUrl.includes('?') ? '&' : '?') + 'controls=0&muted=1" allow="autoplay; fullscreen; picture-in-picture"></iframe>';
+
+    stage.classList.remove('sans-video');
+    stage.innerHTML = '<button class="btn-retour-config" onclick="retourConfig()">← Config</button>'
+      + '<div id="cw-' + masterUid + '">'
+      + videoHtml
+      + prompteur
+      + ticker
+      + frappeBar
+      + diagBandeau
+      + '<div class="tap-catcher" id="tap-' + masterUid + '"></div>'
+      + bandeau
+      + tiroir
+      + exportBox
+      + '</div>';
+
+    initConsoleVideos(masterUid);
+    const tapCatcher = document.getElementById('tap-' + masterUid);
+    const indiceEl = document.getElementById('indice-' + masterUid);
+    tapCatcher.addEventListener('click', () => _gererTapCatcher(masterUid, indiceEl));
+
+    const bandeauEl = document.getElementById('overlay-' + masterUid);
+    ['input', 'pointerdown'].forEach(evt => bandeauEl.addEventListener(evt, () => _showOverlayConsole(masterUid)));
+  } else {
+    stage.classList.add('sans-video');
+    stage.innerHTML = '<button class="btn-retour-config" onclick="retourConfig()">← Config</button>'
+      + '<div id="cw-' + masterUid + '" style="position:relative;height:100%;">'
+      + prompteur
+      + ticker
+      + frappeBar
+      + diagBandeau
+      + '<div class="tap-catcher" id="tap-' + masterUid + '"></div>'
+      + bandeau
+      + tiroir
+      + exportBox
+      + '</div>';
+
+    const tapCatcher = document.getElementById('tap-' + masterUid);
+    const indiceEl = document.getElementById('indice-' + masterUid);
+    tapCatcher.addEventListener('click', () => _gererTapCatcher(masterUid, indiceEl));
+
+    const bandeauEl = document.getElementById('overlay-' + masterUid);
+    ['input', 'pointerdown'].forEach(evt => bandeauEl.addEventListener(evt, () => _showOverlayConsole(masterUid)));
+  }
+
+  creerPistesTone(masterUid, pistesListe);
+  _chansonsVisuel[masterUid] = { bpm: _chansonActive.bpm, t0: 0, mesures: _chansonActive.mesures };
+  _showOverlayConsole(masterUid); // positionne le ticker au-dessus de la console dès le départ
+  _majEcranVisuel(masterUid, 0);
+}
+</script>
+
+<!-- ═══ FIREBASE — écriture directe de starter_data (calage) dans l'admin ═══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go",
+  authDomain: "mf-harmonie-des-iles.firebaseapp.com",
+  projectId: "mf-harmonie-des-iles",
+  storageBucket: "mf-harmonie-des-iles.firebasestorage.app",
+  messagingSenderId: "312842405867",
+  appId: "1:312842405867:web:4ffc4656ab29070dbd3bae"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Écrit starter_data sur la chanson correspondante (par ID direct, ou par titre si l'ID ne correspond à rien).
+// Ne touche à AUCUN autre champ de la chanson (merge: true) — n'écrase ni l'audio, ni le texte, ni la vidéo.
+// Lit une chanson complète (starter_data, vidéo, pistes) par son titre exact (insensible à la casse).
+window._chargerChansonFirestore = async function(titre) {
+  try {
+    const snap = await getDocs(collection(db, 'chansons'));
+    let trouve = null;
+    snap.forEach(d => { if ((d.data().titre || '').toLowerCase() === titre.toLowerCase()) trouve = d.data(); });
+    return trouve;
+  } catch (e) {
+    console.warn('_chargerChansonFirestore:', e);
+    return null;
+  }
+};
+
+window._ecrireStarterDataFirestore = async function(refTexte, donnees) {
+  try {
+    const parId = await getDoc(doc(db, 'chansons', String(refTexte)));
+    if (parId.exists()) {
+      await setDoc(doc(db, 'chansons', String(refTexte)), { starter_data: donnees }, { merge: true });
+      return true;
+    }
+    const snap = await getDocs(collection(db, 'chansons'));
+    let idTrouve = null;
+    snap.forEach(d => { if ((d.data().titre || '').toLowerCase() === refTexte.toLowerCase()) idTrouve = d.id; });
+    if (!idTrouve) return false;
+    await setDoc(doc(db, 'chansons', idTrouve), { starter_data: donnees }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn('_ecrireStarterDataFirestore:', e);
+    return false;
+  }
+};
+</script>
+</body>
+</html>
