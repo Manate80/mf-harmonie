@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Générateur de chants — MF Harmonie des Îles</title>
+<style>
+  :root{
+    --bg:#0A0A0A; --card:#141414; --or:#C9922A; --orL:#E8C96A;
+    --blanc:#F5F0E8; --gris:#7a7060; --bord:#2a2620;
+    --refrain:#c0504a; --pont:#3a7a3a; --finale:#2980b9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--blanc);font-family:Georgia,serif;font-size:15px;padding-bottom:60px;}
+
+  .header{background:linear-gradient(180deg,#100d06,var(--bg));border-bottom:1px solid var(--bord);padding:14px 16px;text-align:center;}
+  .header-titre{font-size:16px;font-weight:700;color:var(--orL);letter-spacing:3px;text-transform:uppercase;}
+  .header-sous{font-size:10px;color:var(--gris);margin-top:3px;letter-spacing:1px;}
+
+  .contenu{max-width:720px;margin:0 auto;padding:16px 12px;}
+
+  .section{background:var(--card);border:1px solid var(--bord);margin-bottom:14px;}
+  .section-titre{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--bord);}
+  .section-num{font-size:10px;color:var(--or);font-weight:700;}
+  .section-nom{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orL);}
+  .section-corps{padding:16px 14px;}
+
+  .champ{margin-bottom:12px;}
+  .champ label{display:block;font-size:10px;color:var(--or);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .champ input,.champ select,.champ textarea{
+    width:100%;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);
+    font-family:Georgia,serif;font-size:13px;padding:8px 10px;border-radius:3px;
+  }
+  .champ input:focus,.champ select:focus,.champ textarea:focus{outline:none;border-color:var(--or);}
+  .grille2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:480px){.grille2{grid-template-columns:1fr;}}
+
+  #parolesInput{min-height:180px;font-family:'Courier New',monospace;font-size:13px;line-height:1.5;resize:vertical;}
+  .aide-syntaxe{font-size:10px;color:var(--gris);margin-top:6px;line-height:1.6;background:#0f0f0f;border:1px dashed var(--bord);padding:8px 10px;}
+  .aide-syntaxe b{color:var(--orL);}
+
+  .btn{font-family:Georgia,serif;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 16px;border:1px solid var(--or);background:transparent;color:var(--orL);cursor:pointer;border-radius:3px;}
+  .btn-primaire{background:linear-gradient(135deg,var(--or),#a07020);color:#0A0A0A;border:none;}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+
+  .lexique-table{margin-top:10px;}
+  .lexique-vide{font-size:11px;color:var(--gris);font-style:italic;}
+  .lex-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+  .lex-mot{width:110px;font-size:12px;color:var(--orL);font-weight:700;flex-shrink:0;}
+  .lex-row input{flex:1;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-family:Georgia,serif;font-size:12px;padding:6px 8px;border-radius:3px;}
+
+  .tabs{display:flex;border-top:1px solid var(--bord);margin-top:14px;}
+  .tab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--gris);font-family:Georgia,serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:10px 6px;cursor:pointer;}
+  .tab.actif{color:var(--orL);border-bottom:2px solid var(--or);}
+  .preview-zone{background:#0A0A0A;border:1px solid var(--bord);padding:14px;margin-top:10px;min-height:80px;}
+
+  .ligne{display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 6px;font-size:16px;line-height:1.3;margin-bottom:10px;}
+  .ligne.couplet{color:var(--blanc);}
+  .ligne.refrain{color:var(--refrain);}
+  .ligne.pont{color:var(--pont);}
+  .ligne.finale{color:var(--finale);}
+  .seg{display:inline-flex;flex-direction:column;}
+  .seg .ch{color:var(--orL);font-weight:700;font-size:11px;height:14px;margin-bottom:2px;cursor:pointer;}
+  .seg .ch:hover{color:#fff;}
+  .seg .tx{white-space:pre;font-weight:400;color:inherit;}
+  .mot-clic{cursor:pointer;border-bottom:1px dotted var(--gris);}
+  .mot-clic:hover{color:#fff;}
+  .section-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gris);margin:12px 0 6px;}
+  .section-label:first-child{margin-top:0;}
+
+  .popup{display:none;position:fixed;z-index:900;background:var(--card);border:1px solid var(--or);padding:10px 14px;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.85);min-width:100px;max-width:200px;top:50%;left:50%;transform:translate(-50%,-50%);}
+  .popup.visible{display:block;}
+  .popup-fermer{position:absolute;top:3px;right:7px;background:transparent;border:none;color:var(--gris);font-size:18px;cursor:pointer;}
+  .popup-nom{font-weight:700;color:var(--orL);font-size:14px;margin-bottom:4px;}
+  .popup-trad{font-size:12px;color:var(--gris);font-style:italic;}
+  .fond-popup{display:none;position:fixed;inset:0;z-index:850;background:rgba(0,0,0,.65);}
+  .fond-popup.visible{display:block;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-titre">Générateur de chants</div>
+  <div class="header-sous">MF Harmonie des Îles</div>
+</div>
+
+<div class="contenu">
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">1</span><span class="section-nom">Métadonnées</span></div>
+    <div class="section-corps">
+      <div class="grille2">
+        <div class="champ"><label>Titre</label><input type="text" id="m-titre"/></div>
+        <div class="champ"><label>Auteur</label><input type="text" id="m-auteur"/></div>
+        <div class="champ"><label>Compositeur</label><input type="text" id="m-compositeur"/></div>
+        <div class="champ"><label>Interprète</label><input type="text" id="m-interprete"/></div>
+        <div class="champ"><label>Clé</label><input type="text" id="m-cle" placeholder="ex: C"/></div>
+        <div class="champ"><label>Rythme</label><input type="text" id="m-rythme" placeholder="ex: Hula, Slow, Kaina..."/></div>
+        <div class="champ"><label>Pattern</label><select id="m-pattern"><option value="">— chargement —</option></select></div>
+        <div class="champ"><label>BPM</label><input type="number" id="m-bpm"/></div>
+        <div class="champ"><label>Signature</label><select id="m-signature">
+          <option value="4">4 temps (4/4)</option>
+          <option value="3">3 temps (3/4)</option>
+          <option value="6">6 temps (6/8)</option>
+          <option value="2">2 temps (2/4)</option>
+        </select></div>
+        <div class="champ"><label>Origine</label><input type="text" id="m-origine" placeholder="ex: Tahiti, Hawaii, Maori..."/></div>
+      </div>
+
+      <div class="champ" style="margin-top:6px;">
+        <label>Lexique (traduction Reo Māʼohi)</label>
+        <div class="lexique-table" id="lexiqueZone">
+          <div class="lexique-vide">Les mots apparaîtront ici après avoir cliqué "Analyser" dans la section Paroles.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">2</span><span class="section-nom">Paroles &amp; Accords</span></div>
+    <div class="section-corps">
+      <div class="champ">
+        <label>Saisie (une seule fois — génère les 3 versions)</label>
+        <textarea id="parolesInput" placeholder="#COUPLET
+[F]A-pe-pe [C7]e i-a [Dm]tō'u [Bb]nu-na-a
+
+#REFRAIN
+[F]E ha-ere [C7]tā-u-a..."></textarea>
+        <div class="aide-syntaxe">
+          <b>#COUPLET</b> / <b>#REFRAIN</b> / <b>#PONT</b> / <b>#FINALE</b> = marqueur de section (une ligne à part, avant les paroles concernées)<br/>
+          <b>[Accord]</b> juste avant un mot = accord attaché à ce mot<br/>
+          Séparateur de syllabes : <b>-</b> ou <b>/</b> (ex: A-pe-pe ou A/pe/pe)
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primaire" onclick="analyserParoles()">Analyser &amp; générer les aperçus</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab actif" onclick="afficherApercu('basique',this)">Basique</button>
+        <button class="tab" onclick="afficherApercu('starter',this)">Starter</button>
+        <button class="tab" onclick="afficherApercu('immersion',this)">Immersion</button>
+      </div>
+      <div class="preview-zone" id="previewZone"><span style="color:var(--gris);font-size:11px;font-style:italic;">Aperçu vide — clique "Analyser" après avoir saisi les paroles.</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">3</span><span class="section-nom">Structure du chant</span></div>
+    <div class="section-corps">
+      <div class="champ">
+        <label>Une ligne par mesure — accords séparés par espace, colonnes séparées par |</label>
+        <textarea id="structureInput" style="min-height:140px;font-family:'Courier New',monospace;font-size:12px;" placeholder="C C C C | | COUPLET 1
+C C C C | |
+Am Am Am Am | |
+Am Am Am Am | |
+F F F F | Himene mai 3x | REFRAIN"></textarea>
+        <div class="aide-syntaxe">
+          Format : <b>Accord Accord Accord Accord | Paroles (optionnel) | Section (optionnel)</b><br/>
+          Le nombre d'accords par ligne suit la signature choisie en Métadonnées.
+        </div>
+        <div class="btn-row"><button class="btn btn-primaire" onclick="analyserStructure()">Analyser la structure</button></div>
+      </div>
+      <div class="preview-zone" id="structurePreview"><span style="color:var(--gris);font-size:11px;font-style:italic;">Aucune structure analysée.</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">5</span><span class="section-nom">Pistes audio</span></div>
+    <div class="section-corps">
+      <div id="pistesZone"></div>
+      <div class="btn-row"><button class="btn" onclick="ajouterPiste()">+ Ajouter une piste</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">6</span><span class="section-nom">Images (vidéo Immersion)</span></div>
+    <div class="section-corps">
+      <div id="imagesZone"></div>
+      <div class="btn-row"><button class="btn" onclick="ajouterImage()">+ Ajouter une image</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-titre"><span class="section-num">7</span><span class="section-nom">Actions</span></div>
+    <div class="section-corps">
+      <div class="btn-row" style="justify-content:center;">
+        <button class="btn btn-primaire" onclick="genererHTML()">💾 Enregistrer (générer les 3 HTML)</button>
+      </div>
+      <div id="apercusGeneres"></div>
+      <div class="btn-row" style="justify-content:center;margin-top:14px;border-top:1px solid var(--bord);padding-top:14px;">
+        <button class="btn btn-video" onclick="ouvrirVideo('starter')">🎬 Créer vidéo Starter</button>
+        <button class="btn btn-video" onclick="ouvrirVideo('immersion')">🎬 Créer vidéo Immersion</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="fond-popup" id="fondPopup" onclick="fermerPopup()"></div>
+<div class="popup" id="popup">
+  <button class="popup-fermer" onclick="fermerPopup()">×</button>
+  <div class="popup-nom" id="popupNom"></div>
+  <div class="popup-trad" id="popupTrad"></div>
+</div>
+
+<script>
+var SECTIONS_VALIDES = {'COUPLET':'couplet','REFRAIN':'refrain','PONT':'pont','FINALE':'finale'};
+var donneesParoles = [];
+var lexique = {};
+var ongletActif = 'basique';
+
+function normaliserMot(mot){
+  return mot.toLowerCase().replace(/[.,;:!?'']/g,'').trim();
+}
+
+function analyserParoles(){
+  var texte = document.getElementById('parolesInput').value;
+  var lignes = texte.split('\n');
+  var sectionCourante = 'couplet';
+  donneesParoles = [];
+  var motsVus = {};
+
+  lignes.forEach(function(ligne){
+    ligne = ligne.trim();
+    if(!ligne) return;
+    var tagMatch = ligne.match(/^#(\w+)$/);
+    if(tagMatch && SECTIONS_VALIDES[tagMatch[1].toUpperCase()]){
+      sectionCourante = SECTIONS_VALIDES[tagMatch[1].toUpperCase()];
+      return;
+    }
+    var tokens = ligne.split(/\s+/);
+    var mots = [];
+    tokens.forEach(function(tok){
+      var m = tok.match(/^(?:\[([^\]]+)\])?(.+)$/);
+      if(!m) return;
+      var chord = m[1] || '';
+      var mot = m[2];
+      var syllabes = mot.split(/[-\/]/);
+      mots.push({chord:chord, syllabes:syllabes, motPlein:syllabes.join('')});
+      var norme = normaliserMot(syllabes.join(''));
+      if(norme) motsVus[norme] = true;
+    });
+    donneesParoles.push({type:sectionCourante, mots:mots});
+  });
+
+  Object.keys(motsVus).forEach(function(mot){
+    if(!(mot in lexique)) lexique[mot] = '';
+  });
+  genererZoneLexique();
+  afficherApercu(ongletActif);
+}
+
+function genererZoneLexique(){
+  var zone = document.getElementById('lexiqueZone');
+  var mots = Object.keys(lexique).sort();
+  if(mots.length === 0){
+    zone.innerHTML = '<div class="lexique-vide">Aucun mot détecté.</div>';
+    return;
+  }
+  var html = '';
+  mots.forEach(function(mot){
+    html += '<div class="lex-row"><span class="lex-mot">'+mot+'</span>'
+      + '<input type="text" placeholder="traduction..." value="'+(lexique[mot]||'')+'" onchange="lexique[\''+mot+'\']=this.value; afficherApercu(ongletActif);"/></div>';
+  });
+  zone.innerHTML = html;
+}
+
+function afficherApercu(mode, btn){
+  ongletActif = mode;
+  if(btn){
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('actif');});
+    btn.classList.add('actif');
+  }
+
+  var zone = document.getElementById('previewZone');
+  if(donneesParoles.length === 0){
+    zone.innerHTML = '<span style="color:var(--gris);font-size:11px;font-style:italic;">Aperçu vide — clique "Analyser" après avoir saisi les paroles.</span>';
+    return;
+  }
+
+  var html = '';
+  var dernierType = null;
+  donneesParoles.forEach(function(ligneData){
+    if(ligneData.type !== dernierType){
+      html += '<div class="section-label">'+ligneData.type+'</div>';
+      dernierType = ligneData.type;
+    }
+    html += '<div class="ligne '+ligneData.type+'">';
+    ligneData.mots.forEach(function(mot){
+      if(mode === 'basique'){
+        html += '<span>'+mot.motPlein+' </span>';
+      } else if(mode === 'starter'){
+        html += '<span class="seg"><span class="ch" onclick="toggleAccord(this)">'+(mot.chord||'')+'</span><span class="tx">'+mot.syllabes.join('-')+' </span></span>';
+      } else {
+        var norme = normaliserMot(mot.motPlein);
+        html += '<span class="mot-clic" onclick="afficherTraduction(\''+norme.replace(/'/g,"\\'")+'\')">'+mot.motPlein+'</span> ';
+      }
+    });
+    html += '</div>';
+  });
+  zone.innerHTML = html;
+}
+
+function toggleAccord(el){ el.classList.toggle('ouvert'); }
+
+// ══ SECTION 3 : STRUCTURE ══
+var donneesStructure = [];
+
+function analyserStructure(){
+  var texte = document.getElementById('structureInput').value;
+  var lignes = texte.split('\n');
+  var sectionCourante = '';
+  donneesStructure = [];
+  var num = 0;
+  lignes.forEach(function(ligne){
+    ligne = ligne.trim();
+    if(!ligne) return;
+    var cols = ligne.split('|').map(function(c){return c.trim();});
+    var accords = cols[0] ? cols[0].split(/\s+/) : [];
+    var paroles = cols[1] || '';
+    var section = cols[2] || sectionCourante;
+    if(cols[2]) sectionCourante = cols[2];
+    num++;
+    donneesStructure.push({mesure:num, temps:accords, paroles:paroles, section:section});
+  });
+  var zone = document.getElementById('structurePreview');
+  if(donneesStructure.length === 0){
+    zone.innerHTML = '<span style="color:var(--gris);font-size:11px;font-style:italic;">Aucune structure analysée.</span>';
+    return;
+  }
+  var html = '';
+  var dernierSection = null;
+  donneesStructure.forEach(function(m){
+    if(m.section && m.section !== dernierSection){
+      html += '<div class="section-label">'+m.section+'</div>';
+      dernierSection = m.section;
+    }
+    html += '<div style="font-size:12px;color:var(--blanc);margin-bottom:3px;"><span style="color:var(--gris);">M'+m.mesure+'</span> — <span style="color:var(--orL);">'+m.temps.join(' ')+'</span>'+(m.paroles ? ' <span style="color:var(--gris);font-style:italic;">"'+m.paroles+'"</span>' : '')+'</div>';
+  });
+  zone.innerHTML = html;
+}
+
+// ══ SECTION 5/6 : PISTES & IMAGES ══
+var pistes = [];
+var images = [];
+var compteurPiste = 0;
+var compteurImage = 0;
+
+function ajouterPiste(){
+  var id = 'p'+(compteurPiste++);
+  pistes.push({id:id, nom:'', mode:'url', valeur:'', exclure:false});
+  rendreListe('pistesZone', pistes, rendrePiste);
+}
+function supprimerPiste(id){
+  pistes = pistes.filter(function(p){return p.id !== id;});
+  rendreListe('pistesZone', pistes, rendrePiste);
+}
+function majPiste(id, champ, val){
+  var p = pistes.find(function(x){return x.id === id;});
+  if(p) p[champ] = val;
+}
+function rendrePiste(p){
+  return '<div style="border:1px solid var(--bord);padding:10px;margin-bottom:8px;border-radius:3px;">'
+    + '<div style="display:flex;gap:8px;margin-bottom:6px;">'
+    + '<input type="text" placeholder="Nom (ex: Voix, Percussion...)" value="'+p.nom+'" oninput="majPiste(\''+p.id+'\',\'nom\',this.value)" style="flex:1;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-family:Georgia,serif;font-size:12px;padding:6px 8px;border-radius:3px;"/>'
+    + '<button class="btn" style="padding:6px 10px;" onclick="supprimerPiste(\''+p.id+'\')">✕</button>'
+    + '</div>'
+    + '<select onchange="majPiste(\''+p.id+'\',\'mode\',this.value)" style="width:100%;margin-bottom:6px;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-size:12px;padding:6px;border-radius:3px;">'
+    + '<option value="url"'+(p.mode==='url'?' selected':'')+'>URL Storage</option>'
+    + '<option value="upload"'+(p.mode==='upload'?' selected':'')+'>Upload fichier</option>'
+    + '<option value="drive"'+(p.mode==='drive'?' selected':'')+'>Lien Google Drive</option>'
+    + '</select>'
+    + (p.mode === 'upload'
+        ? '<input type="file" accept="audio/*,video/*" onchange="majPiste(\''+p.id+'\',\'valeur\',this.files[0]?this.files[0].name:\'\')" style="width:100%;font-size:11px;color:var(--gris);"/>'
+        : '<input type="text" placeholder="'+(p.mode==='drive'?'Lien Google Drive':'URL Firebase Storage')+'" value="'+p.valeur+'" oninput="majPiste(\''+p.id+'\',\'valeur\',this.value)" style="width:100%;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-family:Georgia,serif;font-size:12px;padding:6px 8px;border-radius:3px;"/>')
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gris);margin-top:8px;cursor:pointer;"><input type="checkbox" '+(p.exclure?'checked':'')+' onchange="majPiste(\''+p.id+'\',\'exclure\',this.checked)"/> Exclure de la transposition (percussion/ambiance)</label>'
+    + '</div>';
+}
+
+function ajouterImage(){
+  var id = 'i'+(compteurImage++);
+  images.push({id:id, mode:'url', valeur:''});
+  rendreListe('imagesZone', images, rendreImage);
+}
+function supprimerImage(id){
+  images = images.filter(function(x){return x.id !== id;});
+  rendreListe('imagesZone', images, rendreImage);
+}
+function majImage(id, champ, val){
+  var i = images.find(function(x){return x.id === id;});
+  if(i) i[champ] = val;
+}
+function rendreImage(im){
+  return '<div style="border:1px solid var(--bord);padding:10px;margin-bottom:8px;border-radius:3px;">'
+    + '<div style="display:flex;gap:8px;margin-bottom:6px;">'
+    + '<select onchange="majImage(\''+im.id+'\',\'mode\',this.value)" style="flex:1;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-size:12px;padding:6px;border-radius:3px;">'
+    + '<option value="url"'+(im.mode==='url'?' selected':'')+'>URL Storage</option>'
+    + '<option value="upload"'+(im.mode==='upload'?' selected':'')+'>Upload fichier</option>'
+    + '<option value="drive"'+(im.mode==='drive'?' selected':'')+'>Lien Google Drive</option>'
+    + '</select>'
+    + '<button class="btn" style="padding:6px 10px;" onclick="supprimerImage(\''+im.id+'\')">✕</button>'
+    + '</div>'
+    + (im.mode === 'upload'
+        ? '<input type="file" accept="image/*" onchange="majImage(\''+im.id+'\',\'valeur\',this.files[0]?this.files[0].name:\'\')" style="width:100%;font-size:11px;color:var(--gris);"/>'
+        : '<input type="text" placeholder="'+(im.mode==='drive'?'Lien Google Drive':'URL Firebase Storage')+'" value="'+im.valeur+'" oninput="majImage(\''+im.id+'\',\'valeur\',this.value)" style="width:100%;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-family:Georgia,serif;font-size:12px;padding:6px 8px;border-radius:3px;"/>')
+    + '</div>';
+}
+
+function rendreListe(zoneId, liste, fnRendre){
+  var zone = document.getElementById(zoneId);
+  if(liste.length === 0){
+    zone.innerHTML = '<div class="lexique-vide">Aucun élément ajouté.</div>';
+    return;
+  }
+  zone.innerHTML = liste.map(fnRendre).join('');
+}
+
+// ══ SECTION 7 : ACTIONS ══
+function collecterMeta(){
+  return {
+    titre: document.getElementById('m-titre').value,
+    auteur: document.getElementById('m-auteur').value,
+    compositeur: document.getElementById('m-compositeur').value,
+    interprete: document.getElementById('m-interprete').value,
+    cle: document.getElementById('m-cle').value,
+    rythme: document.getElementById('m-rythme').value,
+    pattern: document.getElementById('m-pattern').value,
+    bpm: document.getElementById('m-bpm').value,
+    signature: document.getElementById('m-signature').value,
+    origine: document.getElementById('m-origine').value
+  };
+}
+
+function genererFichierHTML(mode, meta){
+  var lignesHTML = '';
+  var dernierType = null;
+  donneesParoles.forEach(function(l){
+    if(l.type !== dernierType){
+      lignesHTML += '<div class="section-label">'+l.type+'</div>';
+      dernierType = l.type;
+    }
+    lignesHTML += '<div class="ligne '+l.type+'">';
+    l.mots.forEach(function(mot){
+      if(mode === 'basique'){
+        lignesHTML += '<span>'+mot.motPlein+' </span>';
+      } else if(mode === 'starter'){
+        lignesHTML += '<span class="seg"><span class="ch" onclick="this.classList.toggle(\'ouvert\')">'+(mot.chord||'')+'</span><span class="tx">'+mot.syllabes.join('-')+' </span></span>';
+      } else {
+        var norme = normaliserMot(mot.motPlein);
+        var trad = (lexique[norme]||'Non traduit').replace(/'/g,"\\'");
+        lignesHTML += '<span class="mot-clic" onclick="alert(\''+trad+'\')">'+mot.motPlein+'</span> ';
+      }
+    });
+    lignesHTML += '</div>';
+  });
+
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><title>'+meta.titre+' — '+mode+'</title><style>'
+    + 'body{background:#0A0A0A;color:#F5F0E8;font-family:Georgia,serif;padding:20px;}'
+    + 'h1{color:#E8C96A;font-size:22px;}'
+    + '.sous{color:#7a7060;font-size:12px;margin-bottom:20px;}'
+    + '.ligne{font-size:17px;line-height:1.4;margin-bottom:10px;}'
+    + '.couplet{color:#F5F0E8;}.refrain{color:#c0504a;}.pont{color:#3a7a3a;}.finale{color:#2980b9;}'
+    + '.seg{display:inline-flex;flex-direction:column;margin-right:6px;}'
+    + '.ch{color:#E8C96A;font-weight:700;font-size:12px;height:15px;cursor:pointer;}'
+    + '.tx{font-size:17px;}'
+    + '.mot-clic{cursor:pointer;border-bottom:1px dotted #7a7060;}'
+    + '.section-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#7a7060;margin:14px 0 6px;}'
+    + '</style></head><body>'
+    + '<h1>'+meta.titre+'</h1>'
+    + '<div class="sous">'+meta.auteur+' · '+meta.compositeur+' · '+meta.interprete+' — Clé : '+meta.cle+' — '+meta.bpm+' BPM</div>'
+    + lignesHTML
+    + '</body></html>';
+}
+
+function telecharger(nomFichier, contenu){
+  var blob = new Blob([contenu], {type:'text/html'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nomFichier;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function genererHTML(){
+  if(donneesParoles.length === 0){
+    alert('Analyse d\'abord les paroles (section 2) avant de générer.');
+    return;
+  }
+  var meta = collecterMeta();
+  var nomBase = (meta.titre || 'chanson').replace(/\s+/g,'_');
+  var versions = ['basique','starter','immersion'];
+  var html = '';
+  versions.forEach(function(v){
+    var contenu = genererFichierHTML(v, meta);
+    window['_fichier_'+v] = contenu;
+    html += '<div style="border:1px solid var(--bord);padding:10px 12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;">'
+      + '<span style="font-size:12px;color:var(--orL);text-transform:capitalize;">'+v+'</span>'
+      + '<button class="btn" onclick="telecharger(\''+nomBase+'-'+v+'.html\', window._fichier_'+v+')">⬇ Télécharger</button>'
+      + '</div>';
+  });
+  document.getElementById('apercusGeneres').innerHTML = html;
+}
+
+function ouvrirVideo(type){
+  var data = {meta:collecterMeta(), structure:donneesStructure, pistes:pistes, images:images, lexique:lexique};
+  localStorage.setItem('mf_generateur_chanson', JSON.stringify(data));
+  var page = type === 'starter' ? 'console-video-template.html' : 'karaoke-immersion-v2.html';
+  window.open(page, '_blank');
+}
+
+// ══ Chargement des patterns depuis Firestore (lecture seule) ══
+(function chargerPatterns(){
+  var script = document.createElement('script');
+  script.type = 'module';
+  script.textContent = "import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';"
+    + "import {getFirestore, doc, getDoc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';"
+    + "const app = initializeApp({apiKey:'AIzaSyCtkD4TNMp_oVEAY0bi6KEhDHInnOcD7Go',authDomain:'mf-harmonie-des-iles.firebaseapp.com',projectId:'mf-harmonie-des-iles',storageBucket:'mf-harmonie-des-iles.firebasestorage.app',messagingSenderId:'312842405867',appId:'1:312842405867:web:4ffc4656ab29070dbd3bae'});"
+    + "const db = getFirestore(app);"
+    + "getDoc(doc(db,'config','patterns_rythme')).then(snap=>{"
+    + "  const sel = document.getElementById('m-pattern');"
+    + "  const list = snap.exists() ? (snap.data().list||[]) : [];"
+    + "  sel.innerHTML = list.length ? list.map(p=>'<option value=\"'+(p.nom||p)+'\">'+(p.nom||p)+'</option>').join('') : '<option value=\"\">Aucun pattern trouvé</option>';"
+    + "}).catch(err=>{ document.getElementById('m-pattern').innerHTML = '<option value=\"\">Erreur chargement</option>'; console.error(err); });";
+  document.body.appendChild(script);
+})();
+
+rendreListe('pistesZone', pistes, rendrePiste);
+rendreListe('imagesZone', images, rendreImage);
+
+function afficherTraduction(mot){
+  var trad = lexique[mot];
+  document.getElementById('popupNom').textContent = mot;
+  document.getElementById('popupTrad').textContent = trad ? trad : 'Non traduit';
+  document.getElementById('popup').classList.add('visible');
+  document.getElementById('fondPopup').classList.add('visible');
+}
+function fermerPopup(){
+  document.getElementById('popup').classList.remove('visible');
+  document.getElementById('fondPopup').classList.remove('visible');
+}
+</script>
+</body>
+</html>
