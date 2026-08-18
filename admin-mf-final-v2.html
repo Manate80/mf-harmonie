@@ -711,7 +711,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div id="cal-detail-content"></div>
       </div>
       <div class="card">
-        <div class="card-title">Ajouter un événement privé</div>
+        <div class="card-title" id="cal-form-title">Ajouter un événement privé</div>
         <div class="row2">
           <div class="fg">
             <label>Objet / Participant <span style="font-size:10px;color:var(--muted);">(saisie libre)</span></label>
@@ -728,7 +728,16 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div class="fg"><label>Heure</label><input id="c-heure" type="time" value="09:00"></div>
           <div class="fg"><label>Note interne</label><input id="c-note" placeholder="Détails, rappel…"></div>
         </div>
-        <button class="btn" onclick="addCours()">✚ Ajouter à l'agenda</button>
+        <div class="row2">
+          <div class="fg">
+            <label>🔔 Rappel avant l'événement (minutes)</label>
+            <input id="c-rappel" type="number" min="0" placeholder="ex : 15 (laisser vide = aucun rappel)">
+          </div>
+          <div class="fg" style="display:flex;align-items:flex-end;">
+            <button class="btn" style="width:100%;background:#555;display:none;" id="c-annuler-btn" onclick="ocAnnulerEditionAgenda()">✕ Annuler la modification</button>
+          </div>
+        </div>
+        <button class="btn" id="c-submit-btn" onclick="addCours()">✚ Ajouter à l'agenda</button>
       </div>
     </div>
 
@@ -1776,15 +1785,12 @@ function ocRenderPlanning(){
         const estManavai = type==='manavai';
         const styleFond = type==='libre' ? 'background:rgba(39,174,96,.12);border-color:rgba(39,174,96,.35)'
                          : type==='rdv' ? 'background:rgba(230,126,34,.12);border-color:rgba(230,126,34,.35)'
-                         : estManavai ? 'background:rgba(192,57,43,.32);border:2px solid #e74c3c' : '';
-        const styleNom = estManavai ? 'color:#ff6b5b;font-weight:700;border-color:#e74c3c' : '';
-        const icone = type==='libre' ? '🟢' : type==='rdv' ? '🟠' : estManavai ? '🔴' : '';
+                         : estManavai ? 'background:rgba(192,57,43,.18);border:2px solid #e74c3c' : '';
         html += `<div class="oc-slot-line" style="${styleFond}">
-          ${icone ? `<span style="flex-shrink:0">${icone}</span>` : ''}
           <input class="oc-time-compact" type="time" value="${c[0]}" onchange="ocEditCours('${jour}',${idx},0,this.value)">
           <span style="flex-shrink:0;color:var(--oc-muted)">–</span>
           <input class="oc-time-compact" type="time" value="${c[1]}" onchange="ocEditCours('${jour}',${idx},1,this.value)">
-          <input class="oc-name-compact" style="${styleNom}" value="${c[2]}" onchange="ocEditCours('${jour}',${idx},2,this.value)">
+          <input class="oc-name-compact" value="${c[2]}" onchange="ocEditCours('${jour}',${idx},2,this.value)">
           ${peutPointer ? `<button class="oc-icon-btn" style="background:linear-gradient(135deg,#27ae60,#1e8449)" onclick="ocPointerPresence('${clientLie.eleveId}', this.dataset.nom)" data-nom="${c[2].replace(/"/g,'&quot;')}" title="Présent">✓</button>` : ''}
           <button class="oc-icon-btn oc-del-icon" onclick="ocSupprimerCours('${jour}',${idx})" title="Supprimer">✕</button>
         </div>`;
@@ -3264,7 +3270,7 @@ const S={
 };
 const MOIS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const MOIS_C=['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
-let elActif=null, prActif=null, calY=new Date().getFullYear(), calM=new Date().getMonth(), calSel=null, svgData='';
+let elActif=null, prActif=null, calY=new Date().getFullYear(), calM=new Date().getMonth(), calSel=null, svgData='', calEditId=null;
 let genTaille=16;
 
 const fmt=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');
@@ -3431,7 +3437,7 @@ function closeModal(id){document.getElementById(id).classList.remove('on');}
 
 // ════ INIT ════
 function initApp(){
-  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();if(typeof renderTemoignages==='function')renderTemoignages();if(typeof renderVideosTemoignages==='function')renderVideosTemoignages();if(typeof loadHistoire==='function')loadHistoire();if(typeof loadFrequences==='function')loadFrequences();if(typeof chargerMsgsEditoriaux==='function')chargerMsgsEditoriaux();setTimeout(function(){if(window.syncFirestore)window.syncFirestore();},1000);
+  renderDashboard();renderNotifs();renderEleves();renderProfs();renderChansons();renderAbonnesCards();renderAnnonces();renderCal();loadTarifs();chargerRecrutementCheckbox();if(typeof renderTemoignages==='function')renderTemoignages();if(typeof renderVideosTemoignages==='function')renderVideosTemoignages();if(typeof loadHistoire==='function')loadHistoire();if(typeof loadFrequences==='function')loadFrequences();if(typeof chargerMsgsEditoriaux==='function')chargerMsgsEditoriaux();if(typeof ocPlanifierRappelsAgenda==='function')ocPlanifierRappelsAgenda();setTimeout(function(){if(window.syncFirestore)window.syncFirestore();},1000);
   const a=S.get('log');
   document.getElementById('activite').innerHTML=a.length?a.slice(0,10).map(x=>'<div style="padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px;"><span>'+x.msg+'</span><span style="color:var(--muted);font-size:10px;white-space:nowrap;">'+x.d+'</span></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:10px;">Aucune activité.</p>';
 }
@@ -4364,32 +4370,110 @@ function selDay(key){
   const detContent=document.getElementById('cal-detail-content');
   if(detContent){
     detContent.innerHTML=evenements.length
-      ?evenements.map(c=>'<div class="cours-item"><div class="cours-time">'+(c.heure||'—')+'</div><div style="flex:1;"><div style="color:var(--orL);font-weight:700;">'+(c.label||'Événement')+'</div>'+(c.note?'<div style="font-size:12px;color:var(--muted);">'+c.note+'</div>':'')+'</div><button class="danger" onclick="delCours('+c.id+')">✕</button></div>').join('')
+      ?evenements.map(c=>'<div class="cours-item" style="cursor:pointer;" onclick="ocEditerEvenementAgenda('+c.id+')"><div class="cours-time">'+(c.heure||'—')+'</div><div style="flex:1;"><div style="color:var(--orL);font-weight:700;">'+(c.label||'Événement')+(c.rappelMinutes?' <span style="font-size:11px;color:#e67e22;">🔔 -'+c.rappelMinutes+'min</span>':'')+'</div>'+(c.note?'<div style="font-size:12px;color:var(--muted);">'+c.note+'</div>':'')+'</div><button class="danger" onclick="event.stopPropagation();delCours('+c.id+')">✕</button></div>').join('')
       :'<p style="color:var(--muted);font-style:italic;font-size:12px;text-align:center;padding:8px;">Aucun événement ce jour.</p>';
   }
   if(det)det.style.display='block';
 }
+// Charge un événement existant dans le formulaire pour modification (clic sur la ligne, hors bouton ✕)
+window.ocEditerEvenementAgenda=function(id){
+  const agenda=S.get('agenda')||[];
+  const evt=agenda.find(c=>c.id===id);
+  if(!evt)return;
+  calEditId=id;
+  document.getElementById('c-label').value=evt.label||'';
+  document.getElementById('c-date').value=evt.date||'';
+  document.getElementById('c-heure').value=evt.heure||'09:00';
+  document.getElementById('c-note').value=evt.note||'';
+  document.getElementById('c-rappel').value=evt.rappelMinutes||'';
+  document.getElementById('c-submit-btn').textContent='💾 Enregistrer les modifications';
+  document.getElementById('cal-form-title').textContent='Modifier l\'événement';
+  document.getElementById('c-annuler-btn').style.display='block';
+  document.getElementById('c-label').scrollIntoView({behavior:'smooth',block:'center'});
+};
+window.ocAnnulerEditionAgenda=function(){
+  calEditId=null;
+  document.getElementById('c-label').value='';
+  document.getElementById('c-note').value='';
+  document.getElementById('c-rappel').value='';
+  document.getElementById('c-submit-btn').textContent='✚ Ajouter à l\'agenda';
+  document.getElementById('cal-form-title').textContent='Ajouter un événement privé';
+  document.getElementById('c-annuler-btn').style.display='none';
+};
 function addCours(){
   const label=(document.getElementById('c-label').value||'').trim();
   const date=document.getElementById('c-date').value;
   const heure=document.getElementById('c-heure').value;
+  const rappelVal=document.getElementById('c-rappel').value;
+  const rappelMinutes=rappelVal!=='' ? Math.max(0,parseInt(rappelVal,10)||0) : null;
   if(!label||!date){toast('⚠ Objet et date requis');return;}
   const agenda=S.get('agenda')||[];
-  const evt={id:Date.now(),label,date,heure,note:(document.getElementById('c-note').value||'').trim()};
-  agenda.push(evt);
-  S.set('agenda',agenda);
-  log('Agenda : '+label+' le '+fd(date));
-  const cLabel=document.getElementById('c-label');if(cLabel)cLabel.value='';
-  const cNote=document.getElementById('c-note');if(cNote)cNote.value='';
+  if(calEditId){
+    const i=agenda.findIndex(c=>c.id===calEditId);
+    if(i>-1){
+      agenda[i]={...agenda[i],label,date,heure,note:(document.getElementById('c-note').value||'').trim(),rappelMinutes};
+      S.set('agenda',agenda);
+      log('Agenda modifié : '+label+' le '+fd(date));
+      toast('💾 Événement modifié !');
+    }
+    ocAnnulerEditionAgenda();
+  } else {
+    const evt={id:Date.now(),label,date,heure,note:(document.getElementById('c-note').value||'').trim(),rappelMinutes};
+    agenda.push(evt);
+    S.set('agenda',agenda);
+    log('Agenda : '+label+' le '+fd(date));
+    const cLabel=document.getElementById('c-label');if(cLabel)cLabel.value='';
+    const cNote=document.getElementById('c-note');if(cNote)cNote.value='';
+    const cRappel=document.getElementById('c-rappel');if(cRappel)cRappel.value='';
+    toast('✔ Événement ajouté à l\'agenda !');
+  }
   renderCal();if(calSel)selDay(calSel);
-  toast('✔ Événement ajouté à l\'agenda !');
+  if(typeof ocPlanifierRappelsAgenda==='function') ocPlanifierRappelsAgenda();
 }
 function delCours(id){
   const agenda=S.get('agenda')||[];
   S.set('agenda',agenda.filter(c=>c.id!==id));
+  if(calEditId===id) ocAnnulerEditionAgenda();
   renderCal();if(calSel)selDay(calSel);
   toast('Événement supprimé.');
 }
+// ── RAPPELS D'ALARME POUR L'AGENDA PRIVÉ ──
+// Planifie, pour les événements des prochaines 24h ayant un "rappel avant" configuré,
+// une notification + un son au moment voulu. Nécessite que l'onglet reste ouvert.
+function ocAgendaBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type='triangle'; o.frequency.value=740;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.6);
+    o.start(); o.stop(ctx.currentTime+0.6);
+  }catch(e){}
+}
+window.ocPlanifierRappelsAgenda=function(){
+  const agenda=S.get('agenda')||[];
+  const maintenant=new Date();
+  agenda.forEach(evt=>{
+    if(evt.rappelMinutes==null || !evt.date || !evt.heure) return;
+    const [h,m]=evt.heure.split(':').map(Number);
+    const [y,mo,d]=evt.date.split('-').map(Number);
+    const heureEvt=new Date(y,mo-1,d,h,m,0,0);
+    const heureRappel=new Date(heureEvt.getTime()-evt.rappelMinutes*60000);
+    const delta=heureRappel-maintenant;
+    if(delta>0 && delta<24*3600*1000){
+      setTimeout(()=>{
+        ocAgendaBeep();
+        if('Notification' in window && Notification.permission==='granted'){
+          try{ new Notification('🔔 Rappel : '+evt.label, { body: (evt.heure||'')+(evt.note?' — '+evt.note:'') }); }catch(e){}
+        }
+        if(typeof toast==='function') toast('🔔 Rappel : '+evt.label+' à '+evt.heure);
+      }, delta);
+    }
+  });
+};
+
 
 // ════ PLANNING PROF (agenda croisé) ════
 function renderPlanningProf(){
