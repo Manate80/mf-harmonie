@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MF Harmonie — Studio IA</title>
+<style>
+  :root {
+    --bg: #0e1a17;
+    --panel: #142622;
+    --accent: #d4a24e;
+    --accent2: #4ea8a0;
+    --rouge: #c14e4e;
+    --text: #eae4d6;
+    --muted: #8a9a94;
+  }
+  * { box-sizing: border-box; max-width: 100%; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    padding: 20px 16px 60px;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; color: var(--accent); margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 20px; font-family: system-ui, sans-serif; }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tab {
+    flex-shrink: 0;
+    padding: 9px 14px;
+    background: var(--panel);
+    border: 1px solid #22362f;
+    border-radius: 20px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.8rem;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab.actif { background: var(--accent); color: #1a1410; font-weight: 600; border-color: var(--accent); }
+
+  .section { display: none; }
+  .section.actif { display: block; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid #22362f;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 1rem;
+    margin: 0 0 14px 0;
+    color: var(--accent2);
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+  }
+  input[type="file"] { font-size: 0.85rem; color: var(--text); width: 100%; }
+  .slider-row {
+    display: grid;
+    grid-template-columns: 65px 1fr 44px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.82rem;
+  }
+  .slider-row label { color: var(--muted); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .val { text-align: right; color: var(--accent); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+
+  button {
+    background: var(--accent);
+    color: #1a1410;
+    border: none;
+    padding: 13px 18px;
+    border-radius: 6px;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    width: 100%;
+    margin-top: 6px;
+  }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.rec { background: var(--rouge); color: #fff; }
+  button.rec.actif { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  button.secondaire { background: transparent; border: 1px solid var(--accent2); color: var(--accent2); }
+
+  audio { width: 100%; margin-top: 10px; }
+  .status { font-family: system-ui, sans-serif; font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .badge {
+    display: inline-block;
+    background: #1c332c;
+    color: var(--accent2);
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-family: system-ui, sans-serif;
+    margin: 0 4px 4px 0;
+  }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #1c332c;
+    font-family: system-ui, sans-serif;
+    font-size: 0.85rem;
+  }
+  .stat span:last-child { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Studio IA — MF Harmonie</h1>
+  <div class="sub">Analyse, effets et enregistrement pour vos compositions</div>
+
+  <div class="tabs">
+    <div class="tab actif" data-tab="analyse">Analyse</div>
+    <div class="tab" data-tab="effets">Effets studio</div>
+    <div class="tab" data-tab="enregistrement">Enregistrement</div>
+  </div>
+
+  <!-- ONGLET ANALYSE -->
+  <div class="section actif" id="tab-analyse">
+    <div class="panel">
+      <h2>Charger un audio à analyser</h2>
+      <input type="file" id="fileAnalyse" >
+      <div class="status" id="statusAnalyse">Aucun fichier chargé.</div>
+    </div>
+    <div class="panel" id="resultatsAnalyse" style="display:none;">
+      <h2>Résultat</h2>
+      <div class="status">
+        L'analyse complète (BPM exact, accords, structure) est calculée par les scripts Python fournis séparément — cette page joue le fichier pour écoute rapide.
+      </div>
+      <audio id="playerAnalyse" controls></audio>
+    </div>
+  </div>
+
+  <!-- ONGLET EFFETS -->
+  <div class="section" id="tab-effets">
+    <div class="panel">
+      <h2>Charger un audio</h2>
+      <input type="file" id="fileEffets" >
+      <div class="status" id="statusEffets">Aucun fichier chargé.</div>
+    </div>
+    <div class="panel">
+      <h2>Réglages</h2>
+      <div class="slider-row">
+        <label>Reverb</label>
+        <input type="range" id="reverb" min="0" max="100" value="0">
+        <span class="val" id="reverbVal">0%</span>
+      </div>
+      <div class="slider-row">
+        <label>Graves</label>
+        <input type="range" id="bass" min="-15" max="15" value="0">
+        <span class="val" id="bassVal">0dB</span>
+      </div>
+      <div class="slider-row">
+        <label>Aigus</label>
+        <input type="range" id="treble" min="-15" max="15" value="0">
+        <span class="val" id="trebleVal">0dB</span>
+      </div>
+      <button id="playEffets" disabled>▶ Écouter avec les réglages</button>
+      <button id="downloadEffets" class="secondaire" disabled>⬇ Télécharger le résultat</button>
+      <div class="status" id="statusDownload"></div>
+    </div>
+  </div>
+
+  <!-- ONGLET ENREGISTREMENT -->
+  <div class="section" id="tab-enregistrement">
+    <div class="panel">
+      <h2>1 — Piste de fond</h2>
+      <input type="file" id="fileRec" >
+      <div class="status" id="statusRec">Aucune piste chargée.</div>
+      <div class="row2">
+        <button id="loopToggle" class="secondaire" disabled>🔁 Boucle : OFF</button>
+        <button id="playPauseRec" disabled>▶ Jouer</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>2 — Enregistrer</h2>
+      <button id="recBtn" class="rec">🎙 Autoriser le micro</button>
+      <div class="status" id="recStatus">Micro non activé.</div>
+      <audio id="recPlayback" controls style="display:none;"></audio>
+      <a id="downloadLink" style="display:none;"><button class="secondaire">⬇ Télécharger l'enregistrement</button></a>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Navigation par onglets ---
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('actif'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('actif'));
+    tab.classList.add('actif');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('actif');
+  });
+});
+
+// --- Onglet Analyse ---
+document.getElementById('fileAnalyse').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    document.getElementById('statusAnalyse').textContent = 'Aucun fichier reçu du sélecteur.';
+    return;
+  }
+  document.getElementById('statusAnalyse').textContent = `Chargé : ${file.name} (${(file.size/1024).toFixed(0)} Ko, type: ${file.type || 'inconnu'})`;
+  document.getElementById('playerAnalyse').src = URL.createObjectURL(file);
+  document.getElementById('resultatsAnalyse').style.display = 'block';
+});
+
+// --- Onglet Effets ---
+let audioCtxE, bufferE;
+const fileEffets = document.getElementById('fileEffets');
+const playEffets = document.getElementById('playEffets');
+const reverbS = document.getElementById('reverb'), bassS = document.getElementById('bass'), trebleS = document.getElementById('treble');
+reverbS.oninput = () => document.getElementById('reverbVal').textContent = reverbS.value + '%';
+bassS.oninput = () => document.getElementById('bassVal').textContent = bassS.value + 'dB';
+trebleS.oninput = () => document.getElementById('trebleVal').textContent = trebleS.value + 'dB';
+
+fileEffets.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    document.getElementById('statusEffets').textContent = 'Aucun fichier sélectionné (le sélecteur ne l\'a pas transmis).';
+    return;
+  }
+  document.getElementById('statusEffets').textContent = `Fichier reçu : ${file.name} (${(file.size/1024).toFixed(0)} Ko). Décodage...`;
+  try {
+    audioCtxE = new (window.AudioContext || window.webkitAudioContext)();
+    bufferE = await audioCtxE.decodeAudioData(await file.arrayBuffer());
+    document.getElementById('statusEffets').textContent = `Chargé : ${file.name} (${bufferE.duration.toFixed(1)}s)`;
+    playEffets.disabled = false;
+  } catch (err) {
+    document.getElementById('statusEffets').textContent = `Fichier reçu (${file.name}) mais impossible à décoder pour les effets. Format non supporté par ce navigateur pour le traitement audio. Essayez l'onglet Analyse ou Enregistrement, qui lisent le fichier directement sans décodage.`;
+  }
+});
+
+function creerReverb(ctx) {
+  const rate = ctx.sampleRate, duree = 1.5, length = rate * duree;
+  const impulse = ctx.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.5);
+  }
+  return impulse;
+}
+
+let sourceE;
+playEffets.addEventListener('click', () => {
+  if (sourceE) sourceE.stop();
+  sourceE = audioCtxE.createBufferSource();
+  sourceE.buffer = bufferE;
+  const bass = audioCtxE.createBiquadFilter(); bass.type = 'lowshelf'; bass.frequency.value = 250; bass.gain.value = parseFloat(bassS.value);
+  const treble = audioCtxE.createBiquadFilter(); treble.type = 'highshelf'; treble.frequency.value = 4000; treble.gain.value = parseFloat(trebleS.value);
+  const dry = audioCtxE.createGain(), wet = audioCtxE.createGain();
+  const amt = parseFloat(reverbS.value) / 100;
+  dry.gain.value = 1 - amt; wet.gain.value = amt;
+  const conv = audioCtxE.createConvolver(); conv.buffer = creerReverb(audioCtxE);
+  sourceE.connect(bass); bass.connect(treble);
+  treble.connect(dry); treble.connect(conv); conv.connect(wet);
+  dry.connect(audioCtxE.destination); wet.connect(audioCtxE.destination);
+  sourceE.start();
+  document.getElementById('downloadEffets').disabled = false;
+});
+
+// Convertit un AudioBuffer en fichier WAV (format universel, lisible partout)
+function bufferVersWav(buffer) {
+  const nbCanaux = buffer.numberOfChannels;
+  const longueur = buffer.length * nbCanaux * 2 + 44;
+  const arrayBuffer = new ArrayBuffer(longueur);
+  const view = new DataView(arrayBuffer);
+  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+
+  writeStr(0, 'RIFF'); view.setUint32(4, longueur - 8, true); writeStr(8, 'WAVE');
+  writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, nbCanaux, true); view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * nbCanaux * 2, true); view.setUint16(32, nbCanaux * 2, true);
+  view.setUint16(34, 16, true); writeStr(36, 'data'); view.setUint32(40, longueur - 44, true);
+
+  let offset = 44;
+  for (let i = 0; i < buffer.length; i++) {
+    for (let ch = 0; ch < nbCanaux; ch++) {
+      let sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+document.getElementById('downloadEffets').addEventListener('click', async () => {
+  const statusDl = document.getElementById('statusDownload');
+  statusDl.textContent = 'Génération du fichier en cours...';
+  const offlineCtx = new OfflineAudioContext(bufferE.numberOfChannels, bufferE.length, bufferE.sampleRate);
+  const src = offlineCtx.createBufferSource();
+  src.buffer = bufferE;
+  const bass = offlineCtx.createBiquadFilter(); bass.type = 'lowshelf'; bass.frequency.value = 250; bass.gain.value = parseFloat(bassS.value);
+  const treble = offlineCtx.createBiquadFilter(); treble.type = 'highshelf'; treble.frequency.value = 4000; treble.gain.value = parseFloat(trebleS.value);
+  const dry = offlineCtx.createGain(), wet = offlineCtx.createGain();
+  const amt = parseFloat(reverbS.value) / 100;
+  dry.gain.value = 1 - amt; wet.gain.value = amt;
+  const conv = offlineCtx.createConvolver(); conv.buffer = creerReverb(offlineCtx);
+  src.connect(bass); bass.connect(treble);
+  treble.connect(dry); treble.connect(conv); conv.connect(wet);
+  dry.connect(offlineCtx.destination); wet.connect(offlineCtx.destination);
+  src.start();
+
+  try {
+    const renduBuffer = await offlineCtx.startRendering();
+    const wavBlob = bufferVersWav(renduBuffer);
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mf_harmonie_effets.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    statusDl.textContent = 'Fichier téléchargé : mf_harmonie_effets.wav';
+  } catch (err) {
+    statusDl.textContent = 'Erreur lors de la génération du fichier.';
+  }
+});
+
+// --- Onglet Enregistrement ---
+let audioRec = new Audio(), mediaRecorder, chunks = [], micStream, enregActif = false, boucleActive = false;
+document.getElementById('fileRec').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  audioRec.src = URL.createObjectURL(file);
+  document.getElementById('statusRec').textContent = `Piste chargée : ${file.name}`;
+  document.getElementById('loopToggle').disabled = false;
+  document.getElementById('playPauseRec').disabled = false;
+});
+document.getElementById('loopToggle').addEventListener('click', function() {
+  boucleActive = !boucleActive;
+  audioRec.loop = boucleActive;
+  this.textContent = `🔁 Boucle : ${boucleActive ? 'ON' : 'OFF'}`;
+});
+document.getElementById('playPauseRec').addEventListener('click', function() {
+  if (audioRec.paused) { audioRec.play(); this.textContent = '⏸ Pause'; }
+  else { audioRec.pause(); this.textContent = '▶ Jouer'; }
+});
+document.getElementById('recBtn').addEventListener('click', async function() {
+  if (!micStream) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      document.getElementById('recStatus').textContent = "Micro activé. Cliquez pour démarrer.";
+      this.textContent = "⏺ Démarrer l'enregistrement";
+    } catch (err) {
+      document.getElementById('recStatus').textContent = "Erreur : accès micro refusé.";
+    }
+    return;
+  }
+  if (!enregActif) {
+    chunks = [];
+    mediaRecorder = new MediaRecorder(micStream);
+    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      const pb = document.getElementById('recPlayback');
+      pb.src = url; pb.style.display = 'block';
+      const dl = document.getElementById('downloadLink');
+      dl.href = url; dl.download = 'mon_enregistrement.webm'; dl.style.display = 'block';
+    };
+    mediaRecorder.start();
+    enregActif = true;
+    this.textContent = "⏹ Arrêter l'enregistrement";
+    this.classList.add('actif');
+    document.getElementById('recStatus').textContent = "Enregistrement en cours...";
+  } else {
+    mediaRecorder.stop();
+    enregActif = false;
+    this.textContent = "⏺ Démarrer l'enregistrement";
+    this.classList.remove('actif');
+    document.getElementById('recStatus').textContent = "Terminé. Écoutez ci-dessous.";
+  }
+});
+</script>
+</body>
+</html>
