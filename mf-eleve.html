@@ -1409,11 +1409,14 @@ async function consoleAudioInit(uid, suffix, c) {
   // (grésillement continu, indépendant de la plateforme). Le limiteur n'intervient que si le
   // signal risque de saturer : aucun changement audible sur un mix qui ne sature pas déjà.
   st.limiteur = ctx.createDynamicsCompressor();
-  st.limiteur.threshold.value = -3;
-  st.limiteur.knee.value = 0;
-  st.limiteur.ratio.value = 20;
-  st.limiteur.attack.value = 0.001;
-  st.limiteur.release.value = 0.1;
+  // Seuil et ratio adoucis maintenant que chaque piste part à un volume raisonnable (voir plus
+  // bas) : le limiteur n'a plus besoin de rattraper un excès énorme, donc il peut rester discret
+  // au lieu d'écraser le son.
+  st.limiteur.threshold.value = -6;
+  st.limiteur.knee.value = 6;
+  st.limiteur.ratio.value = 12;
+  st.limiteur.attack.value = 0.003;
+  st.limiteur.release.value = 0.15;
   st.limiteur.connect(ctx.destination);
 
   let workletOk = true;
@@ -1424,6 +1427,10 @@ async function consoleAudioInit(uid, suffix, c) {
     if (!p.url) return;
     st.percu[idx] = !!p.percu;
     const gain = ctx.createGain();
+    // Volume de départ réduit (au lieu du maximum) : 4 pistes à volume max additionnées
+    // dépassaient largement le seuil de saturation numérique, obligeant le limiteur à écraser
+    // fort le son en permanence — d'où un rendu sale même hors BPM/transpose.
+    gain.gain.value = 0.6;
     gain.connect(st.limiteur);
     st.gains[idx] = gain;
     const majBadge = (texte, couleur) => {
@@ -1551,6 +1558,14 @@ function _consoleAudioAppliquerParams(st) {
   const neutre = (st.vitesse === 1 && st.transpo === 0);
   Object.keys(st.audios).forEach(idx => {
     const audioEl = st.audios[idx];
+    // Les pistes de percussion n'ont pas de hauteur à préserver : elles suivent toujours la
+    // vitesse native du lecteur, sans jamais passer par le worklet SoundTouch — une piste de
+    // moins dans le calcul temps réel, sans perte audible sur une batterie.
+    if (st.percu[idx]) {
+      _consoleAudioDesactiverTraitement(st, idx);
+      audioEl.playbackRate = st.vitesse;
+      return;
+    }
     if (!neutre) _consoleAudioActiverTraitement(st, idx);
     else _consoleAudioDesactiverTraitement(st, idx);
     const stNode = st.stNodes[idx];
@@ -2269,7 +2284,7 @@ document.addEventListener('click', (e) => {
     const cid = pillClic.dataset.cid, key = pillClic.dataset.key;
     const st = consoleAudioEtat[cid]; if (!st || !st.gains[key]) return;
     const actif = pillClic.dataset.active === '1';
-    st.gains[key].gain.value = actif ? 0 : 1;
+    st.gains[key].gain.value = actif ? 0 : 0.6;
     pillClic.dataset.active = actif ? '0' : '1';
     pillClic.style.opacity = actif ? '0.35' : '1';
     pillClic.style.background = actif ? 'rgba(255,255,255,.05)' : 'rgba(212,175,55,.15)';
