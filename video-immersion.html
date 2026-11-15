@@ -196,7 +196,8 @@ html,body{height:100%;width:100%;overflow:hidden;font-family:'Lato',sans-serif;b
 #bfige{border-color:rgba(52,152,219,0.5);color:#3498db;background:rgba(52,152,219,0.08);}
 #bfige.actif{border-color:rgba(46,204,113,0.6);color:#2ecc71;background:rgba(46,204,113,0.12);}
 #bspd{border-color:rgba(212,175,55,0.3);color:#a89880;}
-#bback,#brst{width:36px;height:36px;font-size:14px;}
+#bback{width:36px;height:36px;font-size:14px;}
+#brst{width:auto;min-width:220px;height:44px;padding:0 16px;font-size:13px;font-weight:700;letter-spacing:1px;border-color:rgba(231,76,60,0.55);color:#ff8a7a;background:rgba(231,76,60,0.10);}
 
 #leg{display:flex;justify-content:center;font-size:9px;color:#a89880;letter-spacing:1px;text-transform:uppercase;margin-top:4px;gap:10px;}
 #note-vit{text-align:center;font-size:9px;color:rgba(231,76,60,0.55);letter-spacing:1px;margin-top:3px;}
@@ -361,7 +362,9 @@ audio{display:none;}
       <button class="btn btool" id="brec">🔴 Enreg.</button>
       <label for="icharger" class="btn btool" style="cursor:pointer;">📂 Corriger</label>
       <input type="file" id="icharger" accept="video/mp4,video/webm" style="display:none">
-      <button class="btn" id="brst">🔄</button>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:8px;">
+      <button class="btn" id="brst">🔄 Tout remettre à zéro</button>
     </div>
     <div id="leg"><span>⏭ syllabe</span><span>◀ -1</span><span>◀◀ -6</span><span>🔒 Figer</span></div>
     <div id="mode-badge" style="text-align:center;font-size:9px;color:rgba(212,175,55,0.6);letter-spacing:1px;margin-top:3px;">Mode manuel (tape ⏭ en rythme)</div>
@@ -912,6 +915,8 @@ function pause(){
 function reset(){
   _calageDebutFaitImmersion=false;
   pause();phase=0;lig=0;syl=-1;tCur=0;pretAvancerLigne=false;
+  ['ph1','ph2','ph3','ph4'].forEach(function(id){ var e=document.getElementById(id); if(e) e.classList.remove('on'); });
+  ph(0);
   if(avAudio) toneReset();
   for(const k in TS)delete TS[k];
 
@@ -927,6 +932,21 @@ function reset(){
 
 
 
+// ══ REMISE À ZÉRO COMPLÈTE ══
+// Efface tout : calage figé, moments Titre/Paroles/Fin, mode auto et sauvegarde du navigateur pour cette chanson.
+function resetTout(){
+  if(!confirm('Tout remettre à zéro ?\n\nLe calage, les moments Titre / Paroles / Fin et la sauvegarde de ce navigateur seront effacés pour cette chanson.')) return;
+  reset();
+  TS_FIGEE = {};
+  modeAuto = false;
+  PHASES_NOTEES.length = 0;
+  for(const k in TS) delete TS[k];
+  try{ localStorage.removeItem(_cleCalageImmersion()); }catch(e){}
+  var bf = document.getElementById('bfige'); if(bf) bf.classList.remove('actif');
+  _appliquerBadgeModeAuto();
+  majPg();
+  toast('🔄 Tout est remis à zéro — tu peux refaire le calage');
+}
 function changerVit(){
   vi=(vi+1)%VIT.length;
   if(avAudio && toneEnLecture) _appliquerGainsEtPitchImmersion();
@@ -1004,7 +1024,7 @@ document.getElementById('icalage').onchange = (e)=>{
   if(e.target.files && e.target.files[0]) importerCalage(e.target.files[0]);
   e.target.value = '';
 };
-document.getElementById('brst').onclick  =()=>reset();
+document.getElementById('brst').onclick  =()=>resetTout();
 
 // ══ RENDU CANVAS (utilisé uniquement pour l'enregistrement — reproduit le même affichage que l'écran) ══
 const recCv = document.getElementById('rec-canvas');
