@@ -250,23 +250,23 @@ Ending (Finale 2x)"></textarea>
     <div class="section-corps">
       <div class="champ">
         <label>Calage début de vidéo (secondes)</label>
-        <input type="number" id="m-calage-debut-video" step="0.5" min="0" placeholder="ex: 3"/>
+        <input type="text" inputmode="text" id="m-calage-debut-video" placeholder="ex: 3 ou 0:03"/>
         <div class="aide-syntaxe">Optionnel. Temps d'attente AVANT que la vidéo (audio compris) ne démarre vraiment — laisse à l'élève le temps de lancer la vidéo et de se préparer (ukulélé en main) avant que ça commence. Un décompte s'affiche pendant ce temps.</div>
       </div>
       <div class="champ">
         <label>Décalage début accords (secondes)</label>
-        <input type="number" id="m-decalage-accords" step="0.1" min="-10" max="60" placeholder="ex: 12"/>
+        <input type="text" inputmode="text" id="m-decalage-accords" placeholder="ex: 12 ou 0:12"/>
         <div class="aide-syntaxe">Optionnel. Seconde de l'audio à partir de laquelle les accords/ukulélé se mettent à défiler (de −10 à 60 s). Avant cette seconde, les accords restent sur la 1ère case. Décale uniquement le bandeau d'accords/ukulélé (indépendant du décalage des paroles). Laisse vide pour un départ immédiat.</div>
       </div>
       <div class="champ">
         <label>Timestamp 1ère parole (secondes)</label>
-        <input type="number" id="m-decalage-parole" step="0.1" min="0" placeholder="ex: 12.5"/>
+        <input type="text" inputmode="text" id="m-decalage-parole" placeholder="ex: 12.5 ou 0:16"/>
         <div class="aide-syntaxe">Optionnel. La seconde exacte de la vidéo où la 1ère parole doit apparaître au prompteur (regarde la vidéo et note le moment précis).</div>
       </div>
       <div class="champ">
         <label>Timestamp paroles après le solo (secondes)</label>
-        <input type="number" id="m-decalage-parole-apres-solo" step="0.1" min="0" placeholder="ex: 111"/>
-        <div class="aide-syntaxe">Optionnel. La seconde où les paroles reprennent après le solo (1ère ligne chantée qui suit l'étape « Solo » de la structure). À cette seconde, le prompteur saute directement à cette ligne.</div>
+        <input type="text" inputmode="text" id="m-decalage-parole-apres-solo" placeholder="ex: 1:39 ou 99"/>
+        <div class="aide-syntaxe">Optionnel. Tu peux écrire en minutes:secondes (ex : 1:39) ou en secondes. La seconde où les paroles reprennent après le solo (1ère ligne chantée qui suit l'étape « Solo » de la structure). À cette seconde, le prompteur saute directement à cette ligne.</div>
       </div>
     </div>
   </div>
@@ -875,6 +875,14 @@ function construireMesuresVideoAncienne(tempsParMesure){
 
 // Point d'entrée : utilise les nouveaux champs dédiés (Structure accords + Paroles pour vidéo) s'ils
 // sont remplis, sinon revient à l'ancien système (déduction depuis les paroles/accords tapés).
+// Lit un temps saisi en « minutes:secondes » (1:39) ou en secondes (99, 12.5, 12,5). Renvoie NaN si vide/illisible.
+function lireTempsSaisi(v){
+  var t = String(v == null ? '' : v).trim().replace(',', '.');
+  if(!t) return NaN;
+  var m = t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
+  if(m) return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
+  return /^-?\d+(\.\d+)?$/.test(t) ? parseFloat(t) : NaN;
+}
 // Repère de la reprise des paroles après le solo : index (dans les mesures) de la 1ère mesure chantée qui suit
 // la dernière mesure dont l'étape s'appelle « Solo ». Renvoie -1 si pas de solo ou pas de parole après.
 function trouverMesureApresSolo(mesures){
@@ -890,7 +898,7 @@ function trouverMesureApresSolo(mesures){
 }
 function lireParoleApresSolo(mesures){
   var el = document.getElementById('m-decalage-parole-apres-solo');
-  var sec = el ? parseFloat(String(el.value || '').replace(',', '.')) : NaN;
+  var sec = el ? lireTempsSaisi(el.value) : NaN;
   var t = trouverMesureApresSolo(mesures);
   if(isFinite(sec) && sec > 0 && t >= 0) return { sec: sec, t: t };
   return null;
@@ -1900,7 +1908,7 @@ function preparerDonneesPrompteur(){
     }
   }
   // Même décalage des paroles que celui utilisé pour enregistrer la vidéo (champ "Décalage paroles").
-  var dpVal = parseFloat(String((document.getElementById('m-decalage-parole') || {}).value || '').replace(',', '.'));
+  var dpVal = lireTempsSaisi((document.getElementById('m-decalage-parole') || {}).value);
   if (isFinite(dpVal) && dpVal > 0) { donnees.decalageParoleSec = dpVal; donnees.paroleLigne1 = true; }
   var apSolo = lireParoleApresSolo(mesures);
   if (apSolo) { donnees.decalageParoleApresSoloSec = apSolo.sec; donnees.paroleApresSoloT = apSolo.t; }
@@ -2059,14 +2067,14 @@ function ouvrirVideo(type){
   // Le décalage 1ère parole est maintenant transmis à part, et n'agit QUE sur le prompteur
   // (paroles) côté Starter — les accords suivent toujours les mesures réelles depuis le début.
   var mesures = construireMesuresVideo();
-  var decalageAccordsVal = parseFloat(document.getElementById('m-decalage-accords').value);
+  var decalageAccordsVal = lireTempsSaisi(document.getElementById('m-decalage-accords').value);
   meta.decalageAccords = isNaN(decalageAccordsVal) ? null : Math.max(-10, Math.min(60, decalageAccordsVal));
-  var decalageParoleVal = parseFloat(String(document.getElementById('m-decalage-parole').value).replace(',', '.'));
+  var decalageParoleVal = lireTempsSaisi(document.getElementById('m-decalage-parole').value);
   meta.decalageParole = isNaN(decalageParoleVal) ? null : decalageParoleVal; // seconde exacte de la vidéo où la 1ère parole apparaît
   var apSoloVideo = lireParoleApresSolo(mesures);
   meta.decalageParoleApresSolo = apSoloVideo ? apSoloVideo.sec : null; // seconde où les paroles reprennent après le solo
   meta.paroleApresSoloT = apSoloVideo ? apSoloVideo.t : null;
-  var calageDebutVal = parseFloat(document.getElementById('m-calage-debut-video').value);
+  var calageDebutVal = lireTempsSaisi(document.getElementById('m-calage-debut-video').value);
   meta.calageDebutVideo = isNaN(calageDebutVal) ? 0 : Math.max(0, calageDebutVal);
   // Création des vidéos : si un audio original est renseigné, il est utilisé SEUL (les pistes séparées ne servent qu'à l'admin)
   var audioOrigEl = document.getElementById('m-audio-original');
