@@ -783,7 +783,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       </div>
       <div class="card">
         <div class="card-title">ℹ️ Application</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">MF Harmonie des Îles — Espace élève · version 16</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">MF Harmonie des Îles — Espace élève · version 17</div>
         <button class="btn-save" style="width:auto;padding:10px 14px;background:transparent;border:1px solid #7a7060;color:#ccc;" onclick="seDeconnecter()">Quitter</button>
       </div>
     </div>
@@ -800,7 +800,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <h4>Les chansons</h4>
           <p>Depuis l'Accueil, choisissez Basique, Starter Ukulélé ou Immersion Chant (🔒 = non inclus dans votre abonnement). Les chansons sont rangées par rythme ; une barre de recherche permet de trouver un titre, un artiste ou un rythme. Dans Starter et Immersion, chaque chanson propose <b>Parole · Audio · Vidéo · Outils</b> : les Outils regroupent les patterns, les diagrammes d'accords, le métronome et l'accordeur (Starter) ou le lexique et le métronome (Immersion).</p>
           <h4>Écouter et jouer avec les pistes</h4>
-          <p>Le lecteur permet de lancer, de reculer ou avancer de 5 secondes, de changer la vitesse (BPM) et la <b>tonalité par nom de note</b> (C, C#, D… B). Chaque piste (guitare, basse, percussions, voix…) s'active ou se coupe d'un toucher. Sur les chansons d'Immersion, la <b>voix est coupée au départ</b> : le curseur « Voix guide » permet de la faire revenir doucement pour retrouver la mélodie.</p>
+          <p>Le lecteur permet de lancer, de reculer ou avancer de 5 secondes, (l'audio est toujours la version originale : ni vitesse ni tonalité modifiables). Chaque piste (guitare, basse, percussions, voix…) s'active ou se coupe d'un toucher. Sur les chansons d'Immersion, la <b>voix est coupée au départ</b> : le curseur « Voix guide » permet de la faire revenir doucement pour retrouver la mélodie.</p>
           <h4>Les abonnements</h4>
           <div class="aide-ab"><b>📘 Basique</b> — Tous les chants publiés, en clé de C, avec recherche et filtres, accords cliquables et transposition par nom de note. Pas de métronome, d'accordeur ni de console audio.</div>
           <div class="aide-ab"><b>🎸 Starter Ukulélé</b> — Le Basique, plus l'onglet Starter de chaque chanson : vidéo tutoriel avec prompteur, console audio à pistes, accords et diagrammes, patterns de rythme. Outils : métronome, accordeur, diagrammes d'accords, patterns.</div>
@@ -1879,21 +1879,6 @@ function consoleAudioBuildMiniHtml(cid, bpmBase, pistesData) {
     + '<input type="range" class="ca-seek" data-cid="' + cid + '" min="0" max="100" value="0" style="flex:1;height:3px;">'
     + '<div class="ca-tps" data-cid="' + cid + '" style="font-size:9px;color:var(--muted);white-space:nowrap;flex-shrink:0;">0:00/0:00</div>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:' + (pills ? '6px' : '0') + ';">'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-bpm-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁−</button>'
-    + '<span class="ca-bpm-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:44px;text-align:center;">' + bpmAffiche + '</span>'
-    + '<button class="ca-bpm+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁+</button>'
-    + '<button class="ca-bpm-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser le BPM">↺ Original</button>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-tr-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵−</button>'
-    + '<span class="ca-tr-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:36px;text-align:center;">' + (trAffiche > 0 ? '+' : '') + trAffiche + '</span>'
-    + '<button class="ca-tr+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵+</button>'
-    + '<select class="ca-tr-sel" data-cid="' + cid + '" title="Choisir la tonalité" style="padding:8px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;font-size:15px;min-height:38px;"></select>'
-    + '<button class="ca-tr-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser la transposition">↺ Original</button>'
-    + '</div>'
-    + '</div>'
     + (pills ? '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">' + pills + '</div>' + _voixGuideHtml(cid, pistesData) : '')
     + (mfDiagAutorise() ? '<div style="display:flex;justify-content:center;gap:6px;margin-top:6px;"><button onclick="mfSaute(\'' + cid + '\')" style="padding:6px 12px;background:#5a1d1d;border:1px solid #e74c3c;color:#fff;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;">🚩 Ça saute !</button><button onclick="mfEnvoyerDiagSon(\'' + cid + '\')" style="padding:6px 12px;background:var(--card);border:1px solid var(--or);color:var(--orL);border-radius:4px;cursor:pointer;font-size:11px;">📨 Envoyer</button><button onclick="mfCopierDiagSon(\'' + cid + '\')" style="padding:6px 12px;background:var(--card);border:1px solid var(--or);color:var(--orL);border-radius:4px;cursor:pointer;font-size:11px;">📋 Copier</button></div>' : '')
     + '<div id="diag-audio-' + cid + '" style="display:none;margin-top:6px;padding:6px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;font-size:9px;color:var(--muted);font-family:monospace;line-height:1.6;"></div>'
@@ -1944,21 +1929,6 @@ function consoleAudioBuildHtml(uid, suffix, c) {
     + '<button class="ca-fwd5" data-cid="' + cid + '" style="padding:3px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:10px;flex-shrink:0;">⏩</button>'
     + '<input type="range" class="ca-seek" data-cid="' + cid + '" min="0" max="100" value="0" style="flex:1;height:3px;">'
     + '<div class="ca-tps" data-cid="' + cid + '" style="font-size:9px;color:var(--muted);white-space:nowrap;flex-shrink:0;">0:00/0:00</div>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-bpm-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁−</button>'
-    + '<span class="ca-bpm-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:44px;text-align:center;">' + bpmAffiche + '</span>'
-    + '<button class="ca-bpm+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁+</button>'
-    + '<button class="ca-bpm-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser le BPM">↺ Original</button>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-tr-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵−</button>'
-    + '<span class="ca-tr-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:36px;text-align:center;">' + (trAffiche > 0 ? '+' : '') + trAffiche + '</span>'
-    + '<button class="ca-tr+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵+</button>'
-    + '<select class="ca-tr-sel" data-cid="' + cid + '" title="Choisir la tonalité" style="padding:8px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;font-size:15px;min-height:38px;"></select>'
-    + '<button class="ca-tr-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser la transposition">↺ Original</button>'
-    + '</div>'
     + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">'
     + pills + _voixGuideHtml(cid, pistesData)
@@ -2211,7 +2181,7 @@ async function consoleAudioInit(uid, suffix, c) {
   const reglagesSauves = (eleveActif && eleveActif.reglagesConsole && eleveActif.reglagesConsole[cid]) || {};
   const st = {
     ctx, audios:{}, sources:{}, stNodes:{}, gains:{}, percu:{}, prets:{}, echecs:{}, traite:{},
-    vitesse: reglagesSauves.vitesse || 1, transpo: reglagesSauves.transpo || 0, run:false, dureeRef:10, timer:null, _signature: signature, _bpmBase: c.bpm || 90,
+    vitesse: 1, transpo: 0, run:false, dureeRef:10, timer:null, _signature: signature, _bpmBase: c.bpm || 90,
     videoOffset: (String(suffix).indexOf('immersion') !== -1 ? (c.video2_offset || 0) : (c.video_offset || 0)) / 1000,
     posMusicaleBase: 0, posMusicaleBaseTime: performance.now(),
     _chansonId: c.id, _suffix: suffix
@@ -2239,7 +2209,7 @@ async function consoleAudioInit(uid, suffix, c) {
   catch (err) { workletOk = false; console.error('SoundTouch worklet — échec de chargement:', err); }
 
   // Fichiers par note : lus dans tonalites-pistes.json, reconnus par le nom du fichier d'origine.
-  const _mapTon = await chargerTonalitesPistes();
+  const _mapTon = {}; // v17 : audio toujours original, aucun fichier de tonalité chargé
   st.notesUrls = {}; st.noteCourante = {}; st.urlsBase = {}; st.modeNotes = false; st.cleIdx = 5;
   st.tonDiag = [];
   pistesData.forEach((p, idx) => {
