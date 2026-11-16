@@ -10316,21 +10316,6 @@ function consoleAudioBuildMiniHtml(cid, bpmBase, pistesData) {
     + '<input type="range" class="ca-seek" data-cid="' + cid + '" min="0" max="100" value="0" style="flex:1;height:3px;">'
     + '<div class="ca-tps" data-cid="' + cid + '" style="font-size:9px;color:var(--muted);white-space:nowrap;flex-shrink:0;">0:00/0:00</div>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:' + (pills ? '6px' : '0') + ';">'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-bpm-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁−</button>'
-    + '<span class="ca-bpm-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:44px;text-align:center;">' + bpmBase + '</span>'
-    + '<button class="ca-bpm+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁+</button>'
-    + '<button class="ca-bpm-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser le BPM">↺ Original</button>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-tr-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵−</button>'
-    + '<span class="ca-tr-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:36px;text-align:center;">0</span>'
-    + '<button class="ca-tr+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵+</button>'
-    + '<select class="ca-tr-sel" data-cid="' + cid + '" title="Choisir la tonalité" style="padding:8px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;font-size:15px;min-height:38px;"></select>'
-    + '<button class="ca-tr-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser la transposition">↺ Original</button>'
-    + '</div>'
-    + '</div>'
     + (pills ? '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">' + pills + '</div>' : '')
     + '<div style="display:flex;justify-content:center;margin-top:6px;">'
     + '<button onclick="toggleDiagnosticAudio(\'' + cid + '\')" style="padding:3px 8px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;font-size:9px;">📊 Diagnostic</button>'
@@ -10377,21 +10362,6 @@ function consoleAudioBuildHtml(uid, suffix, c) {
     + '<button class="ca-fwd5" data-cid="' + cid + '" style="padding:3px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:10px;flex-shrink:0;">⏩</button>'
     + '<input type="range" class="ca-seek" data-cid="' + cid + '" min="0" max="100" value="0" style="flex:1;height:3px;">'
     + '<div class="ca-tps" data-cid="' + cid + '" style="font-size:9px;color:var(--muted);white-space:nowrap;flex-shrink:0;">0:00/0:00</div>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-bpm-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁−</button>'
-    + '<span class="ca-bpm-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:44px;text-align:center;">' + bpmBase + '</span>'
-    + '<button class="ca-bpm+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🥁+</button>'
-    + '<button class="ca-bpm-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser le BPM">↺ Original</button>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px;">'
-    + '<button class="ca-tr-" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵−</button>'
-    + '<span class="ca-tr-lbl" data-cid="' + cid + '" style="font-size:15px;color:var(--orL);min-width:36px;text-align:center;">0</span>'
-    + '<button class="ca-tr+" data-cid="' + cid + '" style="padding:9px 14px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;cursor:pointer;font-size:15px;">🎵+</button>'
-    + '<select class="ca-tr-sel" data-cid="' + cid + '" title="Choisir la tonalité" style="padding:8px 6px;background:var(--card);border:1px solid var(--border);color:var(--blanc);border-radius:3px;font-size:15px;min-height:38px;"></select>'
-    + '<button class="ca-tr-reset" data-cid="' + cid + '" style="padding:9px 14px;background:var(--or);border:1px solid var(--orL);color:#111;font-weight:700;border-radius:5px;cursor:pointer;font-size:14px;" title="Réinitialiser la transposition">↺ Original</button>'
-    + '</div>'
     + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">'
     + pills
@@ -10805,7 +10775,7 @@ async function consoleAudioInit(uid, suffix, c) {
   catch (err) { workletOk = false; console.error('SoundTouch worklet — échec de chargement:', err); }
 
   // Fichiers par note : lus dans tonalites-pistes.json, reconnus par le nom du fichier d'origine.
-  const _mapTon = await chargerTonalitesPistes();
+  const _mapTon = {}; // audio toujours original, aucun fichier de tonalité chargé
   st.notesUrls = {}; st.noteCourante = {}; st.urlsBase = {}; st.modeNotes = false; st.cleIdx = 5;
   st.tonDiag = [];
   pistesData.forEach((p, idx) => {
