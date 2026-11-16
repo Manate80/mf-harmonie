@@ -14012,13 +14012,20 @@ async function _genererFichesDepuisSource(src) {
     } catch (e) {}
     w.analyserParoles(); w.analyserStructure();
     if (!w.donneesParoles || !w.donneesParoles.length) throw new Error('aucune parole dans ce JSON');
+    // Pas de boîte de dialogue bloquante dans la page cachée : les avertissements du Générateur sont gardés et affichés dans le statut (le chant continue)
+    const alertes = []; w.alert = function(m) { alertes.push(String(m).split('\n').filter(x => x.trim() && !/^Continuer/.test(x.trim())).slice(0, 4).join(' ')); }; w.confirm = function(m) { w.alert(m); return true; };
     if (!w.verifierCoherenceAccords()) throw new Error('accords incohérents dans ce JSON : ouvre « Modifier les paroles » pour les corriger');
     try { w.synchroniserLexiqueAdmin(); } catch (e) {}
     const meta = w.collecterMeta();
+    // « Prompt Admin » STARTER et IMMERSION du Générateur (blocs prêts à coller dans « Données prompteur ») — sans alerte bloquante
+    let promptStarter = '', promptImmersion = '';
+    try { w.preparerDonneesPrompteur(); const t = w.document.getElementById('donneesPrompteurTxt'); promptStarter = (t && t.value) || ''; } catch (e) { alertes.push('Prompt Starter : ' + e.message); }
+    try { w.preparerDonneesImmersion(); const t = w.document.getElementById('donneesImmersionTxt'); promptImmersion = (t && t.value) || ''; } catch (e) { alertes.push('Prompt Immersion : ' + e.message); }
     return {
       basique: w.genererStarterOuBasique('basique', meta),
       starter: w.genererStarterOuBasique('starter', meta),
       immersion: w.genererImmersion(meta),
+      promptStarter, promptImmersion, alertes,
       nbLignes: w.donneesParoles.length
     };
   } finally { fr.remove(); }
@@ -14055,12 +14062,24 @@ async function _chargerChantDepuisData(d, url, recharger) {
     importerHTML(new File([f.starter], slug + '-starter.html', { type: 'text/html' }), 'starter');
     importerHTML(new File([f.immersion], slug + '-immersion.html', { type: 'text/html' }), 'immersion');
     const au = _genRemplirAudioAdmin(src);
+    // Données prompteur (Starter + Immersion) : remplies comme si tu avais collé les blocs « Prompt Admin » du Générateur
+    let pr = [];
+    const edS = document.getElementById('video-data-editor');
+    if (edS && f.promptStarter) { edS.value = f.promptStarter; pr.push('prompt Starter'); }
+    const edI = document.getElementById('video-data-immersion-editor');
+    let calI = false; try { const di = JSON.parse(f.promptImmersion || '{}'); calI = !!(di.calage && Object.keys(di.calage).length); } catch (e) {}
+    if (edI && f.promptImmersion) {
+      if (calI || !edI.value.trim()) { edI.value = f.promptImmersion; pr.push('prompt Immersion' + (calI ? '' : ' (sans calage)')); }
+      else pr.push('prompt Immersion conservé (le nouveau n\'a pas de calage)');
+    }
     const existe = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === titre.trim().toLowerCase());
     msg('<span style="color:#2ecc71;">' + (recharger ? '🔄 Rechargé' : '📥 Chargé') + ' : « ' + titre.replace(/</g, '&lt;') + ' » — ' + f.nbLignes + ' lignes de paroles · '
+      + (pr.length ? pr.join(' + ') + ' remplis (onglet Vidéo) · ' : 'prompts vidéo non remplis (' + ((f.alertes || []).join(' ; ') || 'raison inconnue') + ') · ')
       + (au.orig ? 'audio original · ' : 'pas d\'audio original · ') + au.stems + ' piste(s) séparée(s) → Audio pour vidéo · ' + (src.images || []).length + ' image(s) · calage vidéo '
       + ((src.calibrationStarter || src.calibrationImmersion) ? 'présent' : 'absent') + ' · 3 fiches générées.'
+      + ((f.alertes && f.alertes.length && pr.length) ? '<br><span style="color:#e67e22;">⚠ Avertissements du Générateur : ' + f.alertes.map(x => x.replace(/</g, '&lt;')).join(' || ') + '</span>' : '')
       + (existe ? '<br>Ce chant existe déjà : ses liens vidéo, son calage et son statut seront conservés.' : '<br>Nouveau chant.')
-      + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio).</span>'
+      + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio) et « 💾 Enregistrer les vidéos » (onglet Vidéo).</span>'
       + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));
     toast('📥 Chant chargé');
   } catch (e) {
