@@ -784,7 +784,12 @@ function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVi
         var temps = groupeAccords[m] || new Array(tempsParMesure).fill('');
         if(etape.decalage) temps = temps.map(function(a){ return _transposerAccord(a, etape.decalage); });
         var paroleLigne = '';
-        if(nbLignes && m % mesuresParLigne === 0){
+        if(nbLignes && nbLignes > nbMesures){
+          // Plus de lignes que de mesures : on répartit plusieurs lignes dans une même mesure (séparées par un retour à la ligne),
+          // au lieu de perdre les dernières lignes.
+          var deb = Math.floor(m * nbLignes / nbMesures), fin = Math.floor((m + 1) * nbLignes / nbMesures);
+          paroleLigne = lignesType.slice(deb, fin).join('\n');
+        } else if(nbLignes && m % mesuresParLigne === 0){
           var idxLigne = Math.floor(m / mesuresParLigne);
           if(idxLigne < nbLignes) paroleLigne = lignesType[idxLigne];
         }

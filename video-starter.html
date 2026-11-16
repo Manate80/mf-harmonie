@@ -641,7 +641,9 @@ function _construireLignesPrompteur() {
     // le calage fin spécifique à "Papa" (GABARIT/mesures 17-25-64) ne s'applique jamais ici.
     chanson.mesures.forEach((m, i) => {
       const texte = m.paroles && !m.paroles.startsWith('(') ? m.paroles : '';
-      if (texte) lignes.push({ t: i, texte: texte });
+      // Plusieurs lignes dans une même mesure (séparées par un retour à la ligne) : réparties régulièrement dans la mesure.
+      const parts = texte ? texte.split('\n').map(x => x.trim()).filter(Boolean) : [];
+      parts.forEach((pt, j) => lignes.push({ t: i + j / parts.length, texte: pt }));
     });
     lignes.sort((a, b) => a.t - b.t);
     return lignes;
@@ -916,9 +918,15 @@ function _majEcranVisuel(masterUid, pos) {
   // sont déjà comptées dans la position de la ligne, on ne les ajoute donc pas une 2e fois).
   const totalBeats = _beatsEntre(chanson.bpm, DECALAGE_PAROLE_SEC, pos) * VITESSE_PROMPTEUR + OFFSET_VITESSE_PROMPTEUR + _beatsPremiereLigne();
   let mesureContinue = totalBeats / TEMPS_PAR_MESURE;
-  // Reprise après le solo : à la seconde indiquée, le prompteur saute à la 1ère ligne chantée qui suit le solo.
-  if (DECALAGE_PAROLE_APRES_SOLO_SEC > 0 && PAROLE_APRES_SOLO_T >= 0 && pos >= DECALAGE_PAROLE_APRES_SOLO_SEC) {
-    mesureContinue = PAROLE_APRES_SOLO_T + (_beatsEntre(chanson.bpm, DECALAGE_PAROLE_APRES_SOLO_SEC, pos) * VITESSE_PROMPTEUR) / TEMPS_PAR_MESURE;
+  // Reprise après le solo : le prompteur glisse (sur 2 mesures) puis arrive pile sur la 1ère ligne chantée après le solo à la seconde indiquée.
+  if (DECALAGE_PAROLE_APRES_SOLO_SEC > 0 && PAROLE_APRES_SOLO_T >= 0) {
+    const X = DECALAGE_PAROLE_APRES_SOLO_SEC, W = 2 * TEMPS_PAR_MESURE * beatDur;
+    if (pos >= X) {
+      mesureContinue = PAROLE_APRES_SOLO_T + (_beatsEntre(chanson.bpm, X, pos) * VITESSE_PROMPTEUR) / TEMPS_PAR_MESURE;
+    } else if (pos > X - W) {
+      const n0 = (_beatsEntre(chanson.bpm, DECALAGE_PAROLE_SEC, X - W) * VITESSE_PROMPTEUR + OFFSET_VITESSE_PROMPTEUR + _beatsPremiereLigne()) / TEMPS_PAR_MESURE;
+      if (PAROLE_APRES_SOLO_T > n0) mesureContinue = n0 + (PAROLE_APRES_SOLO_T - n0) * ((pos - (X - W)) / W);
+    }
   }
   // Accords/ukulélé/diagrammes : suivent le déroulé réel des mesures dès le départ (l'Intro a
   // déjà ses vrais accords en mesure 0) — DECALAGE_ACCORDS_SEC n'est qu'une toute petite
