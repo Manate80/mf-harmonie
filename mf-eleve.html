@@ -1675,7 +1675,19 @@ function mfSignalerSync(msg) {
     b.textContent = '⚠ ' + msg + ' (touche pour fermer)';
   } catch(e) {}
 }
+// Chez l'élève, le marqueur « (?) » (mot incertain) ne s'affiche jamais : il reste visible seulement dans l'admin et le Générateur.
+const _MF_RE_INTERRO = /[ \u00a0]*\(\?\)/g;
+function mfRetirerInterro(v) {
+  if (typeof v === 'string') return v.indexOf('(?)') === -1 ? v : v.replace(_MF_RE_INTERRO, '');
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = mfRetirerInterro(v[i]); return v; }
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+    Object.keys(v).forEach(function(k) { v[k] = mfRetirerInterro(v[k]); });
+    return v;
+  }
+  return v;
+}
 function mfEnregistrerChansons(arr) {
+  arr = mfRetirerInterro(arr);
   window._mfChansonsMem = arr;
   try { localStorage.setItem('mfhi5_chansons', JSON.stringify(arr)); return true; } catch(e) {}
   try {
@@ -4644,7 +4656,7 @@ function chargerLexiqueEleve() {
     return;
   }
   const key = getFormuleKey();
-  const lex = LS.getArr('lexique_reo').filter(m => !m.formules || !m.formules.length || m.formules.includes(key));
+  const lex = mfRetirerInterro(LS.getArr('lexique_reo')).filter(m => !m.formules || !m.formules.length || m.formules.includes(key));
   const q = (document.getElementById('lex-eleve-search') ? document.getElementById('lex-eleve-search').value : '').toLowerCase().trim();
   let liste = lex;
   if (_lexEleveFiltre !== 'Tous') liste = liste.filter(m => m.categorie === _lexEleveFiltre);
@@ -5066,7 +5078,7 @@ function buildCorpsChanson(c) {
     const mediaImm = buildMediaBloc('immersion', c.video2, '🌺 Chant Immersion', 'videoKaraoke', c.video2_formules);
     const texteBrutImm = (c.svgImmersion || '').replace(/<[^>]*>/g, ' ');
     const texteNormImm = texteBrutImm.toLowerCase();
-    const lexTrouves = (LS.getArr('lexique_reo') || []).filter(function(m) {
+    const lexTrouves = mfRetirerInterro(LS.getArr('lexique_reo') || []).filter(function(m) {
       return m.mot && texteNormImm.indexOf(m.mot.toLowerCase()) !== -1;
     }).sort(function(a,b){ return (a.mot||'').localeCompare(b.mot||'','fr'); });
     let htmlLexiqueImm;
