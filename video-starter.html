@@ -558,6 +558,8 @@ let VITESSE_PROMPTEUR = 1; // multiplicateur (1 = normal) — ralentit/accélèr
 // à partir de maintenant change. Sans ça, changer la vitesse recalcule toute la position depuis le
 // début à la nouvelle vitesse, ce qui fait brutalement sauter (reculer ou avancer) le texte.
 let OFFSET_VITESSE_PROMPTEUR = 0;
+let DECALAGE_PAROLE_APRES_SOLO_SEC = 0; // seconde où les paroles reprennent après le solo (0 = non utilisé)
+let PAROLE_APRES_SOLO_T = -1;           // mesure de la 1ère ligne chantée après le solo
 let DECALAGE_PAROLE_SEC = 0; // secondes — temps avant la 1ère parole (intro instrumentale), n'affecte QUE le prompteur
 let CALAGE_DEBUT_VIDEO_SEC = 0; // secondes — attente avant que TOUT démarre (audio compris)
 let DECALAGE_ACCORDS_SEC = 0; // secondes — ajustable en direct via les boutons Sync +/- (0 = accords/ukulélé dès le vrai départ)
@@ -913,7 +915,11 @@ function _majEcranVisuel(masterUid, pos) {
   // + _beatsPremiereLigne() : le décalage = la seconde où la 1ère LIGNE chantée arrive (les mesures d'intro
   // sont déjà comptées dans la position de la ligne, on ne les ajoute donc pas une 2e fois).
   const totalBeats = _beatsEntre(chanson.bpm, DECALAGE_PAROLE_SEC, pos) * VITESSE_PROMPTEUR + OFFSET_VITESSE_PROMPTEUR + _beatsPremiereLigne();
-  const mesureContinue = totalBeats / TEMPS_PAR_MESURE;
+  let mesureContinue = totalBeats / TEMPS_PAR_MESURE;
+  // Reprise après le solo : à la seconde indiquée, le prompteur saute à la 1ère ligne chantée qui suit le solo.
+  if (DECALAGE_PAROLE_APRES_SOLO_SEC > 0 && PAROLE_APRES_SOLO_T >= 0 && pos >= DECALAGE_PAROLE_APRES_SOLO_SEC) {
+    mesureContinue = PAROLE_APRES_SOLO_T + (_beatsEntre(chanson.bpm, DECALAGE_PAROLE_APRES_SOLO_SEC, pos) * VITESSE_PROMPTEUR) / TEMPS_PAR_MESURE;
+  }
   // Accords/ukulélé/diagrammes : suivent le déroulé réel des mesures dès le départ (l'Intro a
   // déjà ses vrais accords en mesure 0) — DECALAGE_ACCORDS_SEC n'est qu'une toute petite
   // correction fine (1-2s), jamais un long temps d'attente.
@@ -1380,6 +1386,8 @@ function exporterReglages(masterUid) {
     vitessePrompteur: VITESSE_PROMPTEUR,
     offsetVitessePrompteur: OFFSET_VITESSE_PROMPTEUR,
     decalageParoleSec: DECALAGE_PAROLE_SEC,
+    decalageParoleApresSoloSec: DECALAGE_PAROLE_APRES_SOLO_SEC > 0 ? DECALAGE_PAROLE_APRES_SOLO_SEC : undefined,
+    paroleApresSoloT: DECALAGE_PAROLE_APRES_SOLO_SEC > 0 ? PAROLE_APRES_SOLO_T : undefined,
     cle: _CLE_CHANSON_STARTER || undefined, // clé du chant (base du transpose en lettres)
     paroleLigne1: true // nouveaux JSON : 1re ligne de paroles à la seconde « Décalage paroles »
   };
@@ -2316,6 +2324,8 @@ async function toggleEnregistrementVideo(masterUid) {
     var _accordsFournisParGenerateur = (m.decalageAccords !== null && m.decalageAccords !== undefined && !isNaN(m.decalageAccords));
     if(m.decalageParole !== null && m.decalageParole !== undefined && !isNaN(m.decalageParole)) DECALAGE_PAROLE_SEC = Math.max(0, m.decalageParole);
     else DECALAGE_PAROLE_SEC = 0;
+    DECALAGE_PAROLE_APRES_SOLO_SEC = (typeof m.decalageParoleApresSolo === 'number' && m.decalageParoleApresSolo > 0) ? m.decalageParoleApresSolo : 0;
+    PAROLE_APRES_SOLO_T = (typeof m.paroleApresSoloT === 'number') ? m.paroleApresSoloT : -1;
     // Interligne envoyé par le Générateur = valeur de départ (avant tout calage déjà fait dans
     // ce navigateur pour cette chanson, qui reste prioritaire juste en dessous).
     if(m.hauteurLigne !== null && m.hauteurLigne !== undefined && !isNaN(m.hauteurLigne)) HAUTEUR_LIGNE = Math.max(20, Math.min(100, m.hauteurLigne));
