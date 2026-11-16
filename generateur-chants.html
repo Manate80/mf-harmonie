@@ -79,6 +79,7 @@
     <button class="btn" style="padding:6px 12px;font-size:11px;" onclick="nouveauChant()">🆕 Nouveau chant</button>
     <button class="btn" style="padding:6px 12px;font-size:11px;background:rgba(46,204,113,0.15);border-color:rgba(46,204,113,0.5);" onclick="finaliserChanson()">🏁 Finaliser &amp; télécharger</button>
     <button type="button" class="btn" style="padding:6px 12px;font-size:11px;cursor:pointer;" onclick="document.getElementById('import-chanson').click()">📂 Importer une chanson</button>
+    <button type="button" class="btn" style="padding:6px 12px;font-size:11px;background:rgba(0,188,212,0.15);border-color:rgba(0,188,212,0.5);" onclick="envoyerALAdmin()">📤 Envoyer à l'admin</button>
     <input type="file" id="import-chanson" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" onchange="if(this.files[0]) importerChanson(this.files[0]); this.value='';">
   </div>
   <div id="brouillon-statut" style="font-size:10px;color:var(--gris);margin-top:6px;"></div>
@@ -221,6 +222,12 @@ Ending (Finale 2x)"></textarea>
   <div class="section">
     <div class="section-titre"><span class="section-num">5</span><span class="section-nom">Pistes audio</span></div>
     <div class="section-corps">
+      <div style="border:1px solid var(--bord);padding:10px;margin-bottom:12px;border-radius:3px;">
+        <label style="font-size:11px;font-weight:700;">🎵 Audio original (1 seule piste — lien Firebase)</label>
+        <input type="text" id="m-audio-original" placeholder="https://firebasestorage.googleapis.com/…" oninput="try{_brouillonModifie=true;}catch(e){}" style="width:100%;margin-top:6px;background:#0f0f0f;border:1px solid var(--bord);color:var(--blanc);font-size:12px;padding:8px;border-radius:3px;">
+        <div style="font-size:10px;color:var(--gris);margin-top:4px;line-height:1.5;">Utilisé pour créer les vidéos Starter et Immersion d'ici, et envoyé dans le champ « Audio » de l'admin. Les pistes séparées ci-dessous vont dans « Audio pour vidéo » de l'admin.</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;margin-bottom:6px;">🎛️ Pistes séparées (→ « Audio pour vidéo » de l'admin)</div>
       <div id="pistesZone"></div>
       <div class="btn-row"><button class="btn" onclick="ajouterPiste()">+ Ajouter une piste</button></div>
     </div>
@@ -883,7 +890,7 @@ var compteurPiste = 0;
 var compteurImage = 0;
 
 // ══ SAUVEGARDE GÉNÉRALE (brouillon local, tous les champs + pistes + images) ══
-var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','parolesInput','structureInput'];
+var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','m-audio-original','parolesInput','structureInput'];
 var CLE_BROUILLON = 'mf_generateur_brouillon';
 
 function sauvegarderBrouillon(){
@@ -1000,6 +1007,44 @@ function nouveauChant(){
 function _sluggifyTitreGenerateur(t){
   return (t||'chanson').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'chanson';
 }
+// Données complètes du chant (même contenu pour « Finaliser » et « Envoyer à l'admin »)
+function _donneesChansonComplete(){
+  var data = { champs:{}, pistes:pistes, images:images, date:new Date().toISOString(), version:1 };
+  CHAMPS_BROUILLON.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) data.champs[id] = el.value;
+  });
+  var slug = _sluggifyTitreGenerateur((document.getElementById('m-titre').value || 'chanson').trim());
+  try{
+    var calImmersion = localStorage.getItem('mf_calage_immersion_' + slug);
+    if(calImmersion) data.calibrationImmersion = JSON.parse(calImmersion);
+  }catch(e){}
+  try{
+    var calStarter = localStorage.getItem('mf_calage_starter_' + slug);
+    if(calStarter) data.calibrationStarter = JSON.parse(calStarter);
+  }catch(e){}
+  return data;
+}
+// Envoie tout le chant à l'admin (même navigateur) : l'admin remplit ses champs, fiches et audios
+function envoyerALAdmin(){
+  if(donneesParoles.length === 0){
+    try{ analyserParoles(); analyserStructure(); }catch(e){}
+  }
+  if(donneesParoles.length === 0){
+    alert('Analyse d\'abord les paroles (section 2, bouton "Analyser") avant d\'envoyer à l\'admin.');
+    return;
+  }
+  var data = _donneesChansonComplete();
+  try{
+    localStorage.setItem('mf_envoi_admin', JSON.stringify({t:Date.now(), data:data}));
+  }catch(e){
+    alert('Envoi impossible (stockage du navigateur plein ou bloqué) : ' + e.message);
+    return;
+  }
+  var statut = document.getElementById('brouillon-statut');
+  if(statut) statut.textContent = '📤 Envoyé à l\'admin (' + new Date().toLocaleTimeString('fr-FR') + ') — ouvre l\'admin, il se remplit tout seul.';
+  try{ window.open('admin-mf-final-v2.html?envoi=' + Date.now(), '_blank'); }catch(e){}
+}
 function finaliserChanson(){
   if(donneesParoles.length === 0){
     alert('Analyse d\'abord les paroles (section 2, bouton "Analyser") avant de finaliser — sinon le fichier serait vide.');
@@ -1009,22 +1054,9 @@ function finaliserChanson(){
   if(!titreActuel){
     if(!confirm('Le titre (section 1) est vide. Continuer quand même ? Le fichier sera plus difficile à identifier plus tard.')) return;
   }
-  var data = { champs:{}, pistes:pistes, images:images, date:new Date().toISOString(), version:1 };
-  CHAMPS_BROUILLON.forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) data.champs[id] = el.value;
-  });
-
+  var data = _donneesChansonComplete();
   var titre = (document.getElementById('m-titre').value || 'chanson').trim();
   var slug = _sluggifyTitreGenerateur(titre);
-  try{
-    var calImmersion = localStorage.getItem('mf_calage_immersion_' + slug);
-    if(calImmersion) data.calibrationImmersion = JSON.parse(calImmersion);
-  }catch(e){}
-  try{
-    var calStarter = localStorage.getItem('mf_calage_starter_' + slug);
-    if(calStarter) data.calibrationStarter = JSON.parse(calStarter);
-  }catch(e){}
 
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type:'application/json'}));
@@ -2005,7 +2037,11 @@ function ouvrirVideo(type){
   meta.decalageParole = isNaN(decalageParoleVal) ? null : decalageParoleVal; // seconde exacte de la vidéo où la 1ère parole apparaît
   var calageDebutVal = parseFloat(document.getElementById('m-calage-debut-video').value);
   meta.calageDebutVideo = isNaN(calageDebutVal) ? 0 : Math.max(0, calageDebutVal);
-  var data = {meta:meta, structure:donneesStructure, mesures:mesures, pistes:pistes, images:images, parolesKaraoke:construireParolesKaraoke()};
+  // Création des vidéos : si un audio original est renseigné, il est utilisé SEUL (les pistes séparées ne servent qu'à l'admin)
+  var audioOrigEl = document.getElementById('m-audio-original');
+  var audioOrig = audioOrigEl ? audioOrigEl.value.trim() : '';
+  var pistesVideo = audioOrig ? [{id:'orig', nom:'Audio original', mode:'url', valeur:audioOrig, exclure:false}] : pistes;
+  var data = {meta:meta, structure:donneesStructure, mesures:mesures, pistes:pistesVideo, images:images, parolesKaraoke:construireParolesKaraoke()};
   localStorage.setItem('mf_generateur_chanson', JSON.stringify(data));
   var page = type === 'starter' ? 'video-starter.html' : 'video-immersion.html';
   window.open(page + '?v=' + Date.now(), '_blank');

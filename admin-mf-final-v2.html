@@ -14024,42 +14024,98 @@ async function _genererFichesDepuisSource(src) {
   } finally { fr.remove(); }
 }
 // Bouton « Charger le chant » / « Recharger » : un seul lien JSON remplit tout le formulaire Paroles
+// Remplit les deux listes audio de l'admin : « Audio » (= audio original, 1 piste) et « Audio pour vidéo » (= pistes séparées du Générateur)
+function _genRemplirAudioAdmin(src) {
+  const ch = (src && src.champs) || {};
+  const orig = String(ch['m-audio-original'] || '').trim();
+  const lA = document.getElementById('audio-pistes-liste');
+  if (lA && orig) { lA.innerHTML = ''; audioAjouterPiste('Original', orig, false); }
+  const lV = document.getElementById('audio-pistes-video-liste');
+  const stems = ((src && src.pistes) || []).filter(p => p && p.valeur && p.mode !== 'upload');
+  if (lV && stems.length) {
+    lV.innerHTML = '';
+    stems.forEach(p => audioAjouterPiste(p.nom || '', p.valeur, !!p.exclure, 'audio-pistes-video-liste'));
+  }
+  return { orig: orig ? 1 : 0, stems: stems.length };
+}
+// Cœur du chargement d'un chant complet (utilisé par le lien JSON ET par le bouton « Envoyer à l'admin » du Générateur)
+async function _chargerChantDepuisData(d, url, recharger) {
+  const st = document.getElementById('parole-statut');
+  const msg = x => { if (st) st.innerHTML = x; };
+  try {
+    if (!d || !d.champs) throw new Error('ce JSON n\'est pas un fichier du Générateur de chants (…-chanson-complete.json)');
+    const rythmeOk = _genRemplirChampsAdmin(d.champs);
+    const src = _genSourceDepuisData(d, url || '');
+    msg('<span style="color:var(--orL);">⏳ Génération des fiches Basique, Starter, Immersion…</span>');
+    const f = await _genererFichesDepuisSource(src);
+    window._genSource = src; window._jsonLien = url || '';
+    const titre = String(d.champs['m-titre'] || 'chanson');
+    const slug = _slugChantGenerateur(titre);
+    basqImporter(new File([f.basique], slug + '-basique.html', { type: 'text/html' }));
+    importerHTML(new File([f.starter], slug + '-starter.html', { type: 'text/html' }), 'starter');
+    importerHTML(new File([f.immersion], slug + '-immersion.html', { type: 'text/html' }), 'immersion');
+    const au = _genRemplirAudioAdmin(src);
+    const existe = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === titre.trim().toLowerCase());
+    msg('<span style="color:#2ecc71;">' + (recharger ? '🔄 Rechargé' : '📥 Chargé') + ' : « ' + titre.replace(/</g, '&lt;') + ' » — ' + f.nbLignes + ' lignes de paroles · '
+      + (au.orig ? 'audio original · ' : 'pas d\'audio original · ') + au.stems + ' piste(s) séparée(s) → Audio pour vidéo · ' + (src.images || []).length + ' image(s) · calage vidéo '
+      + ((src.calibrationStarter || src.calibrationImmersion) ? 'présent' : 'absent') + ' · 3 fiches générées.'
+      + (existe ? '<br>Ce chant existe déjà : ses liens vidéo, son calage et son statut seront conservés.' : '<br>Nouveau chant.')
+      + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio).</span>'
+      + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));
+    toast('📥 Chant chargé');
+  } catch (e) {
+    msg('<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + (/Failed to fetch|NetworkError/i.test(String(e && e.message)) ? ' (le lien est-il bien public ? réglage CORS de Storage ?)' : '') + '</span>');
+    toast('❌ ' + (e && e.message ? e.message : e));
+  }
+}
+// Bouton « Charger le chant » / « Recharger » : un seul lien JSON remplit tout le formulaire Paroles
 async function chargerChantDepuisLienJson(recharger) {
   const st = document.getElementById('parole-statut');
   const inp = document.getElementById('url-json-chant');
   const url = ((inp && inp.value) || window._jsonLien || '').trim();
   if (!url) { toast('⚠ Colle d\'abord le lien du JSON'); return; }
   if (inp && !inp.value) inp.value = url;
-  const msg = x => { if (st) st.innerHTML = x; };
   try {
-    msg('<span style="color:var(--orL);">⏳ Lecture du JSON…</span>');
+    if (st) st.innerHTML = '<span style="color:var(--orL);">⏳ Lecture du JSON…</span>';
     const r = await fetch(url, { cache: 'reload' });
     if (!r.ok) throw new Error('lien refusé (HTTP ' + r.status + ')');
     let d; try { d = JSON.parse(await r.text()); } catch (e) { throw new Error('ce lien n\'est pas un fichier JSON valide'); }
-    if (!d || !d.champs) throw new Error('ce JSON n\'est pas un fichier du Générateur de chants (…-chanson-complete.json)');
-    const rythmeOk = _genRemplirChampsAdmin(d.champs);
-    const src = _genSourceDepuisData(d, url);
-    msg('<span style="color:var(--orL);">⏳ Génération des fiches Basique, Starter, Immersion…</span>');
-    const f = await _genererFichesDepuisSource(src);
-    window._genSource = src; window._jsonLien = url;
-    const titre = String(d.champs['m-titre'] || 'chanson');
-    const slug = _slugChantGenerateur(titre);
-    basqImporter(new File([f.basique], slug + '-basique.html', { type: 'text/html' }));
-    importerHTML(new File([f.starter], slug + '-starter.html', { type: 'text/html' }), 'starter');
-    importerHTML(new File([f.immersion], slug + '-immersion.html', { type: 'text/html' }), 'immersion');
-    const existe = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === titre.trim().toLowerCase());
-    msg('<span style="color:#2ecc71;">' + (recharger ? '🔄 Rechargé' : '📥 Chargé') + ' : « ' + titre.replace(/</g, '&lt;') + ' » — ' + f.nbLignes + ' lignes de paroles · '
-      + (src.pistes || []).length + ' piste(s) audio · ' + (src.images || []).length + ' image(s) · calage vidéo '
-      + ((src.calibrationStarter || src.calibrationImmersion) ? 'présent' : 'absent') + ' · 3 fiches générées.'
-      + (existe ? '<br>Ce chant existe déjà : ses liens vidéo, son calage et son statut seront conservés.' : '<br>Nouveau chant.')
-      + '<br>Vérifie, puis clique sur « Enregistrer les paroles ».</span>'
-      + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));
-    toast('📥 Chant chargé depuis le lien JSON');
+    await _chargerChantDepuisData(d, url, recharger);
   } catch (e) {
-    msg('<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + (/Failed to fetch|NetworkError/i.test(String(e && e.message)) ? ' (le lien est-il bien public ? réglage CORS de Storage ?)' : '') + '</span>');
+    if (st) st.innerHTML = '<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + (/Failed to fetch|NetworkError/i.test(String(e && e.message)) ? ' (le lien est-il bien public ? réglage CORS de Storage ?)' : '') + '</span>';
     toast('❌ ' + (e && e.message ? e.message : e));
   }
 }
+// ════ RÉCEPTION DU BOUTON « 📤 Envoyer à l'admin » du Générateur de chants (même navigateur, via le stockage local) ════
+function _ouvrirStudioGenerateur() {
+  document.querySelectorAll('.main-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('on'));
+  const sStudio = document.getElementById('section-studio'); if (sStudio) sStudio.classList.add('on');
+  const mainBtns = document.querySelectorAll('.main-btn'); if (mainBtns[3]) mainBtns[3].classList.add('on');
+  document.querySelectorAll('#section-studio .stab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('#section-studio .spage').forEach(p => p.classList.remove('on'));
+  const stuGen = document.getElementById('stu-generateur'); if (stuGen) stuGen.classList.add('on');
+  const firstStab = document.querySelector('#section-studio .stab'); if (firstStab) firstStab.classList.add('on');
+  try { goGenTab('parole', document.querySelector('.gen-subtab-btn[data-gt="parole"]')); } catch (e) {}
+}
+async function recevoirEnvoiGenerateur() {
+  if (window._envoiGenEnCours) return;
+  let raw = null; try { raw = localStorage.getItem('mf_envoi_admin'); } catch (e) {}
+  if (!raw) return;
+  if (!document.getElementById('gen-titre') || typeof S === 'undefined' || typeof goGenTab !== 'function') return;
+  window._envoiGenEnCours = true;
+  try { localStorage.removeItem('mf_envoi_admin'); } catch (e) {}
+  try {
+    const env = JSON.parse(raw);
+    if (!env || !env.data || !env.data.champs || (Date.now() - (env.t || 0)) > 30 * 60 * 1000) return;
+    _ouvrirStudioGenerateur();
+    toast('📤 Chant reçu du Générateur…');
+    await _chargerChantDepuisData(env.data, '', false);
+  } catch (e) { toast('❌ Envoi du Générateur : ' + (e && e.message ? e.message : e)); }
+  finally { window._envoiGenEnCours = false; }
+}
+setInterval(recevoirEnvoiGenerateur, 2000);
+window.addEventListener('storage', ev => { if (ev.key === 'mf_envoi_admin') recevoirEnvoiGenerateur(); });
 // Reconstruit les paroles sources (format du Générateur de chants) à partir d'une fiche Basique/Starter déjà enregistrée
 function _genSourceDepuisFiche(c) {
   const html = c.svgBasique || c.svg; if (!html) return null;
