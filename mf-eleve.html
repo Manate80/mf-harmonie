@@ -2754,7 +2754,7 @@ function videoVisuelChargerDonnees(c, callback) {
       if (d.ajustementsLignes && typeof d.ajustementsLignes === 'object') {
         Object.keys(d.ajustementsLignes).forEach(i => { if (lignes[i]) lignes[i].t = d.ajustementsLignes[i]; });
       }
-      resultat = { mesures: d.mesures, lignes, vitessePrompteur: d.vitessePrompteur, offsetVitessePrompteur: d.offsetVitessePrompteur, decalageParoleSec: d.decalageParoleSec, decalageParoleApresSoloSec: d.decalageParoleApresSoloSec, paroleApresSoloT: d.paroleApresSoloT, paroleLigne1: d.paroleLigne1 === true, decalageAccordsSec: d.decalageAccordsSec, syncPoints: _videoVisuelNettoyerSync(d.syncPoints) };
+      resultat = { mesures: d.mesures, lignes, vitessePrompteur: d.vitessePrompteur, offsetVitessePrompteur: d.offsetVitessePrompteur, decalageParoleSec: d.decalageParoleSec, paroleLigne1: d.paroleLigne1 === true, decalageAccordsSec: d.decalageAccordsSec, syncPoints: _videoVisuelNettoyerSync(d.syncPoints) };
     }
   } catch (e) { console.warn('videoVisuelChargerDonnees: JSON invalide', e); }
   _videoVisuelCache[cleCache] = resultat;
@@ -3200,17 +3200,7 @@ function apepeMajEcranVisuel(cid, pos, sansFrappe) {
   // Même formule que la vidéo (video-starter.html) : (temps × vitesse + décalage de compensation) / 4.
   const offsetVitesseProm = (donnees.offsetVitessePrompteur != null) ? donnees.offsetVitessePrompteur : 0;
   const NT = _apepeNbTemps(donnees); // temps par mesure de CETTE chanson
-  let mesureContinue = (((posParoles - ((donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0)) / beatDur) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
-  // Reprise des paroles après le solo : le prompteur glisse (sur 2 mesures) puis arrive pile sur la 1ère ligne chantée après le solo à la seconde indiquée.
-  if (donnees.decalageParoleApresSoloSec > 0 && typeof donnees.paroleApresSoloT === 'number') {
-    const X = donnees.decalageParoleApresSoloSec, W = 2 * NT * beatDur;
-    if (posParoles >= X) {
-      mesureContinue = donnees.paroleApresSoloT + (((posParoles - X) / beatDur) * vitesseProm) / NT;
-    } else if (posParoles > X - W) {
-      const n0 = ((((X - W) - ((donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0)) / beatDur) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
-      if (donnees.paroleApresSoloT > n0) mesureContinue = n0 + (donnees.paroleApresSoloT - n0) * ((posParoles - (X - W)) / W);
-    }
-  }
+  const mesureContinue = (((posParoles - ((donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0)) / beatDur) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
   const mesureContinueAccords = (Math.max(0, pos - decalageAccords) / beatDur) / NT;
 
   const lignesEl = document.getElementById('mfp-prompteur-lignes-' + cid);

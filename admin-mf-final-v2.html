@@ -11076,7 +11076,7 @@ function videoVisuelChargerDonnees(c, callback) {
       if (d.ajustementsLignes && typeof d.ajustementsLignes === 'object') {
         Object.keys(d.ajustementsLignes).forEach(i => { if (lignes[i]) lignes[i].t = d.ajustementsLignes[i]; });
       }
-      resultat = { mesures: d.mesures, lignes, vitessePrompteur: d.vitessePrompteur, offsetVitessePrompteur: d.offsetVitessePrompteur, decalageParoleSec: d.decalageParoleSec, decalageParoleApresSoloSec: d.decalageParoleApresSoloSec, paroleApresSoloT: d.paroleApresSoloT, paroleLigne1: d.paroleLigne1 === true, decalageAccordsSec: d.decalageAccordsSec, syncPoints: _videoVisuelNettoyerSync(d.syncPoints), bpmCalage: (typeof d.bpmCalage === 'number' && d.bpmCalage > 0) ? d.bpmCalage : null, bpmPoints: _bpmPromNettoyer(d.bpmPoints) };
+      resultat = { mesures: d.mesures, lignes, vitessePrompteur: d.vitessePrompteur, offsetVitessePrompteur: d.offsetVitessePrompteur, decalageParoleSec: d.decalageParoleSec, paroleLigne1: d.paroleLigne1 === true, decalageAccordsSec: d.decalageAccordsSec, syncPoints: _videoVisuelNettoyerSync(d.syncPoints), bpmCalage: (typeof d.bpmCalage === 'number' && d.bpmCalage > 0) ? d.bpmCalage : null, bpmPoints: _bpmPromNettoyer(d.bpmPoints) };
     }
   } catch (e) { console.warn('videoVisuelChargerDonnees: JSON invalide', e); }
   _videoVisuelCache[cleCache] = resultat;
@@ -11521,17 +11521,7 @@ function apepeMajEcranVisuel(cid, pos, sansFrappe) {
   // Même formule que la vidéo (video-starter.html) : (temps × vitesse + décalage de compensation) / 4.
   const offsetVitesseProm = (donnees.offsetVitessePrompteur != null) ? donnees.offsetVitessePrompteur : 0;
   const NT = _apepeNbTemps(donnees); // temps par mesure de CETTE chanson
-  let mesureContinue = (_bpmPromBeats(regBpm.base, regBpm.points, (donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0, posParoles, decalageVideoInclus) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
-  // Reprise des paroles après le solo : le prompteur glisse (sur 2 mesures) puis arrive pile sur la 1ère ligne chantée après le solo à la seconde indiquée.
-  if (donnees.decalageParoleApresSoloSec > 0 && typeof donnees.paroleApresSoloT === 'number') {
-    const X = donnees.decalageParoleApresSoloSec, W = 2 * NT * (60 / regBpm.base);
-    if (posParoles >= X) {
-      mesureContinue = donnees.paroleApresSoloT + (_bpmPromBeats(regBpm.base, regBpm.points, X, posParoles, decalageVideoInclus) * vitesseProm) / NT;
-    } else if (posParoles > X - W) {
-      const n0 = (_bpmPromBeats(regBpm.base, regBpm.points, (donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0, X - W, decalageVideoInclus) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
-      if (donnees.paroleApresSoloT > n0) mesureContinue = n0 + (donnees.paroleApresSoloT - n0) * ((posParoles - (X - W)) / W);
-    }
-  }
+  const mesureContinue = (_bpmPromBeats(regBpm.base, regBpm.points, (donnees.decalageParoleSec != null) ? donnees.decalageParoleSec : 0, posParoles, decalageVideoInclus) * vitesseProm + offsetVitesseProm + _apepeBeatsPremiereLigne(donnees, NT)) / NT;
   const mesureContinueAccords = (pos <= decalageAccords ? 0 : _bpmPromBeats(regBpm.base, regBpm.points, decalageAccords, pos, decalageVideoInclus)) / NT;
   // Affichage de la barre « BPM prompteur » : suit le BPM de l'instant (sans toucher la barre pendant qu'on la bouge).
   const bpmNow = _bpmPromA(regBpm.base, regBpm.points, pos - decalageVideoInclus);
