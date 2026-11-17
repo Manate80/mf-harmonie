@@ -12439,7 +12439,8 @@ window.addEventListener('message', function (e) {
     // Générateur externe (celui des champs) avec la chanson chargée ; on quitte la vue plein écran pour qu'il s'affiche par-dessus l'admin
     const sc = document.querySelector('.main-btn[onclick*="goSection(\'studio\'"]');
     _navApplying = true; try { goSection('studio', sc); } finally { _navApplying = false; }
-    ouvrirEditeurParoles(d.cid);
+    mfOuvrirGenerateurChamp(d.cid);
+    return;
   } else {
     chargerDansGenerateur(d.cid, d.sous);
   }
@@ -14358,6 +14359,47 @@ function _remplacerZoneParoles(ancien, nouveau) {
   return '<!DOCTYPE html>\n' + dA.documentElement.outerHTML;
 }
 // Ouvre le Générateur de chants dans l'admin, rempli avec les paroles sources du chant
+// ── Générateur externe (generateur-chants.html, celui des champs) ouvert par-dessus l'admin avec la chanson déjà chargée ──
+async function mfSourceChansonPourGenerateur(c) {
+  const lien = (c.jsonLien || (c.generateur && c.generateur.lien) || '').trim();
+  if (lien) {
+    try {
+      const r = await fetch(lien, { cache: 'reload' });
+      if (r.ok) { const d = JSON.parse(await r.text()); if (d && d.champs) return _genSourceDepuisData(d, lien); }
+    } catch (e) {}
+  }
+  if (c.generateur && c.generateur.champs) return c.generateur;
+  return _genSourceDepuisFiche(c);
+}
+async function mfOuvrirGenerateurChamp(cid) {
+  const c = (S.get('chansons') || []).find(x => String(x.id) === String(cid));
+  if (!c) { toast('⚠ Chanson introuvable'); return; }
+  const src = await mfSourceChansonPourGenerateur(c);
+  if (!src || !src.champs) { toast('⚠ Pas de données du Générateur pour cette chanson (aucune fiche à reconstruire)'); return; }
+  // Le Générateur reprend son brouillon enregistré : on y place cette chanson (en prévenant si un autre travail y est en cours)
+  try {
+    const ancien = JSON.parse(localStorage.getItem('mf_generateur_brouillon') || 'null');
+    const tAncien = ancien && ancien.champs && (ancien.champs['m-titre'] || '').trim();
+    const tNeuf = (src.champs['m-titre'] || c.titre || '').trim();
+    if (tAncien && tAncien.toLowerCase() !== tNeuf.toLowerCase() && !confirm('Le Générateur contient un brouillon « ' + tAncien + ' ». Le remplacer par « ' + tNeuf + ' » ?')) return;
+    localStorage.setItem('mf_generateur_brouillon', JSON.stringify({ champs: src.champs, pistes: src.pistes || [], images: src.images || [], date: new Date().toISOString() }));
+  } catch (e) { toast('❌ Impossible de préparer le Générateur : ' + e.message); return; }
+  const ancienM = document.getElementById('modal-generateur-champ'); if (ancienM) ancienM.remove();
+  const m = document.createElement('div');
+  m.id = 'modal-generateur-champ';
+  m.style.cssText = 'position:fixed;inset:0;background:#000;z-index:99990;display:flex;flex-direction:column;';
+  m.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#111;flex:0 0 auto;">'
+    + '<button class="btn-sm" onclick="mfFermerGenerateurChamp();mfBiblioRetourner()" style="border-color:var(--or);color:var(--orL);">← Retour à la bibliothèque</button>'
+    + '<span style="flex:1;text-align:center;font-size:12px;color:var(--muted);">🎼 Générateur de chants — ' + String(c.titre || '').replace(/</g, '&lt;') + '</span></div>'
+    + '<iframe src="generateur-chants.html" style="flex:1;width:100%;border:none;background:#fff;"></iframe>';
+  document.body.appendChild(m);
+  const fr = m.querySelector('iframe');
+  fr.onload = function () {
+    // « Tout envoyer à l'admin » : l'admin se remplit tout seul (même navigateur) ; on referme ce volet sans ouvrir un second onglet
+    try { fr.contentWindow.open = function () { setTimeout(mfFermerGenerateurChamp, 400); return null; }; } catch (e) {}
+  };
+}
+function mfFermerGenerateurChamp() { const m = document.getElementById('modal-generateur-champ'); if (m) m.remove(); }
 async function ouvrirEditeurParoles(cid) {
   const c = (S.get('chansons') || []).find(x => String(x.id) === String(cid));
   if (!c) { toast('⚠ Choisis d\'abord un chant (bouton « Modifier dans le Générateur » de la Bibliothèque)'); return; }

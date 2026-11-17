@@ -5567,8 +5567,7 @@ function mfAdminAjouterEdition(body, c) {
   const id = JSON.stringify(c.id);
   const bs = 'flex:1;min-width:120px;padding:9px;font-size:12px;cursor:pointer;border-radius:4px;';
   barre.innerHTML = '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","onglet")\' style="' + bs + 'background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.5);color:#e8c06a;font-weight:700;">✏️ Modifier cet onglet</button>'
-    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","tout")\' style="' + bs + 'background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;">⚙️ Générateur admin</button>'
-    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","externe")\' style="' + bs + 'background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;">🎼 Générateur externe</button>';
+    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","externe")\' style="' + bs + 'background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.5);color:#e8c06a;font-weight:700;">🎼 Générateur champ</button>';
   body.insertBefore(barre, body.firstChild);
 }
 // L'admin demande d'arrêter toute lecture quand on quitte la Bibliothèque (l'état reste intact, rien n'est rechargé).
