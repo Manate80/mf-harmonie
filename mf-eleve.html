@@ -5549,12 +5549,13 @@ function mfAdminSousOnglet(body) {
     if (t.indexOf('pattern') >= 0) return 'patterns';
     if (t.indexOf('diagramme') >= 0) return 'diagramme';
     if (t.indexOf('lexique') >= 0) return 'lexique';
+    if (t.indexOf('outils') >= 0) return (body.querySelector('[id$="-starter"].chanson-tab-page') || window._biblioMode === 'starter') ? 'patterns' : 'lexique';
   }
   return 'parole';
 }
 function mfAdminEditer(cid, bodyId, quoi) {
   const body = document.getElementById(bodyId);
-  const sous = quoi === 'onglet' ? mfAdminSousOnglet(body) : 'parole';
+  const sous = quoi === 'onglet' ? mfAdminSousOnglet(body) : (quoi === 'externe' ? 'externe' : 'parole');
   try { arreterToutesLesConsoles(); } catch (e) {}
   try { window.parent.postMessage({ mfAdmin: 'editer', cid: cid, sous: sous }, '*'); } catch (e) {}
 }
@@ -5564,8 +5565,10 @@ function mfAdminAjouterEdition(body, c) {
   barre.className = 'mf-admin-edit';
   barre.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px 0;';
   const id = JSON.stringify(c.id);
-  barre.innerHTML = '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","onglet")\' style="flex:1;min-width:140px;padding:9px;background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.5);color:#e8c06a;font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;">✏️ Modifier cet onglet</button>'
-    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","tout")\' style="flex:1;min-width:140px;padding:9px;background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;font-size:12px;cursor:pointer;border-radius:4px;">⚙️ Ouvrir dans le Générateur</button>';
+  const bs = 'flex:1;min-width:120px;padding:9px;font-size:12px;cursor:pointer;border-radius:4px;';
+  barre.innerHTML = '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","onglet")\' style="' + bs + 'background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.5);color:#e8c06a;font-weight:700;">✏️ Modifier cet onglet</button>'
+    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","tout")\' style="' + bs + 'background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;">⚙️ Générateur admin</button>'
+    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","externe")\' style="' + bs + 'background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;">🎼 Générateur externe</button>';
   body.insertBefore(barre, body.firstChild);
 }
 // L'admin demande d'arrêter toute lecture quand on quitte la Bibliothèque (l'état reste intact, rien n'est rechargé).

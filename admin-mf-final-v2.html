@@ -12435,7 +12435,14 @@ window.addEventListener('message', function (e) {
   try { _mfBiblioScroll = fr.contentWindow.scrollY || 0; } catch (err) { _mfBiblioScroll = 0; }
   // Ancre d'historique : le geste « retour » du téléphone ramène à la bibliothèque
   history.pushState({ navType: 'biblioretour' }, '', location.href);
-  chargerDansGenerateur(d.cid, d.sous);
+  if (d.sous === 'externe') {
+    // Générateur externe (celui des champs) avec la chanson chargée ; on quitte la vue plein écran pour qu'il s'affiche par-dessus l'admin
+    const sc = document.querySelector('.main-btn[onclick*="goSection(\'studio\'"]');
+    _navApplying = true; try { goSection('studio', sc); } finally { _navApplying = false; }
+    ouvrirEditeurParoles(d.cid);
+  } else {
+    chargerDansGenerateur(d.cid, d.sous);
+  }
   mfBiblioAjouterRetour();
 });
 
