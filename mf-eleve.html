@@ -5519,6 +5519,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerPleinE
 // qu'on l'ouvre — jamais au chargement de la liste. Évite tout chargement/autoplay simultané
 // de plusieurs vidéos en arrière-plan.
 function _construireCorpsSiBesoin(body) {
+  const _modeCourant = window._biblioMode || '';
+  // Un corps déjà construit dans un autre mode (Bibliothèque normale ↔ Starter ↔ Immersion) est refait :
+  // sinon on y verrait les onglets de l'autre formule.
+  if (body && body.dataset.construit === '1' && (body.dataset.modeBiblio || '') !== _modeCourant) { body.dataset.construit = '0'; body.innerHTML = ''; }
   if (!body || body.dataset.construit === '1') return;
   const uid = body.id.replace(/^body-/, '');
   const c = _chansonDataParUid[uid];
@@ -5531,6 +5535,7 @@ function _construireCorpsSiBesoin(body) {
   body.removeAttribute('data-attente-donnees');
   body.innerHTML = buildCorpsChanson(c);
   body.dataset.construit = '1';
+  body.dataset.modeBiblio = _modeCourant;
   if (MF_ADMIN_INTEGRE) mfAdminAjouterEdition(body, c);
 }
 // ── Mode admin intégré : boutons ✏️ qui envoient l'ordre à l'admin (page / onglet à ouvrir) ──
