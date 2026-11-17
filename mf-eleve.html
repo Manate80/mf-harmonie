@@ -1691,7 +1691,7 @@ function mfEnregistrerChansons(arr) {
   window._mfChansonsMem = arr;
   try { localStorage.setItem('mfhi5_chansons', JSON.stringify(arr)); return true; } catch(e) {}
   try {
-    const light = arr.map(function(c){ const o = Object.assign({}, c); delete o.svg; delete o.svgBasique; delete o.svgImmersion; delete o.generateur; return o; });
+    const light = arr.map(function(c){ const o = Object.assign({}, c); delete o.svg; delete o.svgBasique; delete o.svgImmersion; delete o.generateur; delete o.impressionBasique; return o; });
     localStorage.setItem('mfhi5_chansons', JSON.stringify(light));
     /* bannière 'mémoire pleine' retirée */
     return true;
@@ -4882,24 +4882,30 @@ function _cssImpressionFiche() {
     + '.seg .ch{color:#000!important;font-weight:900!important;}'
     + '</style>';
 }
+// L'impression n'est offerte que si l'admin l'a autorisée pour cet élève ET que la chanson lui est assignée.
+function _eleveAPeutImprimer(c) {
+  if (!eleveActif || eleveActif.impression !== true || !c) return false;
+  const ids = eleveActif.chansons || [];
+  return ids.includes(c.id) || ids.includes(String(c.id)) || ids.includes(Number(c.id));
+}
+// Imprime la page préparée par l'admin (même mise en page, même taille et alignement) — aucun bouton de téléchargement du site.
 function imprimerFicheBasique(chansonId) {
   const chansons = LS.getArr('chansons');
   const c = chansons.find(x => String(x.id) === String(chansonId));
-  if (!c || !c.svgBasique) { toast('⚠ Aucune fiche à imprimer'); return; }
-  let html = c.svgBasique.trim();
-  html = html.includes('</head>') ? html.replace('</head>', _cssImpressionFiche() + '</head>') : _cssImpressionFiche() + html;
+  if (!c || !_eleveAPeutImprimer(c)) { toast('⚠ Impression non autorisée pour cette chanson'); return; }
+  if (!c.impressionBasique) { toast('⚠ Fiche d\'impression pas encore disponible'); return; }
   const ancien = document.getElementById('_iframe-impression-mf');
   if (ancien) ancien.remove();
   const iframe = document.createElement('iframe');
   iframe.id = '_iframe-impression-mf';
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:800px;height:1000px;';
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:800px;height:1200px;';
   document.body.appendChild(iframe);
   iframe.onload = function() {
     setTimeout(function() {
       try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e) { toast('⚠ Impression impossible sur cet appareil'); }
-    }, 200);
+    }, 300);
   };
-  iframe.srcdoc = html;
+  iframe.srcdoc = c.impressionBasique;
 }
 
 // Sélecteur de vue de l'ukulélé virtuel pour l'élève — préférence PERSONNELLE (main gauche/droite),
@@ -5035,7 +5041,7 @@ function buildCorpsChanson(c) {
   let htmlBasique;
   if (c.svgBasique) {
     htmlBasique = '<button class="btn-fullscreen" onclick="ouvrirPleinEcran(\'' + c.id + '\',\'svgBasique\')">⛶ Plein écran</button>'
-      + ' <button class="btn-fullscreen" onclick="imprimerFicheBasique(\'' + c.id + '\')">🖨️ Imprimer</button>'
+      + (_eleveAPeutImprimer(c) && c.impressionBasique ? ' <button class="btn-fullscreen" onclick="imprimerFicheBasique(\'' + c.id + '\')">🖨️ Imprimer</button>' : '')
       + (function() {
           const o = _noteOrigineFiche('svgBasique', c.svgBasique);
           if (o === null) return '';

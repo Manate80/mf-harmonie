@@ -5949,6 +5949,7 @@ Date : ________________________</div>
     <div id="mel-chansons" class="mpanel">
       <div class="fg"><label>Assigner une chanson</label><select id="sel-chanson"></select></div>
       <button class="btn" onclick="assignChanson()">🎵 Assigner</button>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px;color:var(--orL);"><input type="checkbox" id="el-impression" onchange="toggleImpressionEl(this.checked)"> 🖨️ Autorisé à imprimer ses fiches (chansons assignées, une fois l'impression publiée)</label>
       <div style="margin-top:12px;" id="mel-ch-list"></div>
     </div>
     <div id="mel-notes" class="mpanel">
@@ -7151,7 +7152,8 @@ function delParcours(eid,pid){const eleves=S.get('eleves');const el=eleves.find(
 function renderParcours(el){document.getElementById('mel-parc-list').innerHTML=(el.parcours||[]).length?(el.parcours||[]).map(p=>'<div class="tl-item"><div class="tl-dot"></div><div style="flex:1;"><div style="font-size:13px;">'+p.t+'</div><div style="font-size:10px;color:var(--muted);">'+p.d+'</div></div><button class="danger" onclick="delParcours('+el.id+','+p.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune étape.</p>';}
 function assignChanson(){const cid=parseInt(document.getElementById('sel-chanson').value);if(!cid)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.chansons)el.chansons=[];if(el.chansons.includes(cid)){toast('⚠ Déjà assignée');return;}el.chansons.push(cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('✔ Chanson assignée — Firestore mis à jour !');}
 function retireChanson(cid){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);el.chansons=(el.chansons||[]).filter(c=>c!==cid);S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);renderChansonsEl(el);toast('Chanson retirée — Firestore mis à jour.');}
-function renderChansonsEl(el){const ch=S.get('chansons');document.getElementById('sel-chanson').innerHTML=ch.length?ch.map(c=>'<option value="'+c.id+'">'+c.titre+'</option>').join(''):'<option>Aucune chanson</option>';const ass=ch.filter(c=>(el.chansons||[]).includes(c.id));document.getElementById('mel-ch-list').innerHTML=ass.length?ass.map(c=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="flex:1;">🎵 '+c.titre+'</div><button class="danger" onclick="retireChanson('+c.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;margin-top:8px;">Aucune chanson.</p>';}
+function renderChansonsEl(el){const ch=S.get('chansons');document.getElementById('sel-chanson').innerHTML=ch.length?ch.map(c=>'<option value="'+c.id+'">'+c.titre+'</option>').join(''):'<option>Aucune chanson</option>';const ass=ch.filter(c=>(el.chansons||[]).includes(c.id));document.getElementById('mel-ch-list').innerHTML=ass.length?ass.map(c=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="flex:1;">🎵 '+c.titre+'</div><button class="danger" onclick="retireChanson('+c.id+')">✕</button></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;margin-top:8px;">Aucune chanson.</p>';var _ci=document.getElementById('el-impression');if(_ci)_ci.checked=(el.impression===true);}
+function toggleImpressionEl(v){const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el)return;el.impression=!!v;S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);toast(v?'✔ Impression autorisée pour cet élève':'✔ Impression retirée pour cet élève');}
 function saveNote(){const t=document.getElementById('e-notes').value.trim();if(!t)return;const eleves=S.get('eleves');const el=eleves.find(e=>e.id===elActif);if(!el.notes)el.notes=[];el.notes.unshift({t,d:new Date().toLocaleString('fr-FR')});S.set('eleves',eleves);if(window.saveEleveFirestore&&el.identifiant)window.saveEleveFirestore(el.identifiant,el);document.getElementById('e-notes').value='';renderNotes(el);toast('✔ Note sauvegardée — Firestore mis à jour !');}
 function renderNotes(el){document.getElementById('mel-notes-list').innerHTML=(el.notes&&el.notes.length)?el.notes.map(n=>'<div style="background:var(--card2);border-left:3px solid var(--or);padding:12px;margin-top:8px;"><div style="font-size:10px;color:var(--muted);">'+n.d+'</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;margin-top:4px;">'+n.t+'</div></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucune note.</p>';}
 function renderCoursEl(el){const cours=S.get('cours').filter(c=>c.eleveId===el.id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);document.getElementById('mel-cours').innerHTML=cours.length?cours.map(c=>'<div class="cours-item"><div class="cours-time">'+c.heure+'</div><div><div style="font-size:12px;color:var(--orL);">'+fd(c.date)+'</div>'+(c.note?'<div style="font-size:12px;color:var(--muted);">'+c.note+'</div>':'')+'</div></div>').join(''):'<p style="color:var(--muted);font-style:italic;font-size:12px;">Aucun cours.</p>';}
@@ -9120,6 +9122,23 @@ function mfForcerTailleFiche(iframe, k) {
   } catch (e) { /* iframe pas encore accessible : réessayé au chargement */ }
 }
 
+// Barre « Taille du texte » au-dessus des fiches intégrées dans la carte de la chanson (même réglage forcé que le plein écran).
+const _mfInlineK = {};
+function mfBarreTaille(frameId) {
+  const b = 'background:rgba(201,146,42,.2);border:1px solid var(--or);color:var(--orL);padding:2px 10px;font-size:14px;cursor:pointer;border-radius:4px;font-family:inherit;';
+  return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;"><span style="font-size:10px;color:var(--muted);">Taille du texte</span>'
+    + '<button type="button" onclick="mfInlineZoom(\'' + frameId + '\',-0.1)" style="' + b + '">−</button>'
+    + '<span id="' + frameId + '-k" style="font-size:10px;color:var(--muted);min-width:34px;text-align:center;">100%</span>'
+    + '<button type="button" onclick="mfInlineZoom(\'' + frameId + '\',0.1)" style="' + b + '">+</button></div>';
+}
+function mfInlineZoom(id, d) {
+  const k = Math.min(2.6, Math.max(0.6, Math.round(((_mfInlineK[id] || 1) + d) * 10) / 10));
+  _mfInlineK[id] = k;
+  const l = document.getElementById(id + '-k'); if (l) l.textContent = Math.round(k * 100) + '%';
+  mfForcerTailleFiche(document.getElementById(id), k);
+}
+function mfInlineAppliquer(ifr) { if (ifr && _mfInlineK[ifr.id]) mfForcerTailleFiche(ifr, _mfInlineK[ifr.id]); }
+
 // Plein écran des fiches — même affichage que chez l'élève : bandeau (titre, −, %, +, Fermer) qui se cache tout seul,
 // et réglage de la taille du texte des paroles forcé dans la fiche.
 let _mfpeTimer = null;
@@ -9196,7 +9215,7 @@ function _cssImpressionFicheAdmin() {
     + '.seg .ch{color:#000!important;font-weight:900!important;}'
     + '</style>';
 }
-function imprimerFicheBasiqueAdmin(chansonId, cid) {
+function imprimerFicheBasiqueAdmin(chansonId, cid, capture) {
   const c = (S.get('chansons')||[]).find(x => String(x.id) === String(chansonId));
   if (!c || !c.svgBasique) { toast('⚠ Aucune fiche à imprimer'); return; }
   cid = cid || ('ba' + chansonId + '-bqtr');
@@ -9207,7 +9226,22 @@ function imprimerFicheBasiqueAdmin(chansonId, cid) {
   if (isNaN(taille) || taille <= 0) taille = 100; if (isNaN(align)) align = 0;
   mfDemiRestaurer(cid);
   const cBq = Object.assign({}, c, { svg: _basiqueMasquerTitres(c.svgBasique.trim()) });
-  _imprimerStarterParolesAvecTrad(cBq, cid, null, 'auto', taille / 100, align, false, '', { langue: 'tah', cols3: false, place: 'cote', json: false, tradEn: null, nbParoles: 0, basique: true });
+  _imprimerStarterParolesAvecTrad(cBq, cid, null, 'auto', taille / 100, align, false, '', { langue: 'tah', cols3: false, place: 'cote', json: false, tradEn: null, nbParoles: 0, basique: true, capture: capture });
+}
+
+// Publie pour les élèves la page d'impression Basique telle que l'admin l'imprime (mêmes taille et alignement que ceux réglés ici).
+function publierImpressionEleve(chansonId, cid) {
+  imprimerFicheBasiqueAdmin(chansonId, cid, function(html) {
+    if (html.length > 700000) { toast('⚠ Impression trop lourde pour être publiée (' + Math.round(html.length / 1024) + ' Ko)'); return; }
+    const list = S.get('chansons') || [];
+    const i = list.findIndex(x => String(x.id) === String(chansonId));
+    if (i < 0) { toast('⚠ Chanson introuvable'); return; }
+    list[i].impressionBasique = html;
+    list[i].impressionBasiqueDate = Date.now();
+    try { S.set('chansons', list); } catch (e) {}
+    if (window.saveChansonFirestore) window.saveChansonFirestore(list[i]);
+    toast('✅ Impression publiée pour les élèves (' + Math.round(html.length / 1024) + ' Ko)');
+  });
 }
 
 // ══ IMPRESSION — Fiche Starter Paroles (tonalité choisie, rythme, pattern, accords, encadré traduction) ══
@@ -9949,6 +9983,14 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       z -= 0.03;
     }
     outer.style.height = Math.min(dispo, page.offsetHeight * z) + 'px';
+    if (typeof opts.capture === 'function') {
+      // Mode « publier pour les élèves » : on récupère la page finale prête à imprimer, sans lancer l'impression.
+      const cloneDoc = d.documentElement.cloneNode(true);
+      cloneDoc.querySelectorAll('script').forEach(x => x.remove());
+      iframe.remove();
+      opts.capture('<!DOCTYPE html>' + cloneDoc.outerHTML);
+      return;
+    }
     iframe.contentWindow.focus(); iframe.contentWindow.print();
   } catch(e) { toast('⚠ Impression impossible sur cet appareil'); } }, 500); };
   iframe.srcdoc = html;
@@ -9977,8 +10019,10 @@ function buildPanneauBiblioAdmin(c) {
             + [['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']].map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === t ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'
             + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--blanc);">Accords <input type="range" id="' + bqCid + '-pdfalign" min="-12" max="12" step="1" value="' + al + '" oninput="try{localStorage.setItem(\'mfPdfAlignBq_' + c.id + '\',this.value)}catch(e){}"></label>';
         })()
-      + '<button class="btn-fullscreen" onclick="imprimerFicheBasiqueAdmin(\'' + c.id + '\', \'' + bqCid + '\')">🖨️ Imprimer / PDF</button></div>'
-      + '<iframe id="' + bqCid + '-frame" srcdoc="' + injecterDictionnaireAccords(transposerHTMLAccords(sBas, cfTransposeDemi[bqCid] || 0)).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
+      + '<button class="btn-fullscreen" onclick="imprimerFicheBasiqueAdmin(\'' + c.id + '\', \'' + bqCid + '\')">🖨️ Imprimer / PDF</button>'
+      + ' <button class="btn-fullscreen" onclick="ouvrirPleinEcranFiche(\'' + c.id + '\',\'basique\')">⛶ Plein écran</button>'
+      + ' <button class="btn-fullscreen" onclick="publierImpressionEleve(\'' + c.id + '\', \'' + bqCid + '\')" title="Les élèves autorisés impriment exactement cette page (taille et alignement réglés ici)">📤 Publier l\'impression élève' + (c.impressionBasiqueDate ? ' ✔' : '') + '</button></div>'
+      + mfBarreTaille(bqCid + '-frame') + '<iframe onload="mfInlineAppliquer(this)" id="' + bqCid + '-frame" srcdoc="' + injecterDictionnaireAccords(transposerHTMLAccords(sBas, cfTransposeDemi[bqCid] || 0)).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
   } else {
     htmlBasiqueHtml += '<p style="color:var(--muted);font-style:italic;font-size:13px;">Aucune fiche Basique générée.</p>';
   }
@@ -10029,7 +10073,7 @@ function buildPanneauBiblioAdmin(c) {
       + '<button onclick="imprimerStarterParolesAdmin(\'' + c.id + '\', \'' + cfCid + '\')" style="padding:6px 10px;background:rgba(212,175,55,.15);border:1px solid rgba(212,175,55,.5);color:var(--orL);font-weight:700;border-radius:4px;cursor:pointer;">🖨️ Imprimer / PDF</button>'
       + '</div>';
     paroleStarterHtml += '<button onclick="ouvrirPleinEcranFiche(\'' + c.id + '\',\'starter\')" style="margin-bottom:6px;padding:5px 10px;background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.4);color:#3498db;font-size:10px;font-weight:700;border-radius:4px;cursor:pointer;font-family:inherit;">⛶ Plein écran</button>';
-    paroleStarterHtml += '<iframe id="' + cfCid + '-frame" srcdoc="' + injecterDictionnaireAccords(transposerHTMLAccords(s, cfTransposeDemi[cfCid] || 0)).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
+    paroleStarterHtml += mfBarreTaille(cfCid + '-frame') + '<iframe onload="mfInlineAppliquer(this)" id="' + cfCid + '-frame" srcdoc="' + injecterDictionnaireAccords(transposerHTMLAccords(s, cfTransposeDemi[cfCid] || 0)).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
     cfTransposeOriginaux[cfCid] = s;
   } else {
     paroleStarterHtml += '<p style="color:var(--muted);font-style:italic;font-size:13px;">Aucune fiche Starter Ukulele générée.</p>';
@@ -10149,7 +10193,7 @@ function buildPanneauBiblioAdmin(c) {
       cfTransposeOriginaux[imCid] = sImm;
       paroleImmersionHtml += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">' + _cfSelecteurTonalite(imCid, imOrig) + '</div>';
     }
-    paroleImmersionHtml += '<iframe id="' + imCid + '-frame" srcdoc="' + (imOrig !== null ? injecterDictionnaireAccords(transposerHTMLAccords(sImm, cfTransposeDemi[imCid] || 0)) : sImm).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
+    paroleImmersionHtml += mfBarreTaille(imCid + '-frame') + '<iframe onload="mfInlineAppliquer(this)" id="' + imCid + '-frame" srcdoc="' + (imOrig !== null ? injecterDictionnaireAccords(transposerHTMLAccords(sImm, cfTransposeDemi[imCid] || 0)) : sImm).replace(/"/g,'&quot;') + '" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid var(--border);background:#fff;border-radius:4px;"></iframe>';
   } else {
     paroleImmersionHtml += '<p style="color:var(--muted);font-style:italic;font-size:13px;">Aucune fiche Immersion Reo Māʼohi générée.</p>';
   }
