@@ -1686,9 +1686,13 @@ function mfRetirerInterro(v) {
   }
   return v;
 }
+// Mode « Bibliothèque intégrée à l'admin » (iframe, ?admin=1) : jamais d'écriture des chansons dans le stockage du téléphone,
+// pour ne pas écraser la copie complète de l'admin (qui est dans le même stockage).
+const MF_ADMIN_INTEGRE = (function(){ try { return new URLSearchParams(location.search).get('admin') === '1' && window.parent !== window; } catch(e) { return false; } })();
 function mfEnregistrerChansons(arr) {
   arr = mfRetirerInterro(arr);
   window._mfChansonsMem = arr;
+  if (MF_ADMIN_INTEGRE) return true;
   try { localStorage.setItem('mfhi5_chansons', JSON.stringify(arr)); return true; } catch(e) {}
   try {
     const light = arr.map(function(c){ const o = Object.assign({}, c); delete o.svg; delete o.svgBasique; delete o.svgImmersion; delete o.generateur; delete o.impressionBasique; return o; });
@@ -3921,7 +3925,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       nom: '👁 Mode Aperçu — ' + label,
       pseudo: 'Aperçu',
       formule: FORMULE_TEXTE[formuleKey] || label,
-      typeInscription: formuleKey === 'domicile' ? 'domicile' : 'en-ligne',
+      typeInscription: (formuleKey === 'domicile' || MF_ADMIN_INTEGRE) ? 'domicile' : 'en-ligne',
       actif: true,
       statut: 'Actif',
       progression: 0,
@@ -3935,9 +3939,15 @@ window.addEventListener('DOMContentLoaded', async () => {
       tentatives++;
     }
     if (window.syncChansonsFirestore) { await window.syncChansonsFirestore(); }
+    if (MF_ADMIN_INTEGRE) {
+      // Accès complet : toutes les chansons publiées « assignées », impression autorisée — pour tout tester depuis l'admin.
+      eleveActif.formule = 'Premium';
+      eleveActif.impression = true;
+      eleveActif.chansons = LS.getArr('chansons').filter(c => c.statut === 'valide').map(c => c.id);
+    }
     lancerApp();
     // Bandeau d'identification visuel — empêche toute confusion avec une vraie session
-    afficherBandeauApercu(label);
+    if (!MF_ADMIN_INTEGRE) afficherBandeauApercu(label);
     // Ouvrir directement une page précise si demandé (ex: Outils, Bibliothèque)
     const pageDemandee = urlParams.get('page');
     if (pageDemandee) {
@@ -5521,7 +5531,42 @@ function _construireCorpsSiBesoin(body) {
   body.removeAttribute('data-attente-donnees');
   body.innerHTML = buildCorpsChanson(c);
   body.dataset.construit = '1';
+  if (MF_ADMIN_INTEGRE) mfAdminAjouterEdition(body, c);
 }
+// ── Mode admin intégré : boutons ✏️ qui envoient l'ordre à l'admin (page / onglet à ouvrir) ──
+function mfAdminSousOnglet(body) {
+  // Onglet le plus profond actuellement affiché (Parole / Audio / Vidéo / Patterns / Diagrammes / Lexique…)
+  const actifs = body ? body.querySelectorAll('.chanson-otab.actif') : [];
+  for (let i = actifs.length - 1; i >= 0; i--) {
+    const t = (actifs[i].textContent || '').toLowerCase();
+    if (t.indexOf('vidéo') >= 0 || t.indexOf('video') >= 0) return 'video';
+    if (t.indexOf('audio') >= 0) return 'audio';
+    if (t.indexOf('pattern') >= 0) return 'patterns';
+    if (t.indexOf('diagramme') >= 0) return 'diagramme';
+    if (t.indexOf('lexique') >= 0) return 'lexique';
+  }
+  return 'parole';
+}
+function mfAdminEditer(cid, bodyId, quoi) {
+  const body = document.getElementById(bodyId);
+  const sous = quoi === 'onglet' ? mfAdminSousOnglet(body) : 'parole';
+  try { arreterToutesLesConsoles(); } catch (e) {}
+  try { window.parent.postMessage({ mfAdmin: 'editer', cid: cid, sous: sous }, '*'); } catch (e) {}
+}
+function mfAdminAjouterEdition(body, c) {
+  if (!body || body.querySelector('.mf-admin-edit')) return;
+  const barre = document.createElement('div');
+  barre.className = 'mf-admin-edit';
+  barre.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px 0;';
+  const id = JSON.stringify(c.id);
+  barre.innerHTML = '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","onglet")\' style="flex:1;min-width:140px;padding:9px;background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.5);color:#e8c06a;font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;">✏️ Modifier cet onglet</button>'
+    + '<button onclick=\'mfAdminEditer(' + id + ',"' + body.id + '","tout")\' style="flex:1;min-width:140px;padding:9px;background:transparent;border:1px solid rgba(201,146,42,.4);color:#b8ad98;font-size:12px;cursor:pointer;border-radius:4px;">⚙️ Ouvrir dans le Générateur</button>';
+  body.insertBefore(barre, body.firstChild);
+}
+// L'admin demande d'arrêter toute lecture quand on quitte la Bibliothèque (l'état reste intact, rien n'est rechargé).
+window.addEventListener('message', function (e) {
+  try { if (e.data && e.data.mfAdmin === 'stop') arreterToutesLesConsoles(); } catch (err) {}
+});
 // Quand les chansons complètes arrivent : on construit les chansons qui attendaient leurs textes.
 window.mfReconstruireAttente = function () {
   try {

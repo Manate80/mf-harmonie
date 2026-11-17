@@ -1501,10 +1501,13 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
        SECTION 4b : BIBLIOTHÈQUE (chansons finalisées, rangées par rythme)
   ═══════════════════════════════════════════ -->
   <div id="section-bibliotheque-pub" class="section">
-    <div style="padding:14px;">
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Chansons finalisées, rangées automatiquement par rythme dès que le champ Rythme (Générateur → Parole) est rempli. Clique sur une chanson pour ouvrir sa fiche complète.</p>
-      <div id="biblio-pub-dossiers"></div>
+    <!-- Bibliothèque = copie vivante de l'accueil élève (accès complet), gardée en vie : on la quitte pour modifier et on la retrouve exactement comme laissée -->
+    <div id="biblio-live-barre" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);">
+      <span style="flex:1;">👁 Vue élève · accès complet · tes ✏️ t'amènent à la bonne page de l'admin</span>
+      <button class="btn-sm" onclick="mfBiblioLiveRecharger()" title="Recharger la vue (perd la position)">↻</button>
     </div>
+    <iframe id="mf-biblio-live" title="Bibliothèque (vue élève)" style="display:block;width:100%;height:calc(100vh - 150px);min-height:420px;border:none;background:#0d0d0d;" allow="autoplay; fullscreen"></iframe>
+    <div style="display:none;"><div id="biblio-pub-dossiers"></div></div>
   </div>
 
   <!-- ═══════════════════════════════════════════
@@ -6182,6 +6185,7 @@ try{var _em=localStorage.getItem('mfAdminEmail');if(_em)document.getElementById(
 // ════ NAVIGATION ════
 function goSection(id,btn){
   if(typeof mfArreterLectures==='function') mfArreterLectures();
+  if(id!=='bibliotheque-pub'){ try{ const _f=document.getElementById('mf-biblio-live'); if(_f&&_f.contentWindow){ _f.contentWindow.postMessage({mfAdmin:'stop'},'*'); } }catch(e){} }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.main-btn').forEach(b=>b.classList.remove('on'));
   const s=document.getElementById('section-'+id);if(s)s.classList.add('on');
@@ -6189,7 +6193,7 @@ function goSection(id,btn){
   window.scrollTo(0,0);
   if(id==='planning'){renderCal();renderCoaching();}
   if(id==='studio'){renderChansons();initBoiteSelect();renderBiblioAdmin();initGenSelect();}
-  if(id==='bibliotheque-pub'){renderBibliothequePublique();}
+  if(id==='bibliotheque-pub'){mfBiblioLiveAfficher();}
   if(id==='basique-pub'){renderBasiquePublic();}
   if(id==='users'){renderEleves();renderProfs();renderAbonnes();renderAbonnesCards();}
   if(id==='pilotage'){renderDashboard();renderNotifs();}
@@ -6232,7 +6236,9 @@ window.addEventListener('popstate', function(e) {
   }
   _navApplying = true;
   try {
-    if (st.navType === 'stab') {
+    if (st.navType === 'biblioretour') {
+      mfBiblioRetourner();
+    } else if (st.navType === 'stab') {
       const btn = document.querySelector('.stab[onclick*="\'' + st.a + '\',\'' + st.b + '\'"]');
       if (btn) goStab(st.a, st.b, btn);
     } else if (st.navType === 'gentab') {
@@ -12376,6 +12382,53 @@ function enregistrerBpmChanson(chansonId) {
   toast('✅ BPM enregistré (' + bpm + ') — mis à jour dans la bande vidéo');
   if (typeof renderBiblioAdmin === 'function') renderBiblioAdmin();
 }
+
+
+// ════ BIBLIOTHÈQUE = ACCUEIL ÉLÈVE EN DIRECT (iframe gardée en vie) ════
+let _mfBiblioScroll = 0;
+function mfBiblioLiveFrame() { return document.getElementById('mf-biblio-live'); }
+function mfBiblioLiveCharger(force) {
+  const fr = mfBiblioLiveFrame(); if (!fr) return;
+  if (fr.dataset.charge === '1' && !force) return;
+  fr.dataset.charge = '1';
+  fr.src = 'mf-eleve.html?apercu=1&admin=1&formule=domicile&label=' + encodeURIComponent('Admin · accès complet') + '&page=bibliotheque&t=' + Date.now();
+}
+function mfBiblioLiveAfficher() {
+  mfBiblioLiveCharger(false);
+  mfBiblioRetirerRetour();
+  // On remet la vue exactement là où on l'avait laissée (la page n'a pas été rechargée)
+  setTimeout(function () { try { const w = mfBiblioLiveFrame().contentWindow; if (w && _mfBiblioScroll) w.scrollTo(0, _mfBiblioScroll); } catch (e) {} }, 60);
+}
+function mfBiblioLiveRecharger() {
+  if (!confirm('Recharger la vue élève ? Tu perdras la chanson/l\'onglet ouvert.')) return;
+  mfBiblioLiveCharger(true);
+}
+function mfBiblioRetirerRetour() { const b = document.getElementById('mf-biblio-retour'); if (b) b.remove(); }
+function mfBiblioAjouterRetour() {
+  mfBiblioRetirerRetour();
+  const b = document.createElement('button');
+  b.id = 'mf-biblio-retour';
+  b.textContent = '↩ Retour à la bibliothèque';
+  b.style.cssText = 'position:fixed;left:12px;bottom:14px;z-index:99998;padding:11px 16px;background:#2a1f08;border:2px solid var(--or);color:var(--orL);font-size:13px;font-weight:700;border-radius:24px;box-shadow:0 4px 14px rgba(0,0,0,.6);cursor:pointer;';
+  b.onclick = mfBiblioRetourner;
+  document.body.appendChild(b);
+}
+function mfBiblioRetourner() {
+  const btn = document.querySelector('.main-btn[onclick*="goSection(\'bibliotheque-pub\'"]');
+  _navApplying = true;
+  try { goSection('bibliotheque-pub', btn); } finally { _navApplying = false; }
+}
+window.addEventListener('message', function (e) {
+  const d = e.data;
+  if (!d || d.mfAdmin !== 'editer') return;
+  const fr = mfBiblioLiveFrame();
+  if (!fr || e.source !== fr.contentWindow) return;
+  try { _mfBiblioScroll = fr.contentWindow.scrollY || 0; } catch (err) { _mfBiblioScroll = 0; }
+  // Ancre d'historique : le geste « retour » du téléphone ramène à la bibliothèque
+  history.pushState({ navType: 'biblioretour' }, '', location.href);
+  chargerDansGenerateur(d.cid, d.sous);
+  mfBiblioAjouterRetour();
+});
 
 function chargerDansGenerateur(cid, sousOnglet) {
   const c = (S.get('chansons')||[]).find(x => String(x.id) === String(cid));
