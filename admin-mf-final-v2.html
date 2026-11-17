@@ -113,6 +113,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 /* SECTIONS */
 .section{display:none;}
 .section.on{display:block;}
+#section-bibliotheque-pub.on{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:#0d0d0d;display:flex;flex-direction:column;}
+#section-bibliotheque-pub #mf-biblio-live{flex:1;height:auto;min-height:0;}
 
 /* SOUS-ONGLETS */
 .stabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -366,7 +368,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     <button class="main-btn" onclick="goSection('planning',this)"><span class="btn-ico">📅</span><span class="btn-txt">📅 Planification</span></button>
     <button class="main-btn" onclick="goSection('studio',this)"><span class="btn-ico">🎵</span><span class="btn-txt">🎵 Studio Musique</span></button>
     <button class="main-btn" onclick="goSection('bibliotheque-pub',this)"><span class="btn-ico">📚</span><span class="btn-txt">📚 Bibliothèque</span></button>
-    <button class="main-btn" onclick="goSection('basique-pub',this)"><span class="btn-ico">📘</span><span class="btn-txt">📘 Basique</span></button>
+    <button class="main-btn" style="display:none;" onclick="goSection('basique-pub',this)"><span class="btn-ico">📘</span><span class="btn-txt">📘 Basique</span></button>
     <button class="main-btn" onclick="goSection('comms',this)"><span class="btn-ico">📢</span><span class="btn-txt">📢 Communication</span></button>
     <button class="main-btn" onclick="goSection('organisateur',this)"><span class="btn-ico">🗂️</span><span class="btn-txt">🗂️ Organisateur</span></button>
   </div>
@@ -1502,11 +1504,12 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
   ═══════════════════════════════════════════ -->
   <div id="section-bibliotheque-pub" class="section">
     <!-- Bibliothèque = copie vivante de l'accueil élève (accès complet), gardée en vie : on la quitte pour modifier et on la retrouve exactement comme laissée -->
-    <div id="biblio-live-barre" style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);">
-      <span style="flex:1;">👁 Vue élève · accès complet · tes ✏️ t'amènent à la bonne page de l'admin</span>
+    <div id="biblio-live-barre" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex:0 0 auto;">
+      <button class="btn-sm" onclick="mfBiblioQuitter()" style="border-color:var(--or);color:var(--orL);">← Admin</button>
+      <span style="flex:1;text-align:center;">👁 Vue élève · accès complet</span>
       <button class="btn-sm" onclick="mfBiblioLiveRecharger()" title="Recharger la vue (perd la position)">↻</button>
     </div>
-    <iframe id="mf-biblio-live" title="Bibliothèque (vue élève)" style="display:block;width:100%;height:calc(100vh - 150px);min-height:420px;border:none;background:#0d0d0d;" allow="autoplay; fullscreen"></iframe>
+    <iframe id="mf-biblio-live" title="Bibliothèque (vue élève)" style="display:block;width:100%;border:none;background:#0d0d0d;" allow="autoplay; fullscreen"></iframe>
     <div style="display:none;"><div id="biblio-pub-dossiers"></div></div>
   </div>
 
@@ -6184,6 +6187,7 @@ try{var _em=localStorage.getItem('mfAdminEmail');if(_em)document.getElementById(
 
 // ════ NAVIGATION ════
 function goSection(id,btn){
+  if(id!=='bibliotheque-pub'){ const _cur=document.querySelector('.section.on'); window._mfSectionAvant=(_cur&&_cur.id!=='section-bibliotheque-pub')?{id:_cur.id.replace('section-',''),i:Array.from(document.querySelectorAll('.main-btn')).findIndex(b=>b.classList.contains('on'))}:window._mfSectionAvant; }
   if(typeof mfArreterLectures==='function') mfArreterLectures();
   if(id!=='bibliotheque-pub'){ try{ const _f=document.getElementById('mf-biblio-live'); if(_f&&_f.contentWindow){ _f.contentWindow.postMessage({mfAdmin:'stop'},'*'); } }catch(e){} }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
@@ -12402,6 +12406,11 @@ function mfBiblioLiveAfficher() {
 function mfBiblioLiveRecharger() {
   if (!confirm('Recharger la vue élève ? Tu perdras la chanson/l\'onglet ouvert.')) return;
   mfBiblioLiveCharger(true);
+}
+function mfBiblioQuitter() {
+  const av = window._mfSectionAvant || { id: 'pilotage', i: -1 };
+  const btns = document.querySelectorAll('.main-btn');
+  goSection(av.id, btns[av.i] || document.querySelector('.main-btn'));
 }
 function mfBiblioRetirerRetour() { const b = document.getElementById('mf-biblio-retour'); if (b) b.remove(); }
 function mfBiblioAjouterRetour() {
