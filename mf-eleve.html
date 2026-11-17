@@ -5406,6 +5406,7 @@ function ouvrirPleinEcran(chansonId, champ) {
   window._fsZoom = 1;
   var lbl = document.getElementById('fs-zoom-label');
   if (lbl) lbl.textContent = '100%';
+  { const _ifz = document.getElementById('fs-iframe-fiche'); if (_ifz) _ifz.addEventListener('load', () => mfForcerTailleFiche(_ifz, window._fsZoom || 1)); }
   try { if (overlay.requestFullscreen) overlay.requestFullscreen(); else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen(); } catch(e) {}
   _activerRevelationBandeauFS();
 }
@@ -5447,21 +5448,43 @@ function _activerRevelationBandeauFS() {
   }
 }
 
+// ── Taille FORCÉE du texte des paroles dans une fiche (iframe) ──
+// Impose la taille des lignes de paroles (jamais la traduction) en injectant une feuille de style dans la fiche :
+// fonctionne même quand le réglage propre à la fiche ne change rien. Au-delà de +15 %, l'en-tête de la fiche se réduit.
+function mfForcerTailleFiche(iframe, k) {
+  try {
+    const doc = iframe && iframe.contentDocument;
+    if (!doc || !doc.documentElement) return;
+    let st = doc.getElementById('mf-force-taille');
+    if (!st) {
+      st = doc.createElement('style');
+      st.id = 'mf-force-taille';
+      st.textContent =
+        '#zone-paroles .ligne{font-size:calc(16px*var(--mf-k,1))!important;}' +
+        '#zone-paroles .lp{font-size:calc(19px*var(--mf-k,1))!important;}' +
+        '#zone-paroles .seg .ch{font-size:calc(11px*var(--mf-k,1))!important;height:calc(14px*var(--mf-k,1))!important;}' +
+        '.taille-ctrl{display:none!important;}' +
+        '.mf-gros .header{padding:2px 8px!important;}' +
+        '.mf-gros .header-titre{font-size:12px!important;letter-spacing:1px!important;}' +
+        '.mf-gros .header-sous,.mf-gros .header-info,.mf-gros .header-auteur,.mf-gros .hula-tag,.mf-gros .cle-tag{display:none!important;}';
+      (doc.head || doc.documentElement).appendChild(st);
+    }
+    doc.documentElement.style.setProperty('--mf-k', String(k));
+    doc.documentElement.classList.toggle('mf-gros', k > 1.15);
+  } catch (e) { /* iframe pas encore accessible : réessayé au chargement */ }
+}
 function zoomFS(delta) {
-  window._fsZoom = Math.min(1.4, Math.max(0.4, (window._fsZoom || 1) + delta));
+  window._fsZoom = Math.min(2.6, Math.max(0.6, Math.round(((window._fsZoom || 1) + delta) * 10) / 10));
   var lbl = document.getElementById('fs-zoom-label');
   if (lbl) lbl.textContent = Math.round(window._fsZoom * 100) + '%';
   var zone = document.getElementById('fs-zone-paroles');
   var content = document.getElementById('fs-content');
   if (zone) {
-    zone.style.transform = 'scale(' + window._fsZoom + ')';
-    zone.style.transformOrigin = 'top left';
-    zone.style.width = (100 / window._fsZoom) + '%';
-    // La largeur était déjà compensée, mais pas la hauteur : sans ça, réduire le zoom
-    // rétrécissait aussi la zone visible verticalement et coupait le bas du texte au lieu
-    // de simplement rendre le texte plus petit dans un cadre qui reste plein écran.
+    // Plus de zoom par transformation (bloqué/sans effet dans l'app) : la taille du texte des paroles est imposée dans la fiche.
+    zone.style.transform = '';
+    zone.style.width = '100%';
     var iframe = zone.querySelector('iframe');
-    if (iframe) iframe.style.height = (97 / window._fsZoom) + 'vh';
+    if (iframe) { iframe.style.height = '97vh'; mfForcerTailleFiche(iframe, window._fsZoom); }
   } else if (content) {
     content.style.fontSize = (window._fsZoom * 100) + '%';
   }
