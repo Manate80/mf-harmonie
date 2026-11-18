@@ -437,8 +437,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div class="card-title">🌍 Abonnés en ligne — par formule</div>
         <div class="abo-grid" id="pil-abo-grid">
           <div class="abo-card"><div class="abo-name">🎵 Basique</div><div class="abo-prix" id="pil-prix-basique">1 500 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-basique">0</strong></div><div class="abo-rev" id="pil-rev-basique">0 XPF</div></div>
-          <div class="abo-card bleu"><div class="abo-name">🎸 Starter</div><div class="abo-prix" id="pil-prix-starter">2 800 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-starter">0</strong></div><div class="abo-rev" id="pil-rev-starter">0 XPF</div></div>
-          <div class="abo-card vert"><div class="abo-name">🌺 Immersion Reo</div><div class="abo-prix" id="pil-prix-chanson">4 000 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-chanson">0</strong></div><div class="abo-rev" id="pil-rev-chanson">0 XPF</div></div>
+          <div class="abo-card vert"><div class="abo-name">🌺 Immersion Chant</div><div class="abo-prix" id="pil-prix-chanson">4 000 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-chanson">0</strong></div><div class="abo-rev" id="pil-rev-chanson">0 XPF</div></div>
+          <div class="abo-card bleu"><div class="abo-name">🎸 Starter Ukulélé</div><div class="abo-prix" id="pil-prix-starter">2 800 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-starter">0</strong></div><div class="abo-rev" id="pil-rev-starter">0 XPF</div></div>
           <div class="abo-card"><div class="abo-name">⭐ Premium</div><div class="abo-prix" id="pil-prix-premium">5 800 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-premium">0</strong></div><div class="abo-rev" id="pil-rev-premium">0 XPF</div></div>
           <div class="abo-card violet"><div class="abo-name">🌍 Coaching Vidéo</div><div class="abo-prix" id="pil-prix-coaching">12 000 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-coaching">0</strong></div><div class="abo-rev" id="pil-rev-coaching">0 XPF</div></div>
           <div class="abo-card rouge"><div class="abo-name">🏠 Cours Privés Tahiti</div><div class="abo-prix" id="pil-prix-profabo">14 000 XPF</div><div class="abo-nb">Abonnés : <strong id="pil-cnt-profabo">0</strong></div><div class="abo-rev" id="pil-rev-profabo">0 XPF</div></div>
@@ -486,6 +486,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <div id="el-actifs" class="spage on" style="padding:0;">
         <button class="btn-sm" onclick="mfProgImpOuvrir()" style="margin-bottom:8px;font-size:11px;">📥 Importer les progressions (notes de cours)</button>
         <button class="btn-sm" onclick="verifierTousComptes()" style="margin-bottom:8px;font-size:11px;border-color:rgba(46,204,113,.5);color:#2ecc71;">🩺 Vérifier tous les comptes</button>
+        <button class="btn-sm" onclick="passerTousElevesCoaching()" style="margin-bottom:8px;font-size:11px;border-color:rgba(155,89,182,.6);color:#b07cc6;">🌍 Passer tous les élèves en Coaching</button>
         <input type="text" id="el-search" placeholder="🔍 Rechercher un élève (nom, identifiant, commune…)" oninput="renderEleves()" style="width:100%;padding:10px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:13px;outline:none;border-radius:4px;margin-bottom:10px;">
         <div id="list-actifs"></div>
       </div>
@@ -609,8 +610,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
             <select id="a-formule" required>
               <option value="">— Choisir —</option>
               <option value="basique">Basique — 1 500 XPF</option>
-              <option value="starter">Starter — 4 000 XPF</option>
-              <option value="chanson">Immersion Reo — 6 000 XPF</option>
+              <option value="chanson">Immersion Chant — 6 000 XPF</option>
+              <option value="starter">Starter Ukulélé — 4 000 XPF</option>
               <option value="premium">Premium — 8 000 XPF</option>
               <option value="coaching">Coaching Vidéo — 12 000 XPF (masqué)</option>
               <option value="profabo">Cours Privés Tahiti — 16 000 XPF</option>
@@ -644,8 +645,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <select id="abo-filtre-formule" onchange="renderAbonnes()" style="width:100%;padding:9px 12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-family:inherit;font-size:12px;outline:none;border-radius:4px;margin-bottom:10px;">
           <option value="">Toutes les formules</option>
           <option value="basique">Basique</option>
-          <option value="starter">Starter</option>
-          <option value="chanson">Immersion Reo Māʼohi</option>
+          <option value="chanson">Immersion Chant</option>
+          <option value="starter">Starter Ukulélé</option>
           <option value="premium">Premium</option>
           <option value="coaching">Coaching Vidéo</option>
           <option value="profabo">Cours Privés Tahiti</option>
@@ -1219,8 +1220,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">📤 Visible pour les formules</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="lex-form-checks">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="basique"> 🎵 Basique</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="immersion" checked> 🌺 Immersion</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="premium" checked> ⭐ Premium</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="coaching" checked> 🌍 Coaching</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-chk" value="domicile" checked> 🏠 Élève domicile</label>
@@ -1284,8 +1285,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📤 Bibliothèque Diagrammes visible pour :</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;" id="diag-form-global">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="basique"> 🎵 Basique</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="immersion"> 🌺 Immersion</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="premium"> ⭐ Premium</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="diag-form-chk" value="coaching"> 🌍 Coaching</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.5);padding:6px 8px;border-radius:4px;"><input type="checkbox" onchange="document.querySelectorAll('#diag-form-global .diag-form-chk').forEach(function(el){el.checked=this.checked;}.bind(this))"> ✅ Toutes</label>
@@ -1319,8 +1320,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📤 Bibliothèque Patterns visible pour :</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;" id="pat-form-global">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="basique"> 🎵 Basique</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="starter"> 🎸 Starter</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="immersion"> 🌺 Immersion</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="starter"> 🎸 Starter</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="premium"> ⭐ Premium</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="pat-form-chk" value="coaching"> 🌍 Coaching</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.5);padding:6px 8px;border-radius:4px;"><input type="checkbox" onchange="document.querySelectorAll('#pat-form-global .pat-form-chk').forEach(function(el){el.checked=this.checked;}.bind(this))"> ✅ Toutes</label>
@@ -1453,8 +1454,8 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📤 Bibliothèque Lexique Reo visible pour :</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;" id="lex-form-global">
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="basique"> 🎵 Basique</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="immersion"> 🌺 Immersion</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="starter"> 🎸 Starter</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="premium"> ⭐ Premium</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:var(--card);border:1px solid rgba(212,175,55,.3);padding:6px 8px;border-radius:4px;"><input type="checkbox" class="lex-form-global-chk" value="coaching"> 🌍 Coaching</label>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.5);padding:6px 8px;border-radius:4px;"><input type="checkbox" onchange="document.querySelectorAll('#lex-form-global .lex-form-global-chk').forEach(function(el){el.checked=this.checked;}.bind(this))"> ✅ Toutes</label>
@@ -5700,10 +5701,10 @@ if(document.readyState === 'loading'){
         <div class="card-title">💰 Formules en ligne — Tarifs</div>
         <div class="row2">
           <div class="fg"><label>Basique (XPF)</label><input type="number" id="t-basique" value="1500"></div>
-          <div class="fg"><label>Starter (XPF)</label><input type="number" id="t-starter" value="4000"></div>
+          <div class="fg"><label>Immersion Chant (XPF)</label><input type="number" id="t-chanson" value="4000"></div>
         </div>
         <div class="row2">
-          <div class="fg"><label>Immersion Reo Māʼohi (XPF)</label><input type="number" id="t-chanson" value="4000"></div>
+          <div class="fg"><label>Starter Ukulélé (XPF)</label><input type="number" id="t-starter" value="4000"></div>
           <div class="fg"><label>Premium (XPF)</label><input type="number" id="t-premium" value="8000"></div>
         </div>
         <div class="row2">
@@ -6063,8 +6064,8 @@ Date : ________________________</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;">Choisissez la formule à simuler. Ouvre un nouvel onglet avec le rendu exact, sans créer de compte.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <button onclick="lancerApercuFormule('basique')" style="padding:12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🎵 Basique</button>
-      <button onclick="lancerApercuFormule('starter')" style="padding:12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🎸 Starter</button>
       <button onclick="lancerApercuFormule('immersion')" style="padding:12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🌺 Immersion</button>
+      <button onclick="lancerApercuFormule('starter')" style="padding:12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🎸 Starter</button>
       <button onclick="lancerApercuFormule('premium')" style="padding:12px;background:rgba(212,175,55,.1);border:1px solid var(--or);color:var(--orL);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">⭐ Premium</button>
       <button onclick="lancerApercuFormule('coaching')" style="padding:12px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🎬 Coaching</button>
       <button onclick="lancerApercuFormule('domicile')" style="padding:12px;background:rgba(39,174,96,.1);border:1px solid #2ecc71;color:#2ecc71;font-size:12px;font-weight:700;cursor:pointer;border-radius:4px;font-family:inherit;">🏠 Domicile</button>
@@ -6639,7 +6640,7 @@ async function creerFoyerAmis(){
       paiement:calc.prixParPersonne,tarifPromo:calc.prixParPersonne,
       actif:true,statut:'Actif',niveau:'Débutant',
       dateDebut:new Date().toLocaleDateString('fr-FR'),
-      progression:0,parcours:[],chansons:[],notes:[],
+      formule:'coaching',progression:0,parcours:[],chansons:[],notes:[],
       maxSessions:1
     };
     eleves.push(fiche);
@@ -6687,7 +6688,7 @@ async function creerFoyerFamille(){
     paiement:calc.total,tarifPromo:calc.total,
     actif:true,statut:'Actif',niveau:'Débutant',
     dateDebut:new Date().toLocaleDateString('fr-FR'),
-    progression:0,parcours:[],chansons:[],notes:[],
+    formule:'coaching',progression:0,parcours:[],chansons:[],notes:[],
     maxSessions:2
   };
   eleves.push(fiche);
@@ -6767,7 +6768,7 @@ async function addEleve(){
     paiement:tarifReel,
     tarifPromo:tarifReel,  // verrouillé — jamais écrasé par recalcul
     niveau,dateDebut:date,jourCours:jour,heureCours:heure,
-    progression:0,parcours:[],chansons:[],notes:[]
+    formule:'coaching',progression:0,parcours:[],chansons:[],notes:[]
   };
   eleves.push(nouvelEleve);
   S.set('eleves',eleves);
@@ -6842,7 +6843,7 @@ async function importerElevesNovembre(){
       frequence:d.frequence||'hebdomadaire',
       profId:profManateId,prof:'Manate',
       numEleve:d.numEleve||d.numContrat+'-00',
-      progression:0,parcours:[],chansons:[],notes:[]
+      formule:'coaching',progression:0,parcours:[],chansons:[],notes:[]
     };
     eleves.push(fiche);
     if(window.saveEleveFirestore)await window.saveEleveFirestore(id,fiche);
@@ -7012,6 +7013,21 @@ function mfProgImpConfirmer(){
   });
   mfProgImpFermer();
   toast('✔ '+n+' progression(s) importée(s)');
+}
+// Tous les élèves (cours à domicile) sont en Coaching : Premium + envoi de vidéos/audios au professeur. Noté sur chaque compte.
+async function passerTousElevesCoaching(){
+  const eleves=S.get('eleves');
+  const aChanger=eleves.filter(e=>e.actif!==false&&e.formule!=='coaching');
+  if(!aChanger.length){toast('✔ Tous les élèves sont déjà en Coaching');return;}
+  if(!confirm('Passer '+aChanger.length+' élève(s) en formule Coaching (Premium + envoi de vidéos/audios) ?'))return;
+  aChanger.forEach(e=>{e.formule='coaching';});
+  S.set('eleves',eleves);
+  let ok=0,ko=0;
+  for(const e of aChanger){
+    if(window.saveEleveFirestore&&e.identifiant){ try{ await window.saveEleveFirestore(e.identifiant,e); ok++; }catch(err){ ko++; } }
+  }
+  renderEleves();
+  toast('✔ '+aChanger.length+' élève(s) en Coaching'+(ko?' — '+ko+' non synchronisé(s) avec Firestore':' — synchronisés'));
 }
 function saveEleve(){
   const eleves=S.get('eleves');
@@ -7251,7 +7267,7 @@ function annulerEssai(abonneId){
   if(!confirm('Annuler cet abonnement d\'essai ?'))return;
   delAbonne(abonneId);
 }
-function renderAbonnes(){const list0=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};
+function renderAbonnes(){const list0=S.get('abonnes');const el=document.getElementById('list-abonnes');if(!el)return;const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Chant',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};
   const q=(document.getElementById('abo-search')?.value||'').trim().toLowerCase();
   const formuleFiltre=document.getElementById('abo-filtre-formule')?.value||'';
   let list=list0;
@@ -7270,7 +7286,7 @@ function ouvrirAbonne(id){
   const a=list.find(x=>x.id===id);
   if(!a)return;
   aboActif=id;
-  const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Reo Māʼohi',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};
+  const lbl={basique:'Basique',starter:'Starter',chanson:'Immersion Chant',premium:'Premium',coaching:'Coaching Vidéo',profabo:'Cours Privés Tahiti'};
   document.getElementById('mabo-title').textContent=a.nom;
   document.getElementById('abo-nom').value=a.nom||'';
   document.getElementById('abo-email').value=a.email||'';
@@ -7796,7 +7812,7 @@ function lancerApercuFormule(formuleKey){
   if (!_chansonApercuId) return;
   // Construire un faux compte simulé — jamais écrit dans Firestore, transmis uniquement par URL
   const FORMULES_LABEL = {
-    basique: 'Basique', starter: 'Starter Ukulélé', immersion: 'Immersion Reo Māʼohi',
+    basique: 'Basique', immersion: 'Immersion Chant', starter: 'Starter Ukulélé',
     premium: 'Premium', coaching: 'Coaching Vidéo', domicile: 'Cours à domicile'
   };
   const params = new URLSearchParams({
@@ -7827,7 +7843,7 @@ function ouvrirApercuUtilisateur(type){
     if (!a) return;
     // Mapping formule brute abonné → clé utilisée côté élève (mf-eleve.html)
     const MAP_KEY = { basique:'basique', starter:'starter', chanson:'immersion', premium:'premium', coaching:'coaching', profabo:'domicile' };
-    const MAP_LBL = { basique:'Basique', starter:'Starter Ukulélé', chanson:'Immersion Reo Māʼohi', premium:'Premium', coaching:'Coaching Vidéo', profabo:'Cours Privés' };
+    const MAP_LBL = { basique:'Basique', chanson:'Immersion Chant', starter:'Starter Ukulélé', premium:'Premium', coaching:'Coaching Vidéo', profabo:'Cours Privés' };
     formuleKey = MAP_KEY[a.formule] || 'basique';
     label = (MAP_LBL[a.formule] || a.formule || 'Abonné') + ' — ' + (a.nom || '');
     _apercuUserChansons = a.chansons || [];
@@ -7986,7 +8002,7 @@ function saveRIB(){
   if(window.saveConfigFirestore)window.saveConfigFirestore('rib',{iban:iban,bic:bic});
   toast('✔ RIB enregistré — Firestore mis à jour, affiché sur les fiches domicile/promo !');
 }
-function cocherToutesFormules(val){['basique','starter','immersion','premium','coaching'].forEach(function(f){var el=document.getElementById('ch-form-'+f);if(el)el.checked=val;});}
+function cocherToutesFormules(val){['basique','immersion','starter','premium','coaching'].forEach(function(f){var el=document.getElementById('ch-form-'+f);if(el)el.checked=val;});}
 // ══ IMAGE PROMO — Contrôle actif/masqué ══
 async function desactiverImagePromo(){
   try{
@@ -12702,7 +12718,7 @@ function enregistrerChanson(){
       rythme: typeRythme,
       pattern: pattern,
       bpm: 80,
-      formules: allPat ? ['basique','starter','immersion','premium','coaching'] : fmtPat,
+      formules: allPat ? ['basique','immersion','starter','premium','coaching'] : fmtPat,
       chansonId: chanson.id,
       date: new Date().toLocaleDateString('fr-FR')
     };
@@ -13400,8 +13416,8 @@ function enregistrerFormulesPattern(rythmeOuChansonId, uid) {
 
 // ── Dispatch par formule — génère le bloc HTML (Texte/Audio/Vidéo), utilisé dans Chanson à finaliser uniquement ──
 function dispatchFormuleHtml(groupId, current, saveFnCall) {
-  const arr = Array.isArray(current) ? current : (current === 'toutes' ? ['basique','starter','immersion','premium','coaching'] : (current||'').split(',').filter(Boolean));
-  const opts = [['basique','🎵 Basique'],['starter','🎸 Starter'],['immersion','🌺 Immersion'],['premium','⭐ Premium'],['coaching','🌍 Coaching']];
+  const arr = Array.isArray(current) ? current : (current === 'toutes' ? ['basique','immersion','starter','premium','coaching'] : (current||'').split(',').filter(Boolean));
+  const opts = [['basique','🎵 Basique'],['immersion','🌺 Immersion Chant'],['starter','🎸 Starter Ukulélé'],['premium','⭐ Premium'],['coaching','🌍 Coaching']];
   let html = '<div style="margin-top:14px;background:rgba(201,146,42,.05);border:1px solid rgba(201,146,42,.2);border-radius:4px;padding:12px;">';
   html += '<div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;">📤 Visible pour les formules</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="' + groupId + '">';
@@ -13700,7 +13716,8 @@ function chargerFicheDepuisFirestore(target){
   toast('☁️ Fiche ' + target + ' rechargée — modifiable puis à ré-enregistrer');
 }
 
-function enregistrerParole(){
+function enregistrerParole(opts){
+  const _auto = !!(opts && opts.auto); window._mfPrParole = null;
   const statut = document.getElementById('parole-statut');
   try {
     const titre = (document.getElementById('gen-titre').value || '').trim();
@@ -13733,8 +13750,9 @@ function enregistrerParole(){
     S.set('chansons', list);
     if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Enregistré localement pour « ' + titre + ' »… envoi vers Firestore</span>';
     if (window.saveChansonFirestore) {
-      window.saveChansonFirestore(list[i]).then(() => {
+      window._mfPrParole = window.saveChansonFirestore(list[i]).then(() => {
         if (typeof initGenSelect === 'function') initGenSelect();
+        if (_auto) { if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Paroles (Basique + Starter + Immersion) enregistrées et synchronisées.</span>'; return true; }
         // Téléchargement automatique des fiches HTML sur l'appareil (uniquement si Firestore a bien confirmé)
         // Avec un JSON : seulement le JSON (les fiches se régénèrent depuis lui) ; sans JSON : les fiches HTML
         if (srcJson) telechargerJSONChant(srcJson, titre);
@@ -13742,8 +13760,10 @@ function enregistrerParole(){
         // Vidage automatique du Générateur (uniquement si Firestore a bien confirmé)
         reinitialiserGenerateurParoles();
         if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ « ' + titre + ' » enregistrée et synchronisée (Basique + Starter + Immersion) — formulaire vidé, prêt pour une nouvelle chanson.</span>';
+        return true;
       }).catch(err => {
         if (statut) statut.innerHTML = '<span style="color:#e74c3c;">⚠ Enregistré localement, mais Firestore a refusé : ' + err.message + '</span>';
+        return false;
       });
     } else {
       if (statut) statut.innerHTML += '<br><span style="color:#e67e22;">⚠ saveChansonFirestore indisponible — enregistré localement seulement</span>';
@@ -13751,7 +13771,7 @@ function enregistrerParole(){
     toast('✅ Paroles enregistrées pour ' + titre);
   } catch(err) {
     if (statut) statut.innerHTML = '<span style="color:#e74c3c;">❌ Erreur : ' + err.message + '</span>';
-    alert('❌ Erreur enregistrement paroles : ' + err.message);
+    if (!_auto) alert('❌ Erreur enregistrement paroles : ' + err.message);
     console.error('enregistrerParole:', err);
   }
 }
@@ -14229,11 +14249,28 @@ function _genRemplirAudioAdmin(src) {
   return { orig: orig ? 1 : 0, stems: stems.length };
 }
 // Cœur du chargement d'un chant complet (utilisé par le lien JSON ET par le bouton « Envoyer à l'admin » du Générateur)
-async function _chargerChantDepuisData(d, url, recharger) {
+// Avant un enregistrement automatique : remet dans les champs de l'admin ce que la chanson existante a déjà
+// (liens vidéo, noms, vidéos en plus, prompts, pistes audio), pour que « Enregistrer les vidéos / l'audio » n'efface rien.
+function _mfPreRemplirDepuisExistante(c) {
+  const v = (id, val) => { const el = document.getElementById(id); if (el) el.value = val == null ? '' : val; };
+  v('video-url', c.video || ''); v('video-url2', c.video2 || '');
+  v('video-nom', c.video_nom || ''); v('video-nom2', c.video2_nom || '');
+  const vxl = document.getElementById('videos-extra-liste');
+  if (vxl) { vxl.innerHTML = ''; (c.videosExtra || []).forEach(x => videoAjouterExtra(x.nom, x.url)); }
+  v('video-data-editor', c.videoData || ''); v('video-data-immersion-editor', c.videoDataImmersion || '');
+  v('gen-bpm-chanson', c.bpm || ''); v('audio-bpm', c.bpm || ''); v('audio-complet', c.audio_complet || '');
+  const lA = document.getElementById('audio-pistes-liste');
+  if (lA) { lA.innerHTML = ''; (c.audioPistes || []).forEach(p => audioAjouterPiste(p.nom, p.url, p.exclure || p.percu)); }
+  const lV = document.getElementById('audio-pistes-video-liste');
+  if (lV) { lV.innerHTML = ''; (c.audioPistesVideo || []).forEach(p => audioAjouterPiste(p.nom, p.url, p.exclure || p.percu, 'audio-pistes-video-liste')); }
+  const st = document.getElementById('gen-statut'); if (st) st.value = c.statut || 'valide';
+}
+async function _chargerChantDepuisData(d, url, recharger, auto) {
   const st = document.getElementById('parole-statut');
   const msg = x => { if (st) st.innerHTML = x; };
   try {
     if (!d || !d.champs) throw new Error('ce JSON n\'est pas un fichier du Générateur de chants (…-chanson-complete.json)');
+    if (auto) { const _ex = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === String(d.champs['m-titre'] || '').trim().toLowerCase()); if (_ex) _mfPreRemplirDepuisExistante(_ex); }
     const rythmeOk = _genRemplirChampsAdmin(d.champs);
     const src = _genSourceDepuisData(d, url || '');
     msg('<span style="color:var(--orL);">⏳ Génération des fiches Basique, Starter, Immersion…</span>');
@@ -14265,12 +14302,38 @@ async function _chargerChantDepuisData(d, url, recharger) {
       + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio) et « 💾 Enregistrer les vidéos » (onglet Vidéo).</span>'
       + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));
     toast('📥 Chant chargé');
+    if (auto) await _mfEnregistrerToutAuto(f, titre, msg);
   } catch (e) {
     msg('<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + (/Failed to fetch|NetworkError/i.test(String(e && e.message)) ? ' (le lien est-il bien public ? réglage CORS de Storage ?)' : '') + '</span>');
     toast('❌ ' + (e && e.message ? e.message : e));
   }
 }
 // Bouton « Charger le chant » / « Recharger » : un seul lien JSON remplit tout le formulaire Paroles
+// Envoi depuis le Générateur : enregistre les paroles (3 fiches), puis l'audio, puis les vidéos — un par un, jusqu'à Firestore.
+async function _mfEnregistrerToutAuto(f, titre, msg) {
+  msg('<span style="color:var(--orL);">⏳ Enregistrement automatique (paroles → audio → vidéos)…</span>');
+  // Les fiches sont lues en arrière-plan par les importateurs : on attend qu'elles soient en place (sinon on les pose directement)
+  for (let n = 0; n < 30; n++) {
+    const ed = document.getElementById('html-editor'), ei = document.getElementById('html-editor-immersion');
+    if (basqHtmlContenu === f.basique && ed && ed.value === f.starter && ei && ei.value === f.immersion) break;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  basqHtmlContenu = f.basique;
+  const ed = document.getElementById('html-editor'); if (ed) ed.value = f.starter;
+  const ei = document.getElementById('html-editor-immersion'); if (ei) ei.value = f.immersion;
+  const etapes = [['paroles', () => { enregistrerParole({ auto: true }); return window._mfPrParole; }],
+                  ['audio', () => { saveAudioPistes(); return window._mfPrAudio; }],
+                  ['vidéos', () => { saveVideoUrl(); return window._mfPrVideo; }]];
+  for (const [nom, lancer] of etapes) {
+    let ok = false;
+    try { ok = (await lancer()) === true; } catch (e) { ok = false; }
+    if (!ok) { msg('<span style="color:#e74c3c;">⚠ Enregistrement arrêté à l\'étape « ' + nom + ' » — rien n\'est perdu : corrige puis clique sur le bouton « Enregistrer » de cet onglet.</span>'); toast('⚠ Enregistrement automatique arrêté (' + nom + ')'); return false; }
+  }
+  try { reinitialiserGenerateurParoles(); } catch (e) {}
+  msg('<span style="color:#2ecc71;">✅ « ' + String(titre).replace(/</g, '&lt;') + ' » : paroles, audio et vidéos enregistrés et synchronisés. Les élèves ont la mise à jour.</span>');
+  toast('✅ Tout enregistré pour ' + titre);
+  return true;
+}
 async function chargerChantDepuisLienJson(recharger) {
   const st = document.getElementById('parole-statut');
   const inp = document.getElementById('url-json-chant');
@@ -14312,7 +14375,7 @@ async function recevoirEnvoiGenerateur() {
     if (!env || !env.data || !env.data.champs || (Date.now() - (env.t || 0)) > 30 * 60 * 1000) return;
     _ouvrirStudioGenerateur();
     toast('📤 Chant reçu du Générateur…');
-    await _chargerChantDepuisData(env.data, '', false);
+    await _chargerChantDepuisData(env.data, '', false, true);
   } catch (e) { toast('❌ Envoi du Générateur : ' + (e && e.message ? e.message : e)); }
   finally { window._envoiGenEnCours = false; }
 }
@@ -15421,6 +15484,7 @@ function videoAjouterExtra(nom, url) {
 }
 
 function saveAudioPistes() {
+  window._mfPrAudio = null;
   const statut = document.getElementById('audio-statut');
   try {
     const titre=(document.getElementById('gen-titre')?document.getElementById('gen-titre').value.trim():'');
@@ -15456,10 +15520,12 @@ function saveAudioPistes() {
     if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Audio enregistré localement… envoi vers Firestore</span>';
     log('Pistes audio ajoutées : ' + list[i].titre);
     if (window.saveChansonFirestore) {
-      window.saveChansonFirestore(list[i]).then(() => {
+      window._mfPrAudio = window.saveChansonFirestore(list[i]).then(() => {
         if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Audio enregistré et synchronisé pour « ' + list[i].titre + ' » !</span>';
+        return true;
       }).catch(err => {
         if (statut) statut.innerHTML = '<span style="color:#e74c3c;">⚠ Enregistré localement, mais Firestore a refusé : ' + err.message + '</span>';
+        return false;
       });
     }
     toast('✅ Audio enregistré pour ' + list[i].titre);
@@ -15470,6 +15536,7 @@ function saveAudioPistes() {
 }
 
 function saveVideoUrl() {
+  window._mfPrVideo = null;
   const statut = document.getElementById('video-statut');
   const titre=(document.getElementById('gen-titre')?document.getElementById('gen-titre').value.trim():'');
   const list_v=S.get('chansons');
@@ -15540,11 +15607,13 @@ function saveVideoUrl() {
   log('Vidéos ajoutées : ' + list[i].titre);
   if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Enregistré localement… envoi vers Firestore</span>';
   if (window.saveChansonFirestore) {
-    window.saveChansonFirestore(list[i]).then(() => {
+    window._mfPrVideo = window.saveChansonFirestore(list[i]).then(() => {
       if (statut) statut.innerHTML = '<span style="color:#2ecc71;">✅ Vidéos enregistrées et synchronisées pour « ' + list[i].titre + ' » !</span>';
       if (statut && avertImmersion) statut.innerHTML += '<br><span style="color:#e67e22;">' + avertImmersion + '</span>';
+      return true;
     }).catch(err => {
       if (statut) statut.innerHTML = '<span style="color:#e74c3c;">⚠ Enregistré localement, mais Firestore a refusé : ' + err.message + '</span>';
+      return false;
     });
   } else {
     if (statut) statut.innerHTML += '<br><span style="color:#e67e22;">⚠ saveChansonFirestore indisponible — enregistré localement seulement</span>';

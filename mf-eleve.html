@@ -798,13 +798,13 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <h4>Se déplacer</h4>
           <p>La barre du bas : <b>◀ Retour</b> et <b>Avant ▶</b> comme dans un navigateur, <b>🏠 Accueil</b> pour revenir au départ, <b>👤 Profil</b>, <b>⚙️ Réglages</b> et <b>❓ Aide</b> (cette page). Depuis l'Accueil, touchez une case pour l'ouvrir.</p>
           <h4>Les chansons</h4>
-          <p>Depuis l'Accueil, choisissez Basique, Starter Ukulélé ou Immersion Chant (🔒 = non inclus dans votre abonnement). Les chansons sont rangées par rythme ; une barre de recherche permet de trouver un titre, un artiste ou un rythme. Dans Starter et Immersion, chaque chanson propose <b>Parole · Audio · Vidéo · Outils</b> : les Outils regroupent les patterns, les diagrammes d'accords, le métronome et l'accordeur (Starter) ou le lexique et le métronome (Immersion).</p>
+          <p>Depuis l'Accueil, choisissez Basique, Immersion Chant ou Starter Ukulélé (🔒 = non inclus dans votre abonnement). Les chansons sont rangées par rythme ; une barre de recherche permet de trouver un titre, un artiste ou un rythme. Dans Starter et Immersion, chaque chanson propose <b>Parole · Audio · Vidéo · Outils</b> : les Outils regroupent les patterns, les diagrammes d'accords, le métronome et l'accordeur (Starter) ou le lexique et le métronome (Immersion).</p>
           <h4>Écouter et jouer avec les pistes</h4>
           <p>Le lecteur permet de lancer, de reculer ou avancer de 5 secondes, (dans l'onglet Audio, le son est toujours la version originale ; sous les vidéos Starter et Immersion, tu peux changer la vitesse (BPM) et la tonalité). Chaque piste (guitare, basse, percussions, voix…) s'active ou se coupe d'un toucher. Sur les chansons d'Immersion, la <b>voix est coupée au départ</b> : le curseur « Voix guide » permet de la faire revenir doucement pour retrouver la mélodie.</p>
           <h4>Les abonnements</h4>
           <div class="aide-ab"><b>📘 Basique</b> — Tous les chants publiés, en clé de C, avec recherche et filtres, accords cliquables et transposition par nom de note. Pas de métronome, d'accordeur ni de console audio.</div>
-          <div class="aide-ab"><b>🎸 Starter Ukulélé</b> — Le Basique, plus l'onglet Starter de chaque chanson : vidéo tutoriel avec prompteur, console audio à pistes, accords et diagrammes, patterns de rythme. Outils : métronome, accordeur, diagrammes d'accords, patterns.</div>
           <div class="aide-ab"><b>🌺 Immersion Chant</b> — Le Basique, plus l'onglet Immersion : paroles en reo māʼohi avec traduction mot à mot, popup des mots, vidéo karaoké, console audio avec voix guide. Outils : métronome et lexique reo māʼohi (pas d'accordeur ni de patterns).</div>
+          <div class="aide-ab"><b>🎸 Starter Ukulélé</b> — Le Basique, plus l'onglet Starter de chaque chanson : vidéo tutoriel avec prompteur, console audio à pistes, accords et diagrammes, patterns de rythme. Outils : métronome, accordeur, diagrammes d'accords, patterns.</div>
           <div class="aide-ab"><b>⭐ Premium</b> — Starter et Immersion réunis, avec en plus le dictionnaire d'accords. C'est aussi l'abonnement des élèves de cours à domicile, qui ont en plus Mon Suivi (prochain cours, chansons à travailler, progression), l'envoi du travail de la semaine et les messages avec le professeur.</div>
           <div class="aide-ab"><b>🎬 Coaching</b> — Tout le Premium (sans cours à domicile), plus l'envoi de vos vidéos ou audios de travail et le retour personnalisé du professeur (lorsque cette option est activée), et Mon Suivi.</div>
           <h4>Messages</h4>
@@ -3933,8 +3933,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     const chansonsAssignees = (urlParams.get('chansons') || '').split(',').map(s => s.trim()).filter(Boolean).map(s => parseInt(s) || s);
     const label = urlParams.get('label') || formuleKey;
     const FORMULE_TEXTE = {
-      basique: 'Basique', starter: 'Starter Ukulélé', immersion: 'Immersion Reo Māʼohi',
-      premium: 'Premium', coaching: 'Coaching Vidéo', domicile: 'Premium'
+      basique: 'Basique', immersion: 'Immersion Chant', starter: 'Starter Ukulélé',
+      premium: 'Premium', coaching: 'Coaching Vidéo', domicile: 'Coaching'
     };
     eleveActif = {
       identifiant: 'APERCU_ADMIN',
@@ -4033,7 +4033,7 @@ const LABELS_ONGLETS = {
   suivi:        { ico:'📊', nom:'Mon Suivi',    desc:'Cours de la semaine, chansons assignées par ton professeur, progression.' },
   compte:       { ico:'👤', nom:'Mon Compte',   desc:'Tes informations et réglages personnels.' }
 };
-const NOMS_FORMULES = { basique:'Basique', starter:'Starter', immersion:'Immersion', premium:'Premium', coaching:'Coaching', domicile:'Premium' };
+const NOMS_FORMULES = { basique:'Basique', immersion:'Immersion Chant', starter:'Starter Ukulélé', premium:'Premium', coaching:'Coaching', domicile:'Coaching' };
 function chargerAccueil() {
   const key = getFormuleKey();
   const nomAff = eleveActif ? (eleveActif.pseudo || eleveActif.identifiant) : '';
@@ -4046,8 +4046,8 @@ function chargerAccueil() {
   const aCoach = !!window._aCoaching;
   const tuiles = [
     { ico:'📘', nom:'Basique', desc:'Tous les chants, en clé de C, avec recherche et filtres.', act:"showPage('basique')" },
-    { ico:'🎸', nom:'Starter Ukulélé', desc:'Vidéo tutoriel, console audio, accords, diagrammes et patterns.', act:aStarter ? "ouvrirFormule('starter')" : "toast('🔒 Disponible avec la formule Starter — me contacter')", verrou:!aStarter },
-    { ico:'🌺', nom:'Immersion Chant', desc:'Paroles en reo māʼohi, traduction mot à mot, karaoké.', act:aImmersion ? "ouvrirFormule('immersion')" : "toast('🔒 Disponible avec la formule Immersion — me contacter')", verrou:!aImmersion }
+    { ico:'🌺', nom:'Immersion Chant', desc:'Paroles en reo māʼohi, traduction mot à mot, karaoké.', act:aImmersion ? "ouvrirFormule('immersion')" : "toast('🔒 Disponible avec la formule Immersion — me contacter')", verrou:!aImmersion },
+    { ico:'🎸', nom:'Starter Ukulélé', desc:'Vidéo tutoriel, console audio, accords, diagrammes et patterns.', act:aStarter ? "ouvrirFormule('starter')" : "toast('🔒 Disponible avec la formule Starter — me contacter')", verrou:!aStarter }
   ];
   if (aCoach) tuiles.push({ ico:'🎬', nom:'Coaching', desc:'Envoyez votre travail, recevez le retour du professeur.', act:"showPage('coaching')" });
   tuiles.push({ ico:'💬', nom:'Messages', desc:'Écrire au professeur, joindre un fichier.', act:"showPage('messages')", badge:true });
@@ -4065,8 +4065,8 @@ function chargerAccueil() {
     html += '<div style="background:rgba(201,146,42,.06);border:1px solid rgba(201,146,42,.25);border-radius:6px;padding:14px;">'
       + '<div style="font-weight:700;color:var(--orL);margin-bottom:10px;">✨ Envie d\'aller plus loin ?</div>'
       + '<div style="font-size:12px;color:var(--muted);line-height:1.7;">'
-      + '<strong style="color:var(--blanc);">🎸 Starter</strong> — Studio complet (audio/vidéo), Métronome, Accordeur, Patterns, Diagrammes<br>'
-      + '<strong style="color:var(--blanc);">🌺 Immersion</strong> — Chant en reo māʼohi avec traduction mot à mot, karaoké vidéo, Lexique reo māʼohi<br>'
+      + '<strong style="color:var(--blanc);">🌺 Immersion Chant</strong> — Chant en reo māʼohi avec traduction mot à mot, karaoké vidéo, Lexique reo māʼohi<br>'
+      + '<strong style="color:var(--blanc);">🎸 Starter Ukulélé</strong> — Studio complet (audio/vidéo), Métronome, Accordeur, Patterns, Diagrammes<br>'
       + '<strong style="color:var(--blanc);">⭐ Premium</strong> — Starter + Immersion réunis<br>'
       + '<strong style="color:var(--blanc);">🌍 Coaching</strong> — Premium + suivi personnalisé et feedback vidéo de ton professeur'
       + '</div></div>';
