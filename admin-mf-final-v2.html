@@ -12469,6 +12469,90 @@ function enregistrerBpmChanson(chansonId) {
 // ════ BIBLIOTHÈQUE = ACCUEIL ÉLÈVE EN DIRECT (iframe gardée en vie) ════
 let _mfBiblioScroll = 0;
 function mfBiblioLiveFrame() { return document.getElementById('mf-biblio-live'); }
+
+// ══ Outils admin ajoutés par-dessus la vue élève (Bibliothèque) : calages sous les vidéos + impression dans Parole Basique ══
+// La page élève n'est pas modifiée : l'admin ajoute ces blocs dans l'iframe (même site), uniquement ici.
+function mfBiblioEval(win, code) { try { return win.eval(code); } catch (e) { return undefined; } }
+function mfBiblioInjecter() {
+  const fr = mfBiblioLiveFrame(); if (!fr) return;
+  let win, doc;
+  try { win = fr.contentWindow; doc = fr.contentDocument; } catch (e) { return; }
+  if (!win || !doc || !doc.body) return;
+  // 1) Calages sous chaque vidéo Starter / Immersion
+  doc.querySelectorAll('[id^="mfp-bloc-"]').forEach(function (bloc) {
+    const m = /^mfp-bloc-(ch(.+)-(starter|immersion)-video)$/.exec(bloc.id); if (!m) return;
+    const sec = bloc.parentElement; if (!sec || sec.querySelector('.mf-admin-calage')) return;
+    const cid = m[1], sid = m[2], suf = m[3], imm = suf === 'immersion';
+    const c = (S.get('chansons') || []).find(x => String(x.id) === sid); if (!c) return;
+    const vOff = (imm ? c.video2_offset : c.video_offset) || 0, pOff = (imm ? c.prompt2_offset : c.prompt_offset) || 0;
+    const bt = 'margin-top:8px;width:100%;padding:8px;background:linear-gradient(135deg,#c9922a,#a07f1a);border:none;color:#1a1408;font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-radius:4px;cursor:pointer;';
+    const lk = 'padding:4px 10px;background:transparent;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer;font-size:14px;margin-right:6px;';
+    const lb = 'font-size:9px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;';
+    const q = JSON.stringify;
+    const d = doc.createElement('div');
+    d.className = 'mf-admin-calage';
+    d.style.cssText = 'margin-top:10px;padding:10px;background:rgba(255,255,255,.04);border:1px solid #444;border-radius:6px;';
+    d.innerHTML = '<div style="' + lb + '">🔄 Décalage vidéo/audio <span class="v-val" style="color:#e8c06a;">' + vOff + ' ms</span></div>'
+      + '<button type="button" class="verrou" style="' + lk + '">🔒</button><input type="range" data-q="video" min="-5000" max="5000" step="20" value="' + vOff + '" disabled style="width:calc(100% - 46px);vertical-align:middle;accent-color:#c9922a;">'
+      + '<button type="button" class="sauve" data-q="video" style="' + bt + '">💾 Enregistrer le décalage</button>'
+      + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #444;' + lb + '">🔄 Décalage paroles <span class="p-val" style="color:#e8c06a;">' + pOff + ' ms</span></div>'
+      + '<button type="button" class="verrou" style="' + lk + '">🔒</button><input type="range" data-q="paroles" min="-5000" max="5000" step="20" value="' + pOff + '" disabled style="width:calc(100% - 46px);vertical-align:middle;accent-color:#c9922a;">'
+      + '<button type="button" class="sauve" data-q="paroles" style="' + bt + '">💾 Enregistrer le décalage paroles</button>';
+    d.querySelectorAll('.verrou').forEach(function (b) { b.addEventListener('click', function () { const r = b.nextElementSibling; r.disabled = !r.disabled; b.textContent = r.disabled ? '🔒' : '🔓'; }); });
+    d.querySelectorAll('input[type=range]').forEach(function (r) { r.addEventListener('input', function () { mfBiblioCalageLive(win, d, sid, cid, imm, r.dataset.q, r.value); }); });
+    d.querySelectorAll('.sauve').forEach(function (b) { b.addEventListener('click', function () { mfBiblioCalageSauver(d, sid, imm, b.dataset.q); }); });
+    sec.appendChild(d);
+  });
+  // 2) Impression dans Parole Basique
+  doc.querySelectorAll('iframe[id^="ch"][id$="-bqf"]').forEach(function (f) {
+    const sid = f.id.replace(/^ch/, '').replace(/-bqf$/, '');
+    const zone = f.parentElement; if (!zone || !zone.parentElement) return;
+    if (zone.parentElement.querySelector('.mf-admin-print')) return;
+    const c = (S.get('chansons') || []).find(x => String(x.id) === sid); if (!c || !c.svgBasique) return;
+    let t = '100', al = '0'; try { t = localStorage.getItem('mfPdfTailleBq_' + c.id) || '100'; al = localStorage.getItem('mfPdfAlignBq_' + c.id) || '0'; } catch (e) {}
+    const st = 'padding:6px 8px;background:#222;border:1px solid #555;color:#eee;border-radius:4px;';
+    const d = doc.createElement('div');
+    d.className = 'mf-admin-print';
+    d.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;';
+    d.innerHTML = '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">'
+      + [['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']].map(o => '<option value="' + o[0] + '"' + (o[0] === t ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>'
+      + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#eee;">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '"></label>'
+      + '<button type="button" class="b-imp btn-fullscreen">🖨️ Imprimer / PDF</button>'
+      + '<button type="button" class="b-pub btn-fullscreen" title="Les élèves autorisés impriment exactement cette page (taille et alignement réglés ici)">📤 Publier l\'impression élève' + (c.impressionBasiqueDate ? ' ✔' : '') + '</button>';
+    d.querySelector('.tl').addEventListener('change', function (e) { try { localStorage.setItem('mfPdfTailleBq_' + c.id, e.target.value); } catch (er) {} });
+    d.querySelector('.al').addEventListener('input', function (e) { try { localStorage.setItem('mfPdfAlignBq_' + c.id, e.target.value); } catch (er) {} });
+    d.querySelector('.b-imp').addEventListener('click', function () { imprimerFicheBasiqueAdmin(c.id); });
+    d.querySelector('.b-pub').addEventListener('click', function () { publierImpressionEleve(c.id); });
+    zone.parentElement.insertBefore(d, zone);
+  });
+}
+function mfBiblioCalageLive(win, d, sid, cid, imm, quoi, val) {
+  const v = parseInt(val, 10) || 0;
+  if (quoi === 'video') {
+    d.querySelector('.v-val').textContent = v + ' ms';
+    win.eval('(function(){var st=consoleAudioEtat[' + JSON.stringify(cid) + '];if(!st)return;st.videoOffset=' + (v / 1000) + ';'
+      + 'if(st.videoEl){try{st.videoEl.currentTime=clampVideoTime(st.videoEl,consoleAudioPositionActuelle(' + JSON.stringify(cid) + ')+st.videoOffset);}catch(e){}}'
+      + 'else if(typeof apepeMajEcranVisuel==="function"){apepeMajEcranVisuel(' + JSON.stringify(cid) + ',consoleAudioPositionActuelle(' + JSON.stringify(cid) + ')+st.videoOffset,true);}})()');
+  } else {
+    d.querySelector('.p-val').textContent = v + ' ms';
+    win.eval('(function(){var champ=' + JSON.stringify(imm ? 'prompt2_offset' : 'prompt_offset') + ';'
+      + 'var a=(LS.getArr("chansons")||[]).find(function(x){return String(x.id)===' + JSON.stringify(sid) + ';});if(a)a[champ]=' + v + ';'
+      + 'var st=consoleAudioEtat[' + JSON.stringify(cid) + '];if(st){st.promptOffset=' + (v / 1000) + ';if(!' + imm + '&&typeof apepeMajEcranVisuel==="function")apepeMajEcranVisuel(' + JSON.stringify(cid) + ',consoleAudioPositionActuelle(' + JSON.stringify(cid) + ')+(st.videoOffset||0),true);}})()');
+  }
+}
+function mfBiblioCalageSauver(d, sid, imm, quoi) {
+  const r = d.querySelector('input[data-q="' + quoi + '"]');
+  const v = r ? (parseInt(r.value, 10) || 0) : 0;
+  const champ = imm ? (quoi === 'video' ? 'video2_offset' : 'prompt2_offset') : (quoi === 'video' ? 'video_offset' : 'prompt_offset');
+  const list = S.get('chansons') || [];
+  const i = list.findIndex(x => String(x.id) === sid);
+  if (i < 0) { toast('⚠ Chanson introuvable'); return; }
+  list[i][champ] = v;
+  S.set('chansons', list);
+  if (window.saveChansonFirestore) window.saveChansonFirestore(list[i]);
+  toast(quoi === 'video' ? '✅ Décalage enregistré (' + v + ' ms)' : '✅ Décalage paroles enregistré (' + v + ' ms)');
+}
+setInterval(function () { try { const s = document.getElementById('section-bibliotheque-pub'); if (s && s.classList.contains('on')) mfBiblioInjecter(); } catch (e) {} }, 1000);
 function mfBiblioLiveCharger(force) {
   const fr = mfBiblioLiveFrame(); if (!fr) return;
   if (fr.dataset.charge === '1' && !force) return;
