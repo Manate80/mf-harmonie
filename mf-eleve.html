@@ -3386,7 +3386,22 @@ function immersionDemarrerBoucle(cid, brut) {
   _immersionBoucle[cid] = (_immersionBoucle[cid] || 0) + 1;
   const monId = _immersionBoucle[cid];
   let dernier = '';
-  let derniereLigne = -2;
+  let stage = null; const els = {};
+  const tLay = []; // instants où chaque ligne commence à GLISSER (un peu avant sa 1re syllabe)
+  (function () {
+    let prevLast = null;
+    for (let i = 0; i < d.lignes.length; i++) {
+      const t = cal[i];
+      if (!t || t[0] === undefined) { tLay[i] = null; continue; }
+      const anti = prevLast === null ? 0 : Math.max(0, Math.min(0.3, (t[0] - prevLast) * 0.5));
+      tLay[i] = t[0] - anti;
+      const nb = (d.lignes[i].t === 'solo' || d.lignes[i].t === 'fin') ? 1 : d.lignes[i].s.length;
+      let last = t[0];
+      for (let k = 1; k < nb; k++) if (t[k] !== undefined) last = t[k];
+      prevLast = last;
+    }
+  })();
+  function etatLayout(pos) { let L = -1; for (let i = 0; i < tLay.length; i++) { if (tLay[i] === null) continue; if (tLay[i] > pos) break; L = i; } return L; }
   function etatPhases(pos) {
     if (!phases.length) return { titre: false, paroles: true, fin: false }; // anciennes données : paroles seules
     const e = { titre: false, paroles: false, fin: false };
@@ -3406,15 +3421,16 @@ function immersionDemarrerBoucle(cid, brut) {
     return { li, si };
   }
   function esc(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-  function dessiner(ph, li, si) {
+  function dessiner(ph, li, si, Lay) {
     // Tailles PROPORTIONNELLES à la largeur de la zone (comme la vidéo MP4) : même rendu en portrait,
     // en paysage ou en plein écran. Police serif grasse identique à la vidéo Immersion.
     const W = Math.max(240, zone.clientWidth || (zone.parentElement && zone.parentElement.clientWidth) || 360);
     const px = (r) => Math.round(W * r) + 'px';
     const SERIF = "font-family:'Playfair Display',Georgia,'Times New Roman',serif;line-height:1.18;";
-    const cle = (ph.fin ? 'F' : ph.titre ? 'T' : ph.paroles ? 'P' : '-') + li + ':' + si + '|' + Math.round(W / 8);
+    const cle = (ph.fin ? 'F' : ph.titre ? 'T' : ph.paroles ? 'P' : '-') + li + ':' + si + ':' + Lay + '|' + Math.round(W / 8);
     if (cle === dernier) return;
     dernier = cle;
+    if (ph.fin || ph.titre) stage = null;
     if (ph.fin) {
       zone.innerHTML = '<div style="' + SERIF + 'font-size:' + px(.075) + ';font-weight:900;color:#d4af37;">Māuruuru</div><div style="font-size:' + px(.026) + ';font-weight:700;letter-spacing:2px;color:#fff;">MF Harmonie des Îles</div>';
       return;
@@ -3426,37 +3442,72 @@ function immersionDemarrerBoucle(cid, brut) {
       zone.innerHTML = h;
       return;
     }
-    if (!ph.paroles) { zone.innerHTML = ''; return; }
-    if (li < 0) { li = 0; si = -1; } // paroles affichées dès le moment choisi, avant la 1ère syllabe (aucune syllabe colorée)
-    // 3 lignes fixes : haut = ligne déjà chantée, milieu = ligne active (pop-up, syllabes dorées), bas = ligne suivante.
-    // Quand la ligne du milieu est finie : elle monte en haut, celle du bas passe au milieu, la suivante apparaît en bas.
-    if (!document.getElementById('imm-pop-css')) {
-      const stl = document.createElement('style'); stl.id = 'imm-pop-css';
-      stl.textContent = '@keyframes immPop{0%{transform:scale(.88);opacity:.25}60%{transform:scale(1.04);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes immFade{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}';
-      document.head.appendChild(stl);
+    if (!ph.paroles) { stage = null; zone.innerHTML = ''; return; }
+    // 3 lignes qui GLISSENT : haut = déjà chantée, milieu = active, bas = suivante. Quand la ligne du milieu est finie
+    // elle monte en haut, celle du bas monte au milieu, la suivante arrive du bas — le glissement démarre un peu AVANT la
+    // 1re syllabe (Lay = ligne « disposée »), puis les syllabes s'allument (li/si = ligne et syllabe réellement chantées).
+    const liS = li;
+    const n = d.lignes.length;
+    if (!n) { stage = null; zone.innerHTML = ''; return; }
+    let L = Math.max(0, Math.min(n - 1, Lay));
+    if (!stage || !zone.contains(stage)) {
+      zone.innerHTML = '<div style="position:relative;width:100%;"></div>';
+      stage = zone.firstChild;
+      for (const k in els) delete els[k];
     }
-    const pa = d.lignes[li];
-    if (!pa) { zone.innerHTML = ''; return; }
-    const nouvelle = (li !== derniereLigne); derniereLigne = li;
-    const txt = (p) => esc(p.t === 'solo' ? p.s[0] : p.s.join(''));
-    const H = px(.1);
-    const slot = (contenu, align) => '<div style="width:100%;min-height:' + H + ';display:flex;flex-direction:column;justify-content:' + align + ';align-items:center;">' + contenu + '</div>';
-    const anim = (nom, dur) => nouvelle ? 'animation:' + nom + ' ' + dur + ' ease-out;' : '';
-    let haut = '', milieu = '', bas = '';
-    if (li > 0) haut = '<div style="' + SERIF + 'font-size:' + px(.034) + ';font-weight:600;color:rgba(212,175,55,.55);' + anim('immFade', '.35s') + '">' + txt(d.lignes[li - 1]) + '</div>';
-    if (pa.t === 'solo') milieu = '<div style="' + SERIF + 'font-size:' + px(.056) + ';color:#d4af37;font-weight:700;' + anim('immPop', '.4s') + '">' + esc(pa.s[0]) + '</div>';
-    else milieu = '<div style="' + SERIF + 'font-size:' + px(.056) + ';font-weight:700;text-shadow:0 1px 4px #000;' + anim('immPop', '.4s') + '">' + pa.s.map((m, k) => '<span style="color:' + (k <= si ? '#d4af37' : '#fff') + ';white-space:pre-wrap;">' + esc(m) + '</span>').join('') + '</div>';
-    if (li + 1 < d.lignes.length) bas = '<div style="' + SERIF + 'font-size:' + px(.04) + ';font-weight:700;color:rgba(255,255,255,.85);' + anim('immFade', '.35s') + '">' + txt(d.lignes[li + 1]) + '</div>';
-    zone.innerHTML = slot(haut, 'flex-end') + '<div style="width:100%;margin:' + px(.008) + ' 0;">' + milieu + '</div>' + slot(bas, 'flex-start');
+    stage.style.height = px(.26);
+    const SLOT = { '-2': { y: -.03, s: .4, o: 0 }, '-1': { y: .035, s: .034 / .056, o: 1 }, '0': { y: .13, s: 1, o: 1 }, '1': { y: .225, s: .04 / .056, o: 1 }, '2': { y: .29, s: .4, o: 0 } };
+    const TRANS = 'transform .38s cubic-bezier(.2,1.25,.4,1),top .38s ease,opacity .3s ease';
+    function creerLigne(i) {
+      const p = d.lignes[i];
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute;left:50%;top:0;white-space:nowrap;width:max-content;' + SERIF + 'font-size:' + px(.056) + ';font-weight:700;opacity:0;';
+      (p.t === 'solo' ? [p.s[0]] : p.s).forEach(m => { const sp = document.createElement('span'); sp.style.whiteSpace = 'pre'; sp.textContent = m; el.appendChild(sp); });
+      stage.appendChild(el);
+      return el;
+    }
+    function placer(el, rel, facteur, opac) {
+      const sl = SLOT[rel];
+      const nw = el.offsetWidth || 0;
+      const fit = nw > 0 ? (W * .92) / nw : 9;
+      const sc = Math.min(sl.s, fit) * facteur;
+      el.style.fontSize = px(.056);
+      el.style.top = Math.round(W * sl.y) + 'px';
+      el.style.transform = 'translate(-50%,-50%) scale(' + sc.toFixed(3) + ')';
+      el.style.opacity = opac;
+      el.style.textShadow = rel === 0 ? '0 1px 4px #000' : 'none';
+    }
+    for (let rel = -2; rel <= 2; rel++) {
+      const i = L + rel;
+      if (i < 0 || i >= n) continue;
+      let el = els[i];
+      if (!el) {
+        el = els[i] = creerLigne(i);
+        el.style.transition = 'none';
+        placer(el, rel, .85, 0);
+        void el.offsetWidth;
+        el.style.transition = TRANS;
+      }
+      placer(el, rel, 1, SLOT[rel].o);
+      const p = d.lignes[i], sp = el.children, fait = i < liS, cur = i === liS;
+      for (let k = 0; k < sp.length; k++) {
+        let col;
+        if (rel < 0) col = 'rgba(212,175,55,.6)';
+        else if (rel === 0) col = (p.t === 'solo' ? (fait || cur) : (fait || (cur && k <= si))) ? '#d4af37' : '#fff';
+        else col = 'rgba(255,255,255,.85)';
+        sp[k].style.color = col;
+      }
+    }
+    for (const k in els) { const rel = +k - L; if (rel < -2 || rel > 2) { els[k].remove(); delete els[k]; } }
   }
-  dessiner(etatPhases(0), -1, -1);
+  dessiner(etatPhases(0), -1, -1, -1);
   function tick() {
     if (_immersionBoucle[cid] !== monId || !document.body.contains(zone)) return;
     const st = consoleAudioEtat[cid];
     if (st && st.run) {
       const pos = consoleAudioPositionActuelle(cid);
       const e = etatA(pos);
-      dessiner(etatPhases(pos), e.li, e.si);
+      dessiner(etatPhases(pos), e.li, e.si, etatLayout(pos));
     }
     setTimeout(function() { requestAnimationFrame(tick); }, 50);
   }
