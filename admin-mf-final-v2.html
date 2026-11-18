@@ -12558,7 +12558,13 @@ function mfBiblioInjecter() {
     d.querySelector('.c3').addEventListener('change', function (e) { set('mfPdfCols3_', e.target.checked ? '1' : '0'); });
     d.querySelector('.lf').addEventListener('change', function (e) { set('mfLangue_', e.target.checked ? 'fr' : 'tah'); if (e.target.checked) d.querySelector('.le').checked = false; });
     d.querySelector('.le').addEventListener('change', function (e) { set('mfLangue_', e.target.checked ? 'en' : 'tah'); if (e.target.checked) d.querySelector('.lf').checked = false; });
-    d.querySelector('.b-imp').addEventListener('click', function () { imprimerStarterParolesAdmin(c.id, 'bib' + sid + '-starter'); });
+    d.querySelector('.b-imp').addEventListener('click', function () {
+      // Les accords imprimés suivent la tonalité choisie dans la vue élève (menu « Tonalité » de Starter)
+      const cidP = 'bib' + sid + '-starter';
+      const demi = parseInt(mfBiblioEval(win, "(typeof _htmlTransposeState!=='undefined'&&_htmlTransposeState[" + JSON.stringify(String(c.id)) + "])||0"), 10) || 0;
+      cfTransposeDemi[cidP] = demi;
+      imprimerStarterParolesAdmin(c.id, cidP);
+    });
     parent.insertBefore(d, zone);
   });
 }
