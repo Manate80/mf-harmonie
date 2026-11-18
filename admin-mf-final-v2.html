@@ -11773,6 +11773,7 @@ function immersionDemarrerBoucle(cid, brut) {
   _immersionBoucle[cid] = (_immersionBoucle[cid] || 0) + 1;
   const monId = _immersionBoucle[cid];
   let dernier = '';
+  let derniereLigne = -2;
   function etatPhases(pos) {
     if (!phases.length) return { titre: false, paroles: true, fin: false }; // anciennes données : paroles seules
     const e = { titre: false, paroles: false, fin: false };
@@ -11814,16 +11815,26 @@ function immersionDemarrerBoucle(cid, brut) {
     }
     if (!ph.paroles) { zone.innerHTML = ''; return; }
     if (li < 0) { li = 0; si = -1; } // paroles affichées dès le moment choisi, avant la 1ère syllabe (aucune syllabe colorée)
-    let html = '';
-    const fin = Math.min(d.lignes.length - 1, li + 2); // 3 lignes : en cours + 2 suivantes
-    for (let i = li; i <= fin; i++) {
-      const p = d.lignes[i];
-      if (i === li) {
-        if (p.t === 'solo') html += '<div style="' + SERIF + 'font-size:' + px(.052) + ';color:#d4af37;font-weight:700;">' + esc(p.s[0]) + '</div>';
-        else html += '<div style="' + SERIF + 'font-size:' + px(.052) + ';font-weight:700;text-shadow:0 1px 4px #000;">' + p.s.map((m, k) => '<span style="color:' + (k <= si ? '#d4af37' : '#fff') + ';white-space:pre-wrap;">' + esc(m) + '</span>').join('') + '</div>';
-      } else html += '<div style="' + SERIF + 'font-size:' + (i === li + 1 ? px(.04) : px(.03)) + ';font-weight:' + (i === li + 1 ? 700 : 600) + ';margin-top:' + px(.008) + ';color:rgba(255,255,255,' + (i === li + 1 ? '.92' : '.45') + ');">' + esc(p.t === 'solo' ? p.s[0] : p.s.join('')) + '</div>';
+    // 3 lignes fixes : haut = ligne déjà chantée, milieu = ligne active (pop-up, syllabes dorées), bas = ligne suivante.
+    // Quand la ligne du milieu est finie : elle monte en haut, celle du bas passe au milieu, la suivante apparaît en bas.
+    if (!document.getElementById('imm-pop-css')) {
+      const stl = document.createElement('style'); stl.id = 'imm-pop-css';
+      stl.textContent = '@keyframes immPop{0%{transform:scale(.88);opacity:.25}60%{transform:scale(1.04);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes immFade{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}';
+      document.head.appendChild(stl);
     }
-    zone.innerHTML = html;
+    const pa = d.lignes[li];
+    if (!pa) { zone.innerHTML = ''; return; }
+    const nouvelle = (li !== derniereLigne); derniereLigne = li;
+    const txt = (p) => esc(p.t === 'solo' ? p.s[0] : p.s.join(''));
+    const H = px(.1);
+    const slot = (contenu, align) => '<div style="width:100%;min-height:' + H + ';display:flex;flex-direction:column;justify-content:' + align + ';align-items:center;">' + contenu + '</div>';
+    const anim = (nom, dur) => nouvelle ? 'animation:' + nom + ' ' + dur + ' ease-out;' : '';
+    let haut = '', milieu = '', bas = '';
+    if (li > 0) haut = '<div style="' + SERIF + 'font-size:' + px(.034) + ';font-weight:600;color:rgba(212,175,55,.55);' + anim('immFade', '.35s') + '">' + txt(d.lignes[li - 1]) + '</div>';
+    if (pa.t === 'solo') milieu = '<div style="' + SERIF + 'font-size:' + px(.056) + ';color:#d4af37;font-weight:700;' + anim('immPop', '.4s') + '">' + esc(pa.s[0]) + '</div>';
+    else milieu = '<div style="' + SERIF + 'font-size:' + px(.056) + ';font-weight:700;text-shadow:0 1px 4px #000;' + anim('immPop', '.4s') + '">' + pa.s.map((m, k) => '<span style="color:' + (k <= si ? '#d4af37' : '#fff') + ';white-space:pre-wrap;">' + esc(m) + '</span>').join('') + '</div>';
+    if (li + 1 < d.lignes.length) bas = '<div style="' + SERIF + 'font-size:' + px(.04) + ';font-weight:700;color:rgba(255,255,255,.85);' + anim('immFade', '.35s') + '">' + txt(d.lignes[li + 1]) + '</div>';
+    zone.innerHTML = slot(haut, 'flex-end') + '<div style="width:100%;margin:' + px(.008) + ' 0;">' + milieu + '</div>' + slot(bas, 'flex-start');
   }
   dessiner(etatPhases(0), -1, -1);
   function tick() {
