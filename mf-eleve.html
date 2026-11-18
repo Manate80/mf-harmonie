@@ -1820,6 +1820,15 @@ function rafraichirCompteursOffline() {
 
 // (telechargerToutePresenceBibliotheque retirée — plus de bouton dédié, chaque PDF/vidéo/audio se télécharge individuellement depuis sa fiche)
 
+// Apple (iPhone, iPad, Safari) : Safari relance toujours une piste avec un petit retard après un repositionnement.
+function mfEstApple() {
+  try {
+    if (window._mfApple !== undefined) return window._mfApple;
+    var u = navigator.userAgent || '';
+    window._mfApple = /iPhone|iPad|iPod/.test(u) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || (/Safari/.test(u) && !/Chrome|Chromium|CriOS|FxiOS|Android|Edg/.test(u));
+  } catch (e) { window._mfApple = false; }
+  return window._mfApple;
+}
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -2127,7 +2136,7 @@ function _consoleAudioAppliquerNote(cid) {
       st.posMusicaleBase = pos; st.posMusicaleBaseTime = performance.now(); st._dernierRefAudio = pos;
       if (etaitEnLecture && st.run) {
         Object.values(st.audios).forEach(a => a.play().catch(() => {}));
-        st._resyncAppels = 0;
+        st._resyncAppels = 0; st._nbRs = {};
         [80, 200, 400].forEach(d => setTimeout(() => { if (st.run) consoleAudioResynchroniser(cid); }, d));
       }
     };
@@ -2273,6 +2282,7 @@ async function consoleAudioInit(uid, suffix, c) {
     };
 
     const audioEl = new Audio();
+    audioEl._mfNom = p.nom || '';
     audioEl.crossOrigin = 'anonymous';
     audioEl.preload = 'auto';
     audioEl.playsInline = true;
@@ -2464,7 +2474,7 @@ function consoleAudioPlay(cid) {
       st.audios[idx].play().catch(err => console.error('Lecture piste en échec:', err));
     });
     st.run = true;
-    st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
+    st._nbRs = {}; st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
     clearInterval(st.timer);
     // Recalage immédiat en rafale : les pistes ne démarrent jamais exactement à la même milliseconde
     // (chargement réseau différent par piste) — sans ça, le décalage du tout début persiste ensuite.
@@ -2496,7 +2506,9 @@ function consoleAudioResynchroniser(cid) {
   // début de la lecture. On tolère donc un écart plus large le temps que ça se stabilise, puis
   // on revient au seuil précis pour garder la synchro fine sur la durée.
   st._resyncAppels = (st._resyncAppels || 0) + 1;
-  const seuilResync = st._resyncAppels <= 4 ? 0.15 : 0.06;
+  const _apple = mfEstApple();
+  const seuilResync = _apple ? (st._resyncAppels <= 4 ? 0.25 : 0.2) : (st._resyncAppels <= 4 ? 0.15 : 0.06);
+  st._nbRs = st._nbRs || {}; st._lag = st._lag || {};
   // Frein : on ne repositionne jamais une piste qui est encore en train de charger son dernier saut,
   // et au plus une fois toutes les 2 s par piste (sinon les repositionnements s'enchaînent et ça « saute »).
   st._tResync = st._tResync || {};
@@ -2506,7 +2518,23 @@ function consoleAudioResynchroniser(cid) {
     const a = st.audios[idx];
     if (a.seeking || a.readyState < 3) return;
     if (st._resyncAppels > 4 && st._tResync[idx] !== undefined && _maintenant - st._tResync[idx] < 2000) return;
-    if (Math.abs(a.currentTime - refTime) > seuilResync) { st._tResync[idx] = _maintenant; a.currentTime = refTime; }
+    const ecart = refTime - a.currentTime; // > 0 : la piste est en retard
+    if (Math.abs(ecart) > seuilResync) {
+      let cible = refTime;
+      if (_apple) {
+        // Apple : Safari relance la piste avec un retard presque constant après chaque repositionnement.
+        // On le mesure (dès le 2e recalage) et on repositionne la piste légèrement en avance de ce retard.
+        // Et si une piste est recalée 4 fois sans se stabiliser, on arrête de la recaler (plus de « tac tac »).
+        if ((st._nbRs[idx] || 0) >= 4) return;
+        st._nbRs[idx] = (st._nbRs[idx] || 0) + 1;
+        if (st._nbRs[idx] >= 2 && ecart > 0.05 && ecart < 0.8) {
+          st._lag[idx] = (st._lag[idx] !== undefined) ? (st._lag[idx] * 0.5 + ecart * 0.5) : ecart;
+          a._mfLag = st._lag[idx];
+        }
+        cible = refTime + (st._lag[idx] || 0);
+      }
+      st._tResync[idx] = _maintenant; a.currentTime = cible;
+    }
   });
   if (st.videoEl) {
     const cible = refTime + (st.videoOffset || 0);
@@ -6840,6 +6868,7 @@ window.mfMesureChansons = function (label, snap, t0) {
     MFPERF.mark('📥 Firebase ' + label + ' : ' + snap.size + ' chansons reçues', ms, '≈ ' + Math.round(o / 1024) + ' Ko de texte (' + Math.round(o / 1024 / Math.max(0.05, ms / 1000)) + ' Ko/s)');
   } catch (e) {}
 };
+MFPERF.lib = function (r) { return '#' + r.id + (r.a && r.a._mfNom ? ' (' + r.a._mfNom + ')' : ''); };
 MFPERF.surveiller = function (a) {
   var rec = { a: a, id: (MFPERF.audios.length ? MFPERF.audios[MFPERF.audios.length - 1].id : 0) + 1, t0: performance.now(), tMeta: null, tCan: null, wait: 0, stall: 0, err: 0, ctPend: undefined };
   MFPERF.audios.push(rec); if (MFPERF.audios.length > 60) MFPERF.audios.shift();
@@ -6988,7 +7017,7 @@ MFPERF.rapport = async function (mode) {
     L.push('PISTES AUDIO (' + MFPERF.audios.length + ') :');
     MFPERF.audios.slice(-16).forEach(function (r) {
       var f = ''; try { f = decodeURIComponent((r.a.currentSrc || r.a.src || '').split('?')[0].split('/').pop()).slice(0, 30); } catch (x) {}
-      L.push('  #' + r.id + ' ' + f + (/^blob:/.test(r.a.currentSrc || '') ? ' [mémoire]' : ' [flux]') + ' · infos ' + (r.tMeta != null ? Math.round(r.tMeta) + ' ms' : '—') + ' · prête ' + (r.tCan != null ? Math.round(r.tCan) + ' ms' : '—') + ' · attentes ' + r.wait + ' · blocages ' + r.stall + (r.err ? ' · ERREURS ' + r.err : ''));
+      L.push('  ' + MFPERF.lib(r) + ' ' + f + (/^blob:/.test(r.a.currentSrc || '') ? ' [mémoire]' : ' [flux]') + ' · infos ' + (r.tMeta != null ? Math.round(r.tMeta) + ' ms' : '—') + ' · prête ' + (r.tCan != null ? Math.round(r.tCan) + ' ms' : '—') + ' · attentes ' + r.wait + ' · blocages ' + r.stall + (r.err ? ' · ERREURS ' + r.err : ''));
     });
     L.push('\nSAUTS / CRAQUEMENTS :');
     L.push('  Recalages automatiques (pas demandés par toi) : ' + MFPERF.nResync + ' · rafales (≥6 en 10 s) : ' + MFPERF.rafales);
@@ -7091,7 +7120,7 @@ MFREC.piste = function (rec) {
       if (ev === 'seeking' && !a.paused && now - MFPERF.tUser > 1500) {
         cat = 'SYNC';
         var autres = MFPERF.audios.filter(function (r) { return r !== rec && !r.a.paused; }).map(function (r) { return '#' + r.id + '=' + r.a.currentTime.toFixed(2); }).join(' ');
-        txt = '#' + rec.id + ' REPOSITIONNÉE automatiquement vers ' + a.currentTime.toFixed(2) + ' s · autres pistes : ' + autres;
+        txt = MFPERF.lib(rec) + ' REPOSITIONNÉE automatiquement vers ' + a.currentTime.toFixed(2) + ' s · autres pistes : ' + autres;
       }
       MFREC.log(cat, txt);
     });
@@ -7190,8 +7219,16 @@ MFREC.analyse = function () {
   var P = [], A = MFPERF.audios, sec = function (s) { return s.toFixed(1) + ' s'; };
   if (MFPERF.rafales > 0 || MFPERF.nResync >= 30) {
     var pire = A.slice().sort(function (a, b) { return b.wait - a.wait; })[0];
-    P.push('🔁 BOUCLE DE RECALAGE : ' + MFPERF.nResync + ' repositionnements automatiques, ' + MFPERF.rafales + ' rafale(s). Piste la plus touchée : #' + (pire ? pire.id : '?') + ' (' + (pire ? pire.wait : 0) + ' « tampon vide »). → À CORRIGER : freiner le recalage.');
+    P.push('🔁 BOUCLE DE RECALAGE : ' + MFPERF.nResync + ' repositionnements automatiques, ' + MFPERF.rafales + ' rafale(s). Piste la plus touchée : ' + (pire ? MFPERF.lib(pire) : '?') + ' (' + (pire ? pire.wait : 0) + ' « tampon vide »). → À CORRIGER : freiner le recalage.');
   }
+  if (MFPERF.resyncs.length >= 10) {
+    var cpt = {}; MFPERF.resyncs.forEach(function (x) { cpt[x.id] = (cpt[x.id] || 0) + 1; });
+    var top = Object.keys(cpt).sort(function (a, b) { return cpt[b] - cpt[a]; })[0];
+    var rt = A.filter(function (r) { return String(r.id) === top; })[0];
+    P.push('🎯 PISTE QUI DÉCROCHE LE PLUS : ' + (rt ? MFPERF.lib(rt) : '#' + top) + ' — ' + cpt[top] + ' repositionnements sur ' + MFPERF.resyncs.length + '.');
+  }
+  var _ret = A.filter(function (r) { return r.a && r.a._mfLag; }).map(function (r) { return MFPERF.lib(r) + ' ≈ ' + Math.round(r.a._mfLag * 1000) + ' ms'; });
+  if (_ret.length) P.push('⏱ RETARD MESURÉ APRÈS CHAQUE REPOSITIONNEMENT (compensé sur Apple) : ' + _ret.join(', ') + '.');
   if (MFREC.glisMax >= 8) P.push('↔ GLISSIÈRE : un seul déplacement dans la chanson a envoyé jusqu\'à ' + MFREC.glisMax + ' demandes de repositionnement aux pistes (une par pixel glissé). → À CORRIGER : appliquer le saut à la fin du geste.');
   var lentes = MFREC.tonsHist.filter(function (t) { return t.d > 10; });
   var incompl = MFREC.tonsHist.filter(function (t) { return t.prets < t.tot; });
@@ -7227,7 +7264,7 @@ MFREC.rapport = async function () {
   L.push(' Actions faites : ' + MFREC.nAct + ' · repositionnements automatiques : ' + MFPERF.nResync + ' (rafales ' + MFPERF.rafales + ') · arrêts du son : ' + MFPERF.glitches.length + ' · sauts de position : ' + MFPERF.sauts);
   L.push(' Écart max entre pistes : ' + Math.round(MFREC.driftMax) + ' ms · horloge audio min ×' + (MFREC.ratioMin === 9 ? '?' : MFREC.ratioMin.toFixed(2)) + ' · tampon min ' + (MFREC.bufMin === 999 ? '?' : MFREC.bufMin.toFixed(1) + ' s') + ' · traitement en direct max ' + MFREC.maxTr + ' piste(s)');
   L.push(' Page gelée : ' + MFPERF.lag.n + ' (max ' + Math.round(MFPERF.lag.max) + ' ms) · tâches longues : ' + MFPERF.lt.n + ' (max ' + Math.round(MFPERF.lt.max) + ' ms)');
-  L.push(' Pistes : ' + MFPERF.audios.slice(-12).map(function (r) { return '#' + r.id + ' attentes ' + r.wait + (r.stall ? ' blocages ' + r.stall : '') + (r.err ? ' ERREURS ' + r.err : '') + (/^blob:/.test(r.a.currentSrc || '') ? ' [mémoire]' : ' [flux]'); }).join(' | '));
+  L.push(' Pistes : ' + MFPERF.audios.slice(-12).map(function (r) { return MFPERF.lib(r) + ' attentes ' + r.wait + (r.stall ? ' blocages ' + r.stall : '') + (r.err ? ' ERREURS ' + r.err : '') + (/^blob:/.test(r.a.currentSrc || '') ? ' [mémoire]' : ' [flux]'); }).join(' | '));
   if (MFPERF.snaps.length) {
     L.push('\n██ 🚩 « ÇA SAUTE » SIGNALÉS (' + MFPERF.snaps.length + ')');
     MFPERF.snaps.forEach(function (S, i) {
