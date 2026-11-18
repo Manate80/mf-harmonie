@@ -14459,7 +14459,14 @@ async function mfOuvrirGenerateurChamp(cid) {
   const fr = m.querySelector('iframe');
   fr.onload = function () {
     // « Tout envoyer à l'admin » : l'admin se remplit tout seul (même navigateur) ; on referme ce volet sans ouvrir un second onglet
-    try { fr.contentWindow.open = function () { setTimeout(mfFermerGenerateurChamp, 400); return null; }; } catch (e) {}
+    try {
+      const w = fr.contentWindow, ouvrirOrig = w.open.bind(w);
+      w.open = function (u) {
+        // Seul « Tout envoyer à l'admin » (qui ouvre l'admin) referme ce volet ; « Créer la vidéo » et les téléchargements s'ouvrent normalement
+        if (String(u || '').indexOf('admin-mf-final-v2.html') >= 0) { setTimeout(mfFermerGenerateurChamp, 400); return null; }
+        return ouvrirOrig.apply(w, arguments);
+      };
+    } catch (e) {}
   };
 }
 function mfFermerGenerateurChamp() { const m = document.getElementById('modal-generateur-champ'); if (m) m.remove(); }
