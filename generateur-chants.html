@@ -1041,9 +1041,8 @@ function _donneesChansonComplete(){
 }
 // Envoie tout le chant à l'admin (même navigateur) : l'admin remplit ses champs, fiches et audios
 function envoyerALAdmin(){
-  if(donneesParoles.length === 0){
-    try{ analyserParoles(); analyserStructure(); }catch(e){}
-  }
+  // Relit toujours la case de paroles (syllabes corrigées incluses) avant d'envoyer
+  try{ analyserParoles(); analyserStructure(); }catch(e){}
   if(donneesParoles.length === 0){
     alert('Analyse d\'abord les paroles (section 2, bouton "Analyser") avant d\'envoyer à l\'admin.');
     return;
@@ -2032,6 +2031,8 @@ function copierDonneesPrompteur(){
 }
 
 function ouvrirVideo(type){
+  // Relit toujours la case de paroles (syllabes corrigées incluses) : plus besoin de recliquer sur « Analyser »
+  try{ analyserParoles(); }catch(e){}
   if(donneesParoles.length === 0){
     alert('Analyse d\'abord les paroles (bouton "Analyser" en section 2) avant de créer une vidéo.');
     return;
