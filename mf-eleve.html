@@ -4439,6 +4439,12 @@ function _appliquerDeltaTransposeIframe(iframe, delta) {
 // Basique : note d'origine = tonique (chant mineur → relative majeure, comme la clé de C). Starter / Immersion : racine du 1er accord.
 function _noteOrigineFiche(champ, html) {
   if (champ === 'svgBasique') { const k = _basiqueCleOrigine(html || ''); return k ? k.tonique : null; }
+  // Starter / Immersion : même détection que Basique (tonique sur tous les accords, chant mineur = relatif majeur :
+  // Bm D A7 G → D), pas la racine du 1er accord. Repli : « Clé X » écrite dans la fiche, puis 1er accord.
+  const kd = _basiqueCleOrigine(html || '');
+  if (kd) return kd.tonique;
+  const mt = (html || '').match(/class="cle-tag">Clé ([A-G][#b]?)(m(?!aj))?/);
+  if (mt) { const i = _cfNoteIdx(mt[1]); if (i !== null) return mt[2] ? (i + 3) % 12 : i; }
   const l = detecterAccordsHTML(html || '');
   for (const x of l) { const i = _cfNoteIdx(x); if (i !== null) return i; }
   return null;
