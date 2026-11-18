@@ -376,6 +376,7 @@ var SECTION_PATTERNS = [
   {re:/refrain/i, type:'refrain'},
   {re:/pont/i, type:'pont'},
   {re:/finale?/i, type:'finale'},
+  {re:/\bending\b|\boutro\b/i, type:'finale'},
   {re:/\bintro/i, type:'intro'},
   {re:/\bsolo\b/i, type:'solo'},
   {re:/couplet/i, type:'couplet'}
@@ -409,7 +410,8 @@ function _estLigneMeta(ligne){
 function parseLigneAccords(ligne){
   // normalise les espaces parasites juste après un tiret (ex: "hi- [Em]a" -> "hi-[Em]a") :
   // un tiret signifie toujours une continuation de mot, un espace juste après n'a pas de sens.
-  ligne = ligne.replace(/-\s+/g, '-');
+  // Si ce n'est pas un accord qui suit (ex: "fa'i- na-pe"), le tiret en trop est ignoré : c'est une séparation de mots.
+  ligne = ligne.replace(/-\s+(?=\S)/g, function(m, off, str){ return str.charAt(off + m.length) === '[' ? '-' : ' '; });
   // Syntaxe "paho(refr[(C7)]ain)ho" : le texte entre parenthèses est caché, l'accord C7 va sur la syllabe suivante ("ho").
   ligne = ligne.replace(/\(([^()\[\]]*)\[\(([^\[\]()]+)\)\]([^()\[\]]*)\)/g, '[$2]');
   var parts = ligne.split(/(\[[^\]]+\])/g);
@@ -585,6 +587,17 @@ function analyserStructure(){
       sansParole = sansParole || /intro|solo|ending|final(e)? instru/i.test(label) || refNom.toLowerCase() !== label.toLowerCase();
     }
     donneesStructure.push({label:label, refType:detecterTypeSection(refNom), refNom:refNom, repeat:repeat, sansParole:sansParole, decalage:decalageCourant});
+  });
+  // Un « Ending » / « Outro » qui a de vraies paroles (bloc écrit avec du texte) est chanté : il n'est plus « sans parole ».
+  donneesStructure.forEach(function(e){
+    if(!e.sansParole || !/^(ending|outro)/i.test(e.label) || e.refNom.toLowerCase() !== e.label.toLowerCase()) return;
+    var cle = _normaliserLabelStructure(e.label);
+    var aDuTexte = donneesParoles.some(function(b){
+      return _normaliserLabelStructure(b.label || '') === cle && b.lignes.some(function(segs){
+        return segs.some(function(sg){ return /[A-Za-zÀ-ÿĀ-ſ]/.test((sg.texte || '').replace(/\(.*?\)/g, '')); });
+      });
+    });
+    if(aDuTexte) e.sansParole = false;
   });
   var zone = document.getElementById('structurePreview');
   if(donneesStructure.length === 0){
@@ -1752,7 +1765,9 @@ function escaperHTML(s){
   return d.innerHTML;
 }
 
+window._karaokeAvert = [];
 function construireParolesKaraoke(){
+  window._karaokeAvert = [];
   // Immersion affiche le texte du champ "Paroles pour vidéo" (propre, dans l'ordre voulu,
   // réutilisé automatiquement à chaque occurrence), mais colore syllabe par syllabe au clic —
   // pour ça elle a besoin des tirets, qui ne sont volontairement pas dans ce champ. On va donc
@@ -1787,16 +1802,19 @@ function construireParolesKaraoke(){
       else if(parolesVideoParType.parType[type] && parolesVideoParType.parType[type].length) lignesVideo = parolesVideoParType.parType[type];
     }
     if(lignesVideo){
-      var fileMotsTirets = (motsTiretsParLabel[cleEtape] || motsTiretsParType[type] || []).slice(); // copie — on la vide au fur et à mesure (queue)
+      var modeleTirets = (motsTiretsParLabel[cleEtape] || motsTiretsParType[type] || []);
+      var fileMotsTirets = modeleTirets.slice(); // copie — on la vide au fur et à mesure (queue)
       return lignesVideo.map(function(texteAffiche){
         return texteAffiche.split(/\s+/).map(function(motAffiche){
           var motTiret = fileMotsTirets.shift();
-          if(!motTiret) return motAffiche;
+          // Même type de section écrit plusieurs fois (ex: 2 Refrains) : on repart du début du modèle de syllabes
+          if(!motTiret && modeleTirets.length){ fileMotsTirets = modeleTirets.slice(); motTiret = fileMotsTirets.shift(); }
+          if(!motTiret){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; }
           // Le mot de section 2 ne sert QUE pour la position des tirets de syllabe — jamais pour
           // son orthographe/casse/ponctuation (ex: "Avarua" doit rester "Avarua", pas devenir
           // "a-va-ru-a." avec la ponctuation de section 2). On extrait juste où placer les tirets.
           var normaliser = function(s){ return s.replace(/-/g, '').replace(/[,.;:!?]+$/, '').toLowerCase(); };
-          if(normaliser(motTiret) !== normaliser(motAffiche)) return motAffiche;
+          if(normaliser(motTiret) !== normaliser(motAffiche)){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; }
           var syllabes = motTiret.split('-');
           var ponctTiret = (syllabes[syllabes.length-1].match(/[,.;:!?]+$/)||[''])[0];
           if(ponctTiret) syllabes[syllabes.length-1] = syllabes[syllabes.length-1].slice(0, -ponctTiret.length);
@@ -1804,7 +1822,7 @@ function construireParolesKaraoke(){
           var coeurAffiche = ponctAffiche ? motAffiche.slice(0, -ponctAffiche.length) : motAffiche;
           var longueurs = syllabes.map(function(s){ return s.length; });
           var total = longueurs.reduce(function(a,b){ return a+b; }, 0);
-          if(total !== coeurAffiche.length) return motAffiche; // sécurité : lettres différentes malgré la normalisation, on garde l'affichage
+          if(total !== coeurAffiche.length){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; } // sécurité : lettres différentes malgré la normalisation, on garde l'affichage
           var pos = 0;
           var reconstruit = longueurs.map(function(len){
             var morceau = coeurAffiche.slice(pos, pos+len);
@@ -2068,6 +2086,10 @@ function ouvrirVideo(type){
   var audioOrig = audioOrigEl ? audioOrigEl.value.trim() : '';
   var pistesVideo = audioOrig ? [{id:'orig', nom:'Audio original', mode:'url', valeur:audioOrig, exclure:false}] : pistes;
   var data = {meta:meta, structure:donneesStructure, mesures:mesures, pistes:pistesVideo, images:images, parolesKaraoke:construireParolesKaraoke()};
+  if(type !== 'starter' && window._karaokeAvert && window._karaokeAvert.length){
+    var liste = window._karaokeAvert.slice(0, 8).join('\n');
+    if(!confirm('⚠ ' + window._karaokeAvert.length + ' mot(s) de la vidéo sans syllabes (modèle introuvable ou différent) :\n\n' + liste + (window._karaokeAvert.length > 8 ? '\n…' : '') + '\n\nCréer la vidéo quand même ?')) return;
+  }
   localStorage.setItem('mf_generateur_chanson', JSON.stringify(data));
   var page = type === 'starter' ? 'video-starter.html' : 'video-immersion.html';
   window.open(page + '?v=' + Date.now(), '_blank');
@@ -2146,7 +2168,7 @@ function parserLexiqueLibre(texte){
   var courant = null;
   var reEntree = /^\s*[\*\-•●▪→]?\s*([A-Za-zÀ-ÿĀ-ſ''ʻ0-9][^:–—]{0,40}?)\s*[:–—]\s*(.+)$/;
   var reNumerotee = /^\s*\d+\.\s/;
-  var reSection = /^\s*(couplet|refrain|pré.?refrain|pont|finale?)\s*\d*\s*$/i;
+  var reSection = /^\s*(couplet|refrain|pré.?refrain|pont|finale?|ending|outro)\s*\d*\s*$/i;
   var reMeta = /^\s*[\*\-•●▪→]?\s*(ligne\s*\d+|traduction|analyse\s*mot\s*[àa]\s*mot)\s*:/i;
   lignes.forEach(function(ligneOrig){
     var ligne = ligneOrig.trim();
