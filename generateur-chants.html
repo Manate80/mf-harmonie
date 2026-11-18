@@ -1768,77 +1768,20 @@ function escaperHTML(s){
 window._karaokeAvert = [];
 function construireParolesKaraoke(){
   window._karaokeAvert = [];
-  // Immersion affiche le texte du champ "Paroles pour vidéo" (propre, dans l'ordre voulu,
-  // réutilisé automatiquement à chaque occurrence), mais colore syllabe par syllabe au clic —
-  // pour ça elle a besoin des tirets, qui ne sont volontairement pas dans ce champ. On va donc
-  // les chercher dans les paroles originales tapées en section 2 (1er bloc rencontré par type,
-  // qui sert de "modèle de syllabes"), en les appariant MOT PAR MOT (pas ligne par ligne — les
-  // deux champs ne découpent pas forcément les lignes pareil, ex: 2 phrases groupées sur une
-  // seule ligne en section 2 mais séparées en 2 lignes dans "Paroles pour vidéo" — un appariement
-  // par ligne perdrait le compte et dupliquerait des lignes plus loin). Si le modèle vient à
-  // manquer (compte de mots différent), le(s) mot(s) restant(s) gardent juste leur texte simple
-  // (1 seul "syllabe" au clic) plutôt que de dupliquer quoi que ce soit.
-  var parolesVideoParType = parserParolesVideoParType(document.getElementById('m-paroles-video').value);
-  var motsTiretsParType = {};
-  var motsTiretsParLabel = {};
+  // Immersion : TOUT vient des paroles syllabées (section 2 : paroles + accords + syllabes). Chaque passage de la structure
+  // reprend la section du même nom (sinon la 1re section du même type) : un couplet/refrain qui se répète reprend donc
+  // exactement les mêmes syllabes, et toute correction faite dans la section s'affiche partout. Le champ « Paroles pour
+  // vidéo » n'est plus utilisé ici (il ne sert qu'à la vidéo Starter) : plus de comparaison mot à mot.
+  var blocParLabel = {}, blocParType = {};
   donneesParoles.forEach(function(bloc){
-    var mots = [];
-    bloc.lignes.forEach(function(segs){
-      texteLigneAvecTirets(segs).trim().split(/\s+/).forEach(function(m){ if(m) mots.push(m); });
-    });
-    var cleLabel = _normaliserLabelStructure(bloc.label || '');
-    if(cleLabel && !motsTiretsParLabel[cleLabel]) motsTiretsParLabel[cleLabel] = mots; // modèle propre à CE label (Refrain2 ≠ Refrain1)
-    if(!motsTiretsParType[bloc.type]) motsTiretsParType[bloc.type] = mots; // sinon, 1er modèle rencontré pour ce type
+    var cle = _normaliserLabelStructure(bloc.label || '');
+    if(cle && !blocParLabel[cle]) blocParLabel[cle] = bloc;
+    if(!blocParType[bloc.type]) blocParType[bloc.type] = bloc;
   });
-
-  // Suit "Paroles pour vidéo" comme Starter : étiquette exacte d'abord (Couplet1, Refrain2...),
-  // type générique en repli seulement si les en-têtes ne sont pas numérotées.
   function lignesDuType(etape){
-    var type = etape.refType;
-    var cleEtape = _normaliserLabelStructure(etape.label);
-    var lignesVideo = null;
-    if(parolesVideoParType){
-      if(parolesVideoParType.parLabel[cleEtape] && parolesVideoParType.parLabel[cleEtape].length) lignesVideo = parolesVideoParType.parLabel[cleEtape];
-      else if(parolesVideoParType.parType[type] && parolesVideoParType.parType[type].length) lignesVideo = parolesVideoParType.parType[type];
-    }
-    if(lignesVideo){
-      var modeleTirets = (motsTiretsParLabel[cleEtape] || motsTiretsParType[type] || []);
-      var fileMotsTirets = modeleTirets.slice(); // copie — on la vide au fur et à mesure (queue)
-      return lignesVideo.map(function(texteAffiche){
-        return texteAffiche.split(/\s+/).map(function(motAffiche){
-          var motTiret = fileMotsTirets.shift();
-          // Même type de section écrit plusieurs fois (ex: 2 Refrains) : on repart du début du modèle de syllabes
-          if(!motTiret && modeleTirets.length){ fileMotsTirets = modeleTirets.slice(); motTiret = fileMotsTirets.shift(); }
-          if(!motTiret){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; }
-          // Le mot de section 2 ne sert QUE pour la position des tirets de syllabe — jamais pour
-          // son orthographe/casse/ponctuation (ex: "Avarua" doit rester "Avarua", pas devenir
-          // "a-va-ru-a." avec la ponctuation de section 2). On extrait juste où placer les tirets.
-          var normaliser = function(s){ return s.replace(/-/g, '').replace(/[,.;:!?]+$/, '').toLowerCase(); };
-          if(normaliser(motTiret) !== normaliser(motAffiche)){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; }
-          var syllabes = motTiret.split('-');
-          var ponctTiret = (syllabes[syllabes.length-1].match(/[,.;:!?]+$/)||[''])[0];
-          if(ponctTiret) syllabes[syllabes.length-1] = syllabes[syllabes.length-1].slice(0, -ponctTiret.length);
-          var ponctAffiche = (motAffiche.match(/[,.;:!?]+$/)||[''])[0];
-          var coeurAffiche = ponctAffiche ? motAffiche.slice(0, -ponctAffiche.length) : motAffiche;
-          var longueurs = syllabes.map(function(s){ return s.length; });
-          var total = longueurs.reduce(function(a,b){ return a+b; }, 0);
-          if(total !== coeurAffiche.length){ window._karaokeAvert.push((etape.label || type) + ' : ' + motAffiche); return motAffiche; } // sécurité : lettres différentes malgré la normalisation, on garde l'affichage
-          var pos = 0;
-          var reconstruit = longueurs.map(function(len){
-            var morceau = coeurAffiche.slice(pos, pos+len);
-            pos += len;
-            return morceau;
-          }).join('-');
-          return reconstruit + ponctAffiche;
-        }).join(' ');
-      });
-    }
+    var bloc = blocParLabel[_normaliserLabelStructure(etape.label)] || blocParType[etape.refType];
     var tous = [];
-    var blocsLabel = donneesParoles.filter(function(bloc){ return _normaliserLabelStructure(bloc.label || '') === cleEtape; });
-    var blocsUtiles = blocsLabel.length ? blocsLabel : donneesParoles.filter(function(bloc){ return bloc.type === type; });
-    blocsUtiles.forEach(function(bloc){
-      bloc.lignes.forEach(function(segs){ tous.push(texteLigneAvecTirets(segs).trim()); });
-    });
+    if(bloc) bloc.lignes.forEach(function(segs){ var t = texteLigneAvecTirets(segs).trim(); if(t) tous.push(t); });
     return tous;
   }
 
