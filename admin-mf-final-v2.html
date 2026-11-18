@@ -12508,7 +12508,7 @@ function mfBiblioInjecter() {
     const sid = f.id.replace(/^ch/, '').replace(/-bqf$/, '');
     const zone = f.parentElement; if (!zone || !zone.parentElement) return;
     if (zone.parentElement.querySelector('.mf-admin-print')) return;
-    const c = (S.get('chansons') || []).find(x => String(x.id) === sid); if (!c || !c.svgBasique) return;
+    const c = (S.get('chansons') || []).find(x => String(x.id).replace(/[^a-zA-Z0-9]/g, '') === sid); if (!c || !c.svgBasique) return;
     let t = '100', al = '0'; try { t = localStorage.getItem('mfPdfTailleBq_' + c.id) || '100'; al = localStorage.getItem('mfPdfAlignBq_' + c.id) || '0'; } catch (e) {}
     const st = 'padding:6px 8px;background:#222;border:1px solid #555;color:#eee;border-radius:4px;';
     const d = doc.createElement('div');
@@ -12524,6 +12524,25 @@ function mfBiblioInjecter() {
     d.querySelector('.b-imp').addEventListener('click', function () { imprimerFicheBasiqueAdmin(c.id); });
     d.querySelector('.b-pub').addEventListener('click', function () { publierImpressionEleve(c.id); });
     zone.parentElement.insertBefore(d, zone);
+  });
+  // 3) Impression dans Parole Starter (taille et alignement enregistrés par chanson, comme dans l'ancien panneau)
+  doc.querySelectorAll('div[id^="ch"][id$="htmlmode"]').forEach(function (zone) {
+    const sid = zone.id.replace(/^ch/, '').replace(/htmlmode$/, '');
+    const parent = zone.parentElement; if (!parent || parent.querySelector('.mf-admin-print-starter')) return;
+    const c = (S.get('chansons') || []).find(x => String(x.id).replace(/[^a-zA-Z0-9]/g, '') === sid); if (!c || !c.svg) return;
+    let t = '100', al = '0'; try { t = localStorage.getItem('mfPdfTaille_' + c.id) || '100'; al = localStorage.getItem('mfPdfAlign_' + c.id) || '0'; } catch (e) {}
+    const st = 'padding:6px 8px;background:#222;border:1px solid #555;color:#eee;border-radius:4px;';
+    const d = doc.createElement('div');
+    d.className = 'mf-admin-print-starter';
+    d.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;';
+    d.innerHTML = '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">'
+      + [['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']].map(o => '<option value="' + o[0] + '"' + (o[0] === t ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>'
+      + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#eee;">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '" style="width:90px;"></label>'
+      + '<button type="button" class="b-imp btn-fullscreen">🖨️ Imprimer / PDF</button>';
+    d.querySelector('.tl').addEventListener('change', function (e) { try { localStorage.setItem('mfPdfTaille_' + c.id, e.target.value); } catch (er) {} });
+    d.querySelector('.al').addEventListener('input', function (e) { try { localStorage.setItem('mfPdfAlign_' + c.id, e.target.value); } catch (er) {} });
+    d.querySelector('.b-imp').addEventListener('click', function () { imprimerStarterParolesAdmin(c.id, 'bib' + sid + '-starter'); });
+    parent.insertBefore(d, zone);
   });
 }
 function mfBiblioCalageLive(win, d, sid, cid, imm, quoi, val) {
