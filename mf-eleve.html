@@ -2136,7 +2136,7 @@ function _consoleAudioAppliquerNote(cid) {
       st.posMusicaleBase = pos; st.posMusicaleBaseTime = performance.now(); st._dernierRefAudio = pos;
       if (etaitEnLecture && st.run) {
         Object.values(st.audios).forEach(a => a.play().catch(() => {}));
-        st._resyncAppels = 0; st._nbRs = {};
+        st._resyncAppels = 0; st._nbRs = {}; st._tDepart = performance.now();
         [80, 200, 400].forEach(d => setTimeout(() => { if (st.run) consoleAudioResynchroniser(cid); }, d));
       }
     };
@@ -2474,7 +2474,7 @@ function consoleAudioPlay(cid) {
       st.audios[idx].play().catch(err => console.error('Lecture piste en échec:', err));
     });
     st.run = true;
-    st._nbRs = {}; st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
+    st._nbRs = {}; st._tDepart = performance.now(); st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
     clearInterval(st.timer);
     // Recalage immédiat en rafale : les pistes ne démarrent jamais exactement à la même milliseconde
     // (chargement réseau différent par piste) — sans ça, le décalage du tout début persiste ensuite.
@@ -2488,8 +2488,16 @@ function consoleAudioResynchroniser(cid) {
   const st = consoleAudioEtat[cid];
   if (!st || !st.run || st._enChangementNote) return;
   // Référence = première piste prête ET stable (pas en train de charger un saut de lecture)
-  const idxRef = Object.keys(st.audios).find(idx => st.prets[idx] && !st.audios[idx].seeking && st.audios[idx].readyState >= 3);
+  let idxRef = Object.keys(st.audios).find(idx => st.prets[idx] && !st.audios[idx].seeking && st.audios[idx].readyState >= 3);
   if (idxRef === undefined) return;
+  // Apple : référence = la piste la plus AVANCÉE. Une piste bloquée au départ (Safari ne la lance pas toujours)
+  // est alors rattrapée, au lieu de ramener toutes les autres à 0 en boucle.
+  if (mfEstApple()) {
+    Object.keys(st.audios).forEach(idx => {
+      const x = st.audios[idx];
+      if (st.prets[idx] && !x.seeking && x.readyState >= 3 && x.currentTime > st.audios[idxRef].currentTime) idxRef = idx;
+    });
+  }
   const refTime = st.audios[idxRef].currentTime;
   // Recale le repère de position musicale sur le temps réellement écoulé (mesuré via l'horloge
   // audio du navigateur, fiable) plutôt que de laisser dériver une simple estimation basée sur
@@ -2511,12 +2519,18 @@ function consoleAudioResynchroniser(cid) {
   st._nbRs = st._nbRs || {}; st._lag = st._lag || {};
   // Frein : on ne repositionne jamais une piste qui est encore en train de charger son dernier saut,
   // et au plus une fois toutes les 2 s par piste (sinon les repositionnements s'enchaînent et ça « saute »).
-  st._tResync = st._tResync || {};
+  st._tResync = st._tResync || {}; st._tRelance = st._tRelance || {};
   const _maintenant = performance.now();
   Object.keys(st.audios).forEach(idx => {
     if (idx === idxRef || !st.prets[idx]) return;
     const a = st.audios[idx];
     if (a.seeking || a.readyState < 3) return;
+    // Apple : une piste qui n'avance pas (pause ou restée à 0) plus de 2 s après le départ est relancée
+    if (_apple && st._tDepart && _maintenant - st._tDepart > 2000 && refTime > 1 && (a.paused || a.currentTime < 0.05)
+        && (st._tRelance[idx] === undefined || _maintenant - st._tRelance[idx] > 3000)) {
+      st._tRelance[idx] = _maintenant;
+      try { a.play().catch(() => {}); } catch (e) {}
+    }
     if (st._resyncAppels > 4 && st._tResync[idx] !== undefined && _maintenant - st._tResync[idx] < 2000) return;
     const ecart = refTime - a.currentTime; // > 0 : la piste est en retard
     if (Math.abs(ecart) > seuilResync) {
@@ -2524,8 +2538,6 @@ function consoleAudioResynchroniser(cid) {
       if (_apple) {
         // Apple : Safari relance la piste avec un retard presque constant après chaque repositionnement.
         // On le mesure (dès le 2e recalage) et on repositionne la piste légèrement en avance de ce retard.
-        // Et si une piste est recalée 4 fois sans se stabiliser, on arrête de la recaler (plus de « tac tac »).
-        if ((st._nbRs[idx] || 0) >= 4) return;
         st._nbRs[idx] = (st._nbRs[idx] || 0) + 1;
         if (st._nbRs[idx] >= 2 && ecart > 0.05 && ecart < 0.8) {
           st._lag[idx] = (st._lag[idx] !== undefined) ? (st._lag[idx] * 0.5 + ecart * 0.5) : ecart;
