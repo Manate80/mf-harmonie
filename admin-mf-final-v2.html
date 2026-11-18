@@ -9560,7 +9560,7 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
   if (!c || !c.svg) { toast('⚠ Aucune fiche Starter à imprimer'); return; }
   // Mise en page des paroles : 'auto' | '1' (1 ligne) | '2' (2 lignes sur 1 ligne), choisie dans le sélecteur à côté du bouton
   const selMode = document.getElementById(cid + '-pdfmode');
-  const mode = selMode ? selMode.value : 'auto';
+  let mode = selMode ? selMode.value : 'auto'; if (!selMode) { try { mode = localStorage.getItem('mfPdfLignes_' + c.id) || 'auto'; } catch(e) {} }
   // Taille du texte (% de la taille automatique) et décalage global des accords (px), enregistrés par chanson
   const selTaille = document.getElementById(cid + '-pdftaille'), selAlign = document.getElementById(cid + '-pdfalign');
   let taille = selTaille ? parseFloat(selTaille.value) : NaN, align = selAlign ? parseFloat(selAlign.value) : NaN;
@@ -12525,22 +12525,39 @@ function mfBiblioInjecter() {
     d.querySelector('.b-pub').addEventListener('click', function () { publierImpressionEleve(c.id); });
     zone.parentElement.insertBefore(d, zone);
   });
-  // 3) Impression dans Parole Starter (taille et alignement enregistrés par chanson, comme dans l'ancien panneau)
+  // 3) Impression dans Parole Starter : MÊMES options que l'ancien panneau (taille, accords, lignes, traduction, emplacement, 3 colonnes, langue)
   doc.querySelectorAll('div[id^="ch"][id$="htmlmode"]').forEach(function (zone) {
     const sid = zone.id.replace(/^ch/, '').replace(/htmlmode$/, '');
     const parent = zone.parentElement; if (!parent || parent.querySelector('.mf-admin-print-starter')) return;
     const c = (S.get('chansons') || []).find(x => String(x.id).replace(/[^a-zA-Z0-9]/g, '') === sid); if (!c || !c.svg) return;
-    let t = '100', al = '0'; try { t = localStorage.getItem('mfPdfTaille_' + c.id) || '100'; al = localStorage.getItem('mfPdfAlign_' + c.id) || '0'; } catch (e) {}
+    const g = function (k, def) { try { const v = localStorage.getItem(k + c.id); return v === null ? def : v; } catch (e) { return def; } };
+    const set = function (k, v) { try { localStorage.setItem(k + c.id, v); } catch (e) {} };
+    const t = g('mfPdfTaille_', '100'), al = g('mfPdfAlign_', '0'), m = g('mfPdfLignes_', 'auto'), pl = g('mfPdfPlace_', 'auto');
+    const on = g('mfPdfTrad_', '1') !== '0';
+    const lg = _mfLangueChanson(c), c3 = _mfCols3(c);
     const st = 'padding:6px 8px;background:#222;border:1px solid #555;color:#eee;border-radius:4px;';
+    const lb = 'display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#eee;';
+    const opt = (arr, cur) => arr.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('');
     const d = doc.createElement('div');
     d.className = 'mf-admin-print-starter';
     d.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;';
-    d.innerHTML = '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">'
-      + [['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']].map(o => '<option value="' + o[0] + '"' + (o[0] === t ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>'
-      + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#eee;">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '" style="width:90px;"></label>'
+    d.innerHTML = '<select class="md" title="Mise en page des paroles dans le PDF" style="' + st + '">' + opt([['auto','📄 PDF : Auto'],['1','📄 PDF : 1 ligne'],['2','📄 PDF : 2 lignes']], m) + '</select>'
+      + '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">' + opt([['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']], t) + '</select>'
+      + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="' + lb + '">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '" style="width:90px;"></label>'
+      + '<label title="Mettre l\'encadré de traduction (fiche Immersion) dans le PDF" style="' + lb + '"><input class="tr" type="checkbox"' + (on ? ' checked' : '') + '> 🌐 Traduction</label>'
+      + '<select class="pl" title="Où mettre la traduction dans le PDF" style="' + st + '">' + opt([['auto','🌐 Traduction : Auto'],['dessous','🌐 Sous la chanson'],['cote','🌐 Sur le côté']], pl) + '</select>'
+      + '<label title="Affichage 3 colonnes : Māori | English | Français (chants de Rarotonga…)" style="' + lb + '"><input class="c3" type="checkbox"' + (c3 ? ' checked' : '') + '> Affichage 3 colonnes</label>'
+      + '<label title="Chanson en français : pas de traduction, paroles pleine page" style="' + lb + '"><input class="lf" type="checkbox"' + (lg === 'fr' ? ' checked' : '') + '> Chanson en français</label>'
+      + '<label title="Chanson en anglais : pas de traduction, paroles pleine page" style="' + lb + '"><input class="le" type="checkbox"' + (lg === 'en' ? ' checked' : '') + '> Chanson en anglais</label>'
       + '<button type="button" class="b-imp btn-fullscreen">🖨️ Imprimer / PDF</button>';
-    d.querySelector('.tl').addEventListener('change', function (e) { try { localStorage.setItem('mfPdfTaille_' + c.id, e.target.value); } catch (er) {} });
-    d.querySelector('.al').addEventListener('input', function (e) { try { localStorage.setItem('mfPdfAlign_' + c.id, e.target.value); } catch (er) {} });
+    d.querySelector('.md').addEventListener('change', function (e) { set('mfPdfLignes_', e.target.value); });
+    d.querySelector('.tl').addEventListener('change', function (e) { set('mfPdfTaille_', e.target.value); });
+    d.querySelector('.al').addEventListener('input', function (e) { set('mfPdfAlign_', e.target.value); });
+    d.querySelector('.tr').addEventListener('change', function (e) { set('mfPdfTrad_', e.target.checked ? '1' : '0'); });
+    d.querySelector('.pl').addEventListener('change', function (e) { set('mfPdfPlace_', e.target.value); });
+    d.querySelector('.c3').addEventListener('change', function (e) { set('mfPdfCols3_', e.target.checked ? '1' : '0'); });
+    d.querySelector('.lf').addEventListener('change', function (e) { set('mfLangue_', e.target.checked ? 'fr' : 'tah'); if (e.target.checked) d.querySelector('.le').checked = false; });
+    d.querySelector('.le').addEventListener('change', function (e) { set('mfLangue_', e.target.checked ? 'en' : 'tah'); if (e.target.checked) d.querySelector('.lf').checked = false; });
     d.querySelector('.b-imp').addEventListener('click', function () { imprimerStarterParolesAdmin(c.id, 'bib' + sid + '-starter'); });
     parent.insertBefore(d, zone);
   });
