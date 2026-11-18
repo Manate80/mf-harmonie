@@ -1055,8 +1055,19 @@ function envoyerALAdmin(){
     alert('Envoi impossible (stockage du navigateur plein ou bloqué) : ' + e.message);
     return;
   }
+  // Garde une trace : le JSON de cet envoi est aussi téléchargé (même fichier que « Finaliser & télécharger »)
+  try{
+    var titreEnvoi = (document.getElementById('m-titre').value || 'chanson').trim();
+    var aJson = document.createElement('a');
+    aJson.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type:'application/json'}));
+    aJson.download = _sluggifyTitreGenerateur(titreEnvoi) + '-chanson-complete.json';
+    aJson.style.display = 'none';
+    document.body.appendChild(aJson);
+    aJson.click();
+    setTimeout(function(){ try{ document.body.removeChild(aJson); URL.revokeObjectURL(aJson.href); }catch(e){} }, 1500);
+  }catch(e){ console.error('Téléchargement du JSON impossible', e); }
   var statut = document.getElementById('brouillon-statut');
-  if(statut) statut.textContent = '📤 Envoyé à l\'admin (' + new Date().toLocaleTimeString('fr-FR') + ') — ouvre l\'admin, il se remplit tout seul.';
+  if(statut) statut.textContent = '📤 Envoyé à l\'admin (' + new Date().toLocaleTimeString('fr-FR') + ') — JSON téléchargé ; l\'admin se remplit et enregistre tout seul.';
   try{ window.open('admin-mf-final-v2.html?envoi=' + Date.now(), '_blank'); }catch(e){}
 }
 function finaliserChanson(){
