@@ -2136,7 +2136,7 @@ function _consoleAudioAppliquerNote(cid) {
       st.posMusicaleBase = pos; st.posMusicaleBaseTime = performance.now(); st._dernierRefAudio = pos;
       if (etaitEnLecture && st.run) {
         Object.values(st.audios).forEach(a => a.play().catch(() => {}));
-        st._resyncAppels = 0; st._nbRs = {}; st._tDepart = performance.now();
+        st._resyncAppels = 0; st._nbRs = {}; st._tDepart = performance.now(); st._idxRef = undefined; st._refT = null;
         [80, 200, 400].forEach(d => setTimeout(() => { if (st.run) consoleAudioResynchroniser(cid); }, d));
       }
     };
@@ -2474,7 +2474,7 @@ function consoleAudioPlay(cid) {
       st.audios[idx].play().catch(err => console.error('Lecture piste en échec:', err));
     });
     st.run = true;
-    st._nbRs = {}; st._tDepart = performance.now(); st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
+    st._nbRs = {}; st._tDepart = performance.now(); st._idxRef = undefined; st._refT = null; st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
     clearInterval(st.timer);
     // Recalage immédiat en rafale : les pistes ne démarrent jamais exactement à la même milliseconde
     // (chargement réseau différent par piste) — sans ça, le décalage du tout début persiste ensuite.
@@ -2490,13 +2490,28 @@ function consoleAudioResynchroniser(cid) {
   // Référence = première piste prête ET stable (pas en train de charger un saut de lecture)
   let idxRef = Object.keys(st.audios).find(idx => st.prets[idx] && !st.audios[idx].seeking && st.audios[idx].readyState >= 3);
   if (idxRef === undefined) return;
-  // Apple : référence = la piste la plus AVANCÉE. Une piste bloquée au départ (Safari ne la lance pas toujours)
-  // est alors rattrapée, au lieu de ramener toutes les autres à 0 en boucle.
+  // Apple : la référence est choisie UNE FOIS (la piste la plus avancée) puis gardée tant qu'elle joue normalement.
+  // Une piste bloquée au départ est ainsi rattrapée, et la référence ne change pas à chaque recalage
+  // (sinon chaque piste repositionnée en avance devient la nouvelle référence et les autres la poursuivent sans fin).
   if (mfEstApple()) {
-    Object.keys(st.audios).forEach(idx => {
-      const x = st.audios[idx];
-      if (st.prets[idx] && !x.seeking && x.readyState >= 3 && x.currentTime > st.audios[idxRef].currentTime) idxRef = idx;
-    });
+    const _t = performance.now();
+    const _r = (st._idxRef !== undefined) ? st.audios[st._idxRef] : null;
+    let _ok = !!(_r && st.prets[st._idxRef] && !_r.paused);
+    if (_ok && _r.seeking) return; // la référence charge un saut : on attend le prochain passage
+    if (_ok && _r.readyState < 3) _ok = false;
+    if (_ok) {
+      if (!st._refT || Math.abs(_r.currentTime - st._refT.t) > 0.02) st._refT = { t: _r.currentTime, at: _t };
+      else if (_t - st._refT.at > 2000) _ok = false; // la référence n'avance plus depuis 2 s
+    }
+    if (!_ok) {
+      Object.keys(st.audios).forEach(idx => {
+        const x = st.audios[idx];
+        if (st.prets[idx] && !x.seeking && x.readyState >= 3 && x.currentTime > st.audios[idxRef].currentTime) idxRef = idx;
+      });
+      st._idxRef = idxRef; st._refT = null;
+    } else {
+      idxRef = st._idxRef;
+    }
   }
   const refTime = st.audios[idxRef].currentTime;
   // Recale le repère de position musicale sur le temps réellement écoulé (mesuré via l'horloge
@@ -2538,6 +2553,12 @@ function consoleAudioResynchroniser(cid) {
       if (_apple) {
         // Apple : Safari relance la piste avec un retard presque constant après chaque repositionnement.
         // On le mesure (dès le 2e recalage) et on repositionne la piste légèrement en avance de ce retard.
+        // Frein anti-boucle : plus de 5 recalages de la même piste en 20 s = on s'arrête 10 s et on oublie le retard appris.
+        st._pauseRs = st._pauseRs || {}; st._rsHist = st._rsHist || {};
+        if ((st._pauseRs[idx] || 0) > _maintenant) return;
+        const _h = (st._rsHist[idx] = (st._rsHist[idx] || []).filter(t => _maintenant - t < 20000));
+        if (_h.length >= 5) { st._pauseRs[idx] = _maintenant + 10000; st._lag[idx] = 0; st._rsHist[idx] = []; return; }
+        _h.push(_maintenant);
         st._nbRs[idx] = (st._nbRs[idx] || 0) + 1;
         if (st._nbRs[idx] >= 2 && ecart > 0.05 && ecart < 0.8) {
           st._lag[idx] = (st._lag[idx] !== undefined) ? (st._lag[idx] * 0.5 + ecart * 0.5) : ecart;
