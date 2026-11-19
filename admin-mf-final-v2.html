@@ -1906,6 +1906,12 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     <div class="oc-note" style="margin-bottom:10px">Télécharge un seul fichier .json avec TOUTES les données de l'Organizer (clients, groupes, planning, revenus, dépenses, historique des factures, entreprise, RIB, tampon, rappels, jours pédagogiques). À faire régulièrement, et à conserver sur Google Drive, email ou WhatsApp — c'est votre filet de sécurité en cas de changement de téléphone ou de vidage du navigateur. Cette sauvegarde ne modifie rien : elle ne fait que lire et télécharger.</div>
     <button class="btn" style="background:linear-gradient(135deg,#27ae60,#1e8449)" onclick="ocSauvegarderTout()">💾 Télécharger la sauvegarde complète (.json)</button>
   </div>
+  <div class="oc-card" style="border-color:rgba(66,133,244,.45)">
+    <div class="oc-card-title" style="color:#4285F4">☁️ Envoyer tout sur mon Google Drive</div>
+    <div class="oc-note" style="margin-bottom:10px">Un seul fichier ZIP avec : toutes les factures (PDF, rangées par année et par mois), les fiches élèves, abonnés et professeurs (abonnement, paiements), les paiements reçus, le prévisionnel et la sauvegarde de l'Organizer. Sur téléphone, le menu de partage s'ouvre : choisissez Drive, puis le dossier « MF Harmonie – suivi élèves, abonnés et professeurs ». Sur ordinateur, le fichier se télécharge : glissez-le dans ce dossier. Les mots de passe ne sont jamais inclus.</div>
+    <button class="btn" id="oc-btn-drive-tout" style="background:linear-gradient(135deg,#4285F4,#34A853)" onclick="ocEnvoyerToutSurDrive()">☁️ Envoyer tout sur le Drive</button>
+    <div class="oc-note" id="oc-drive-etat" style="margin-top:8px"></div>
+  </div>
 
   <div class="oc-card">
     <div class="oc-card-title">📖 Journal des absences <span class="sub">par élève — alimenté automatiquement</span></div>
@@ -2230,6 +2236,83 @@ const CLES_ORGANIZER = [
   'entreprise','rib','tamponActif','tamponImg','todo',
   'previsionnelOverrides','joursPedagogiques','detailDatesToujours','notifOn','journalHeures','absencesMois','ajustFactures','autoOverrides','migrV14','mesVacances','vacSansJour'
 ];
+/* ══ Envoi complet vers Google Drive : factures + suivi élèves/abonnés/profs + paiements + prévisionnel ══ */
+function ocCsv(lignes){
+  if(!lignes.length) return '';
+  const cles = []; lignes.forEach(l=>Object.keys(l).forEach(k=>{ if(cles.indexOf(k)<0) cles.push(k); }));
+  const cel = v=>{ if(v==null) return ''; if(typeof v==='object') v = JSON.stringify(v); v = String(v).replace(/"/g,'""'); return /[;"\n\r]/.test(v) ? '"'+v+'"' : v; };
+  return '﻿' + [cles.map(cel).join(';')].concat(lignes.map(l=>cles.map(k=>cel(l[k])).join(';'))).join('\r\n');
+}
+function ocPrevisionnelLignes(){
+  const out = [];
+  try{
+    const revenus = ocGetRevenus();
+    ocMoisPrevisionnelListe().forEach(([cle,label])=>{
+      revenus.forEach(r=>{ out.push({ mois:cle, libelle:label, source:r.nom, montant_XPF:ocMontantSourceMois(r, cle), corrige:(ocGetPrevisionnelOverrides()[r.id+'_'+cle]!==undefined?'oui':'') }); });
+      out.push({ mois:cle, libelle:label, source:'TOTAL DU MOIS', montant_XPF:ocTotalMois(cle), corrige:'' });
+    });
+  }catch(e){ console.warn('prévisionnel', e); }
+  return out;
+}
+window.ocEnvoyerToutSurDrive = async function(){
+  const btn = document.getElementById('oc-btn-drive-tout'), etat = document.getElementById('oc-drive-etat');
+  const say = t=>{ if(etat) etat.textContent = t; };
+  if(btn) btn.disabled = true;
+  try{
+    if(!window.JSZip) await ocChargerScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip = new JSZip(); const jour = new Date().toISOString().slice(0,10);
+    // 1) Factures
+    say('1/4 · Factures… (un instant)');
+    try{ if(typeof ocSyncArchivesFirebase==='function') await ocSyncArchivesFirebase(false); }catch(e){}
+    const histo = OS.get('factHisto', []).filter(f=>!f.annulee); let nF = 0; const manq = [];
+    for(const e of histo){
+      const b = await ocBlobFacture(e);
+      if(!b){ manq.push(e.numero + ' — ' + (e.nom||'')); continue; }
+      const cle = (typeof ocMoisCle==='function' && ocMoisCle(e)) || '';
+      const an = cle.slice(0,4) || String(e.anneeNum||'Sans-annee'), mo = cle.slice(5,7) || 'xx';
+      zip.file('Factures/' + an + '/' + mo + '/' + ocNomPdf(e), b); nF++;
+    }
+    if(manq.length) zip.file('Factures/_non_incluses.txt', 'Factures dont le PDF n’a pas pu être récupéré :\r\n' + manq.join('\r\n'));
+    // 2) Suivi depuis Firebase
+    say('2/4 · Élèves, abonnés, professeurs, paiements…');
+    let suivi = null;
+    if(window.lireSuiviPourDrive) suivi = await window.lireSuiviPourDrive();
+    let nS = 0;
+    if(suivi && suivi.ok){
+      Object.keys(suivi.data).forEach(nom=>{
+        const l = suivi.data[nom]; nS += l.length;
+        zip.file('Suivi/' + nom + '.json', JSON.stringify(l, null, 2));
+        zip.file('Suivi/' + nom + '.csv', ocCsv(l));
+      });
+    } else {
+      zip.file('Suivi/_erreur.txt', 'Lecture Firebase impossible : ' + (suivi && suivi.err || 'Firebase pas prêt') + '\r\nReconnectez-vous en admin puis recommencez.');
+    }
+    // 3) Prévisionnel
+    say('3/4 · Prévisionnel…');
+    const prev = ocPrevisionnelLignes();
+    zip.file('Previsionnel/previsionnel.csv', ocCsv(prev));
+    zip.file('Previsionnel/previsionnel.json', JSON.stringify(prev, null, 2));
+    // 4) Organizer
+    say('4/4 · Sauvegarde de l’Organizer…');
+    const sauv = { app:'MF Harmonie des Îles — Organizer', dateExport:new Date().toISOString(), donnees:{} };
+    CLES_ORGANIZER.forEach(c=>{ sauv.donnees[c] = OS.get(c, null); });
+    zip.file('Organizer/sauvegarde-organizer.json', JSON.stringify(sauv, null, 2));
+    zip.file('LISEZ-MOI.txt', 'MF Harmonie des Îles — export du ' + jour + '\r\nFactures : ' + nF + ' PDF · Suivi : ' + nS + ' fiches\r\nDossiers : Factures (année/mois), Suivi (élèves, abonnés, profs, paiements), Previsionnel, Organizer.\r\nLes mots de passe ne sont pas inclus.');
+    const blob = await zip.generateAsync({type:'blob'});
+    const nom = 'MF-Harmonie_Drive_' + jour + '.zip';
+    const file = new File([blob], nom, {type:'application/zip'});
+    let partage = false;
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({ files:[file], title:nom }); partage = true; }catch(e){ if(e && e.name==='AbortError'){ say('Envoi annulé.'); return; } }
+    }
+    if(!partage) ocSauverBlob(blob, nom);
+    say('✅ ' + nF + ' facture(s) et ' + nS + ' fiche(s) dans ' + nom + (partage ? ' — choisissez Drive dans le menu.' : ' — glissez-le dans le dossier Drive.') + (manq.length ? ' ⚠ ' + manq.length + ' facture(s) non récupérable(s) (liste dans le ZIP).' : ''));
+  }catch(e){
+    console.error('ocEnvoyerToutSurDrive ÉCHEC :', e);
+    say('⛔ Échec : ' + (e && e.message || e));
+  }finally{ if(btn) btn.disabled = false; }
+};
+
 window.ocSauvegarderTout = function(){
   try{
     const sauvegarde = { app:'MF Harmonie des Îles — Organizer', dateExport: new Date().toISOString(), donnees:{} };
@@ -16466,6 +16549,25 @@ window.lireFacturesFirebase=async function(){
     snap.forEach(d=>{ const x=d.data(); items.push({id:d.id,type:x.type,numero:x.numero,nomClient:x.nomClient,montant:x.montant,mois:x.mois,moisKey:x.moisKey,annee:x.annee,date:x.date||'',url:x.url,chemin:x.chemin||'',annulee:!!x.annulee}); });
     return {ok:true,items:items};
   }catch(e){ console.error('lireFacturesFirebase ÉCHEC :',e); return {ok:false,err:(e&&(e.code||e.message))||String(e)}; }
+};
+// Lecture du suivi (élèves, abonnés, profs, paiements) pour l'export Drive — les champs de type mot de passe / code d'accès sont retirés
+window.lireSuiviPourDrive=async function(){
+  try{
+    if(!window.mfAuthPret) await Promise.race([window.mfAuthAttendre, new Promise(r=>setTimeout(r,4000))]);
+    const secret=/mdp|mot.?de.?passe|password|passwd|^code|pin$|secret|token/i;
+    const nettoie=v=>{
+      if(v&&typeof v.toDate==='function'){ try{ return v.toDate().toISOString(); }catch(e){ return ''; } }
+      if(Array.isArray(v)) return v.map(nettoie);
+      if(v&&typeof v==='object'){ const o={}; Object.keys(v).forEach(k=>{ if(!secret.test(k)) o[k]=nettoie(v[k]); }); return o; }
+      return v;
+    };
+    const data={};
+    for(const nom of ['eleves','abonnes','profs','paiements']){
+      try{ const snap=await getDocs(collection(db,nom)); const l=[]; snap.forEach(d=>{ const o=nettoie(d.data()); o._id=d.id; l.push(o); }); data[nom]=l; }
+      catch(e){ console.warn('Lecture '+nom+' refusée :',e&&e.code); data[nom]=[]; }
+    }
+    return {ok:true,data:data};
+  }catch(e){ return {ok:false,err:(e&&(e.code||e.message))||String(e)}; }
 };
 window.supprimerFactureFirebase=async function(id,chemin,garderDoc){
   try{
