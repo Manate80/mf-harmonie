@@ -1910,6 +1910,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     <div class="oc-card-title" style="color:#4285F4">☁️ Envoyer tout sur mon Google Drive</div>
     <div class="oc-note" style="margin-bottom:10px">Un seul fichier ZIP avec : toutes les factures (PDF, rangées par année et par mois), les fiches élèves, abonnés et professeurs (abonnement, paiements), les paiements reçus, le prévisionnel et la sauvegarde de l'Organizer. Sur téléphone, le menu de partage s'ouvre : choisissez Drive, puis le dossier « MF Harmonie – suivi élèves, abonnés et professeurs ». Sur ordinateur, le fichier se télécharge : glissez-le dans ce dossier. Les mots de passe ne sont jamais inclus.</div>
     <button class="btn" id="oc-btn-drive-tout" style="background:linear-gradient(135deg,#4285F4,#34A853)" onclick="ocEnvoyerToutSurDrive()">☁️ Envoyer tout sur le Drive</button>
+    <button class="btn" id="oc-btn-drive-leger" style="margin-top:8px;background:linear-gradient(135deg,#2c6fd6,#1e4f9c)" onclick="ocEnvoyerSuiviLeger()">📄 Envoyer le suivi léger (sans PDF, lisible par Claude)</button>
     <div class="oc-note" id="oc-drive-etat" style="margin-top:8px"></div>
   </div>
 
@@ -2311,6 +2312,33 @@ window.ocEnvoyerToutSurDrive = async function(){
     console.error('ocEnvoyerToutSurDrive ÉCHEC :', e);
     say('⛔ Échec : ' + (e && e.message || e));
   }finally{ if(btn) btn.disabled = false; }
+};
+
+// Version LÉGÈRE (sans PDF) : un seul petit fichier .json que Claude peut lire directement dans le Drive
+window.ocEnvoyerSuiviLeger = async function(){
+  const btn = document.getElementById('oc-btn-drive-leger'), etat = document.getElementById('oc-drive-etat');
+  const say = t=>{ if(etat) etat.textContent = t; };
+  if(btn) btn.disabled = true;
+  try{
+    say('Préparation du suivi léger…');
+    const jour = new Date().toISOString().slice(0,10);
+    const suivi = window.lireSuiviPourDrive ? await window.lireSuiviPourDrive() : null;
+    const sauv = {}; CLES_ORGANIZER.forEach(c=>{ sauv[c] = OS.get(c, null); });
+    const histo = OS.get('factHisto', []).map(f=>({ numero:f.numero, nom:f.nom, montant:f.montant, mois:f.mois, annee:f.anneeNum, moisKey:(typeof ocMoisCle==='function'?ocMoisCle(f):''), annulee:!!f.annulee }));
+    const sortie = { app:'MF Harmonie des Îles — suivi léger', dateExport:new Date().toISOString(),
+      suivi: (suivi && suivi.ok) ? suivi.data : { erreur:(suivi && suivi.err) || 'Firebase pas prêt' },
+      previsionnel: ocPrevisionnelLignes(), listeFactures: histo, organizer: sauv };
+    const nom = 'MF-Harmonie_Suivi-leger_' + jour + '.json';
+    const blob = new Blob([JSON.stringify(sortie, null, 1)], {type:'application/json'});
+    const file = new File([blob], nom, {type:'application/json'});
+    let partage = false;
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({ files:[file], title:nom }); partage = true; }catch(e){ if(e && e.name==='AbortError'){ say('Envoi annulé.'); return; } }
+    }
+    if(!partage) ocSauverBlob(blob, nom);
+    say('✅ ' + nom + (partage ? ' — choisissez Drive.' : ' téléchargé — importez-le dans le dossier Drive.'));
+  }catch(e){ console.error(e); say('⛔ Échec : ' + (e && e.message || e)); }
+  finally{ if(btn) btn.disabled = false; }
 };
 
 window.ocSauvegarderTout = function(){
