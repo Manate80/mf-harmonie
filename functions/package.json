@@ -1,0 +1,12 @@
+{
+  "name": "mf-harmonie-robot-drive",
+  "description": "Envoie automatiquement les factures et le suivi MF Harmonie vers Google Drive",
+  "private": true,
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0",
+    "googleapis": "^144.0.0"
+  }
+}
