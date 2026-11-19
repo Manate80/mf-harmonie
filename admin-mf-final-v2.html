@@ -5629,7 +5629,7 @@ if(document.readyState === 'loading'){
     <div class="stabs">
       <button class="stab on" onclick="goStab('com','annonces',this)">📢 Annonces</button>
       <button class="stab" onclick="goStab('com','tarifs-banque',this);chargerTarifsAdmin()">🏦 Tarifs & Banque</button>
-      <button class="stab" onclick="goStab('com','paiement-ligne',this)">💳 Paiement en ligne</button>
+      <button class="stab" onclick="goStab('com','paiement-ligne',this);chargerTarifsAdmin()">💳 Paiement en ligne</button>
       <button class="stab" onclick="goStab('com','contenu-editorial',this)">🌺 Contenu éditorial</button>
       <button class="stab" onclick="goStab('com','notifs-prof',this);renderNotifsProf();demarrerListenerNotifsProf();">🔔 Notifs Prof</button>
       <button class="stab" onclick="goStab('com','coaching',this);renderCoachingVideos()">📺 Vidéos coaching</button>
@@ -5799,15 +5799,6 @@ if(document.readyState === 'loading'){
         <div style="font-size:12px;color:var(--vert);margin-bottom:10px;">Votre marge : <strong id="t-marge">4 000</strong> XPF/élève</div>
         <button class="btn" onclick="saveTarifsDom()">💾 Enregistrer tarifs domicile</button>
       </div>
-      <div class="card">
-        <div class="card-title">🏦 Coordonnées bancaires (RIB)</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Ces coordonnées s'affichent sur la fiche de confirmation des élèves domicile.</p>
-        <div class="row2">
-          <div class="fg"><label>IBAN</label><input type="text" id="rib-iban-admin" placeholder="PF28 XXXX XXXX XXXX XXXX XXX"></div>
-          <div class="fg"><label>BIC</label><input type="text" id="rib-bic-admin" placeholder="BPFPPFPP"></div>
-        </div>
-        <button class="btn" onclick="saveRIB()">💾 Enregistrer le RIB</button>
-      </div>
       <div class="card" style="border-color:rgba(201,146,42,.3);">
         <div class="card-title">💰 Formules en ligne — Tarifs</div>
         <div class="row2">
@@ -5858,6 +5849,15 @@ if(document.readyState === 'loading'){
 
     <!-- PAIEMENT EN LIGNE -->
     <div id="com-paiement-ligne" class="spage">
+      <div class="card">
+        <div class="card-title">🏦 Coordonnées bancaires (RIB)</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Ces coordonnées s'affichent sur la fiche de confirmation des élèves domicile et dans l'onglet Paiement de l'espace élève.</p>
+        <div class="row2">
+          <div class="fg"><label>IBAN</label><input type="text" id="rib-iban-admin" placeholder="PF28 XXXX XXXX XXXX XXXX XXX"></div>
+          <div class="fg"><label>BIC</label><input type="text" id="rib-bic-admin" placeholder="BPFPPFPP"></div>
+        </div>
+        <button class="btn" onclick="saveRIB()">💾 Enregistrer le RIB</button>
+      </div>
       <div class="card" style="border-color:rgba(99,91,255,.3);">
         <div class="card-title" style="color:#635bff;">💳 Liens de paiement Stripe & PayPal</div>
         <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Ces liens sont envoyés aux abonnés pour payer en ligne. Créez un lien sur votre tableau de bord Stripe ou PayPal.me et collez-le ici.</p>
