@@ -1437,6 +1437,13 @@ window.mfLirePaiementConfig = async function() {
   } catch (e) { console.warn('mfLirePaiementConfig:', e); return null; }
 };
 
+window.mfLireRib = async function() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'rib'));
+    return snap.exists() ? (snap.data() || {}) : {};
+  } catch (e) { console.warn('mfLireRib:', e); return null; }
+};
+
 // Charger config admin depuis Firestore
 window.chargerConfigDepuisFirestore = async function() {
   try {
@@ -4333,6 +4340,17 @@ window.addEventListener('load', function() {
 function mfPaiementAutorise() {
   try { return /^ELE[_-]SAMSUNG$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim()); } catch (e) { return false; }
 }
+function mfCopierTexte(txt, btn) {
+  const fait = function() { try { toast('✔ Copié'); } catch (e) {} if (btn) { const o = btn.textContent; btn.textContent = '✔ Copié'; setTimeout(function() { btn.textContent = o; }, 1500); } };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(fait, function() { mfCopierRepli(txt, fait); }); return; }
+  } catch (e) {}
+  mfCopierRepli(txt, fait);
+}
+function mfCopierRepli(txt, fait) {
+  try { const t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;left:-9999px;'; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); fait(); }
+  catch (e) { try { toast('⚠ Copie impossible, sélectionne le texte à la main'); } catch (e2) {} }
+}
 async function chargerPaiementEleve() {
   const corps = document.getElementById('paiement-corps'), f = document.getElementById('paiement-formule');
   if (!corps) return;
@@ -4340,16 +4358,30 @@ async function chargerPaiementEleve() {
   try { if (f) f.textContent = 'Abonnement : ' + (NOMS_FORMULES[getFormuleKey()] || '—'); } catch (e) {}
   corps.innerHTML = '<div style="font-size:13px;color:var(--muted);">Chargement…</div>';
   const cfg = window.mfLirePaiementConfig ? await window.mfLirePaiementConfig() : null;
+  const rib = window.mfLireRib ? await window.mfLireRib() : null;
   const ok = function(u) { return typeof u === 'string' && /^https:\/\//i.test(u.trim()); };
+  const esc = function(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
   const stripe = cfg && ok(cfg.stripe) ? cfg.stripe.trim() : '', paypal = cfg && ok(cfg.paypal) ? cfg.paypal.trim() : '';
-  if (!stripe && !paypal) {
-    corps.innerHTML = '<div style="font-size:13px;color:var(--muted);line-height:1.6;">💤 Le paiement en ligne n\'est pas encore activé.<br>Il sera disponible ici (Stripe et PayPal) dès que le professeur l\'aura activé.</div>';
-    return;
-  }
+  const iban = rib && rib.iban ? String(rib.iban).trim() : '', bic = rib && rib.bic ? String(rib.bic).trim() : '';
   const bt = 'display:block;width:100%;box-sizing:border-box;text-align:center;text-decoration:none;padding:14px;margin-top:10px;border-radius:8px;font-weight:700;font-size:14px;';
-  corps.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Choisis ton moyen de paiement :</div>'
-    + (stripe ? '<a href="' + stripe.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#635bff;color:#fff;">💳 Payer par carte (Stripe)</a>' : '')
-    + (paypal ? '<a href="' + paypal.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#ffc439;color:#111;">🅿️ Payer avec PayPal</a>' : '');
+  let html = '';
+  if (stripe || paypal) {
+    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Paiement en ligne :</div>'
+      + (stripe ? '<a href="' + esc(stripe) + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#635bff;color:#fff;">💳 Payer par carte (Stripe)</a>' : '')
+      + (paypal ? '<a href="' + esc(paypal) + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#ffc439;color:#111;">🅿️ Payer avec PayPal</a>' : '');
+  } else {
+    html += '<div style="font-size:13px;color:var(--muted);line-height:1.6;">💤 Le paiement en ligne (Stripe et PayPal) n\'est pas encore activé.</div>';
+  }
+  if (iban || bic) {
+    const ligne = function(lib, val) {
+      return '<div style="margin-top:12px;"><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">' + lib + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;"><span style="font-size:15px;font-weight:700;word-break:break-all;user-select:all;">' + esc(val) + '</span>'
+        + '<button type="button" data-v="' + esc(val) + '" onclick="mfCopierTexte(this.dataset.v, this)" style="background:none;border:1px solid var(--border);border-radius:12px;color:var(--orL);font-size:11px;cursor:pointer;padding:5px 12px;">📋 Copier</button></div></div>';
+    };
+    html += '<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);"><div style="font-size:13px;color:var(--muted);">🏦 Ou par virement bancaire :</div>'
+      + (iban ? ligne('IBAN', iban) : '') + (bic ? ligne('BIC', bic) : '') + '</div>';
+  }
+  corps.innerHTML = html;
 }
 
 function showPage(id, btn) {
