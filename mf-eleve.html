@@ -1856,7 +1856,26 @@ function mfEstApple() {
   } catch (e) { window._mfApple = false; }
   return window._mfApple;
 }
+// iPhone : le moteur audio avancé (Web Audio) est coupé par l'interrupteur de silence du téléphone.
+// On demande à iOS de traiter le son comme une lecture (« playback »), qui ignore cet interrupteur.
+// Essai limité pour l'instant au compte test ELE_APPLE ; ne touche ni Android/Samsung ni les autres comptes.
+function mfIosAudioPlayback() {
+  try {
+    if (!/^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim())) return;
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!ios) return;
+    if (navigator.audioSession) { if (navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; return; }
+    // iOS plus ancien : petite piste silencieuse en boucle pour passer en mode lecture
+    if (!window._mfSilencieuxIos) {
+      const a = new Audio('data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==');
+      a.loop = true; a.volume = 0.01; a.setAttribute('playsinline', '');
+      window._mfSilencieuxIos = a;
+    }
+    const pr = window._mfSilencieuxIos.play(); if (pr && pr.catch) pr.catch(function() {});
+  } catch (e) { console.warn('mfIosAudioPlayback:', e); }
+}
 function getAudioCtx() {
+  mfIosAudioPlayback();
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
@@ -2482,6 +2501,7 @@ const DELAI_DEMARRAGE_AUDIO_MS = 3000; // délai avant le vrai démarrage du son
 function consoleAudioPlay(cid) {
   const st = consoleAudioEtat[cid];
   if (!st) return;
+  mfIosAudioPlayback();
   if (st.ctx.state === 'suspended') st.ctx.resume();
   const idxPrets = Object.keys(st.audios).filter(idx => st.prets[idx]);
   if (!idxPrets.length) return; // rien de chargé pour l'instant
