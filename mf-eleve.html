@@ -449,6 +449,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <button class="td-btn" onclick="history.back()" title="Page précédente">◀ Retour</button>
       <button class="td-btn" onclick="showPage('accueil',this)">🏠 Accueil</button>
       <button class="td-btn" onclick="history.forward()" title="Page suivante">Avant ▶</button>
+      <button class="td-btn" id="td-paiement" style="display:none;" onclick="showPage('paiement',this)">💳 Paiement</button>
       <button class="td-btn" onclick="showPage('compte',this)">👤 Profil</button>
       <button class="td-btn" onclick="showPage('reglages',this)">⚙️ Réglages</button>
       <button class="td-btn" onclick="showPage('aide',this)">❓ Aide</button>
@@ -828,6 +829,14 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       </div>
     </div>
 
+    <div id="page-paiement" class="page">
+      <div class="card">
+        <div class="card-title">💳 Facturation et paiement</div>
+        <div id="paiement-formule" style="font-size:13px;color:var(--muted);margin-bottom:12px;"></div>
+        <div id="paiement-corps"></div>
+      </div>
+    </div>
+
     <div id="page-compte" class="page">
       <div class="card" style="text-align:center;padding:24px;">
         <div class="compte-avatar" id="compte-avatar">—</div>
@@ -877,6 +886,9 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     </button>
     <button class="tm-btn" id="tm-fwd" onclick="history.forward()">
       <span class="tm-ico">▶</span><span class="tm-lbl">Avant</span>
+    </button>
+    <button class="tm-btn" id="tm-paiement" style="display:none;" onclick="showPage('paiement',this)">
+      <span class="tm-ico">💳</span><span class="tm-lbl">Paiement</span>
     </button>
     <button class="tm-btn" id="tm-compte" onclick="showPage('compte',this)">
       <span class="tm-ico">👤</span><span class="tm-lbl">Profil</span>
@@ -1415,6 +1427,14 @@ window.saveProgressionFirestore = async function(identifiant, data) {
   try {
     await setDoc(doc(db, 'eleves', identifiant), {...data, updatedAt: serverTimestamp()}, {merge: true});
   } catch(e) { console.warn('saveProgressionFirestore:', e); }
+};
+
+// Liens de paiement Stripe / PayPal (réglés par l'admin, doc config/paiement) — onglet Paiement
+window.mfLirePaiementConfig = async function() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'paiement'));
+    return snap.exists() ? (snap.data() || {}) : {};
+  } catch (e) { console.warn('mfLirePaiementConfig:', e); return null; }
 };
 
 // Charger config admin depuis Firestore
@@ -4018,6 +4038,12 @@ function lancerApp() {
     if (tm) tm.style.display = visible ? '' : 'none';
   });
 
+  // Onglet « Paiement » : visible seulement pour le compte test ELE_SAMSUNG (pas encore ouvert aux autres élèves)
+  { const okPaie = mfPaiementAutorise();
+    const tdP = document.getElementById('td-paiement'), tmP = document.getElementById('tm-paiement');
+    if (tdP) tdP.style.display = okPaie ? '' : 'none';
+    if (tmP) tmP.style.display = okPaie ? '' : 'none'; }
+
   // Arrivée par défaut : premier onglet disponible pour ce palier (Accueil pour tous)
   const premierOnglet = ongletsVisibles[0];
   showPage(premierOnglet, document.querySelector('.td-btn[onclick*="' + premierOnglet + '"]'));
@@ -4303,6 +4329,29 @@ window.addEventListener('load', function() {
   history.pushState({ navType: 'init' }, '', location.href);
 });
 
+// ══ PAIEMENT — onglet réservé pour l'instant au compte test ELE_SAMSUNG ══
+function mfPaiementAutorise() {
+  try { return /^ELE[_-]SAMSUNG$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim()); } catch (e) { return false; }
+}
+async function chargerPaiementEleve() {
+  const corps = document.getElementById('paiement-corps'), f = document.getElementById('paiement-formule');
+  if (!corps) return;
+  if (!mfPaiementAutorise()) { corps.innerHTML = '<div style="font-size:13px;color:var(--muted);">Cet onglet n\'est pas encore disponible.</div>'; return; }
+  try { if (f) f.textContent = 'Abonnement : ' + (NOMS_FORMULES[getFormuleKey()] || '—'); } catch (e) {}
+  corps.innerHTML = '<div style="font-size:13px;color:var(--muted);">Chargement…</div>';
+  const cfg = window.mfLirePaiementConfig ? await window.mfLirePaiementConfig() : null;
+  const ok = function(u) { return typeof u === 'string' && /^https:\/\//i.test(u.trim()); };
+  const stripe = cfg && ok(cfg.stripe) ? cfg.stripe.trim() : '', paypal = cfg && ok(cfg.paypal) ? cfg.paypal.trim() : '';
+  if (!stripe && !paypal) {
+    corps.innerHTML = '<div style="font-size:13px;color:var(--muted);line-height:1.6;">💤 Le paiement en ligne n\'est pas encore activé.<br>Il sera disponible ici (Stripe et PayPal) dès que le professeur l\'aura activé.</div>';
+    return;
+  }
+  const bt = 'display:block;width:100%;box-sizing:border-box;text-align:center;text-decoration:none;padding:14px;margin-top:10px;border-radius:8px;font-weight:700;font-size:14px;';
+  corps.innerHTML = '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Choisis ton moyen de paiement :</div>'
+    + (stripe ? '<a href="' + stripe.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#635bff;color:#fff;">💳 Payer par carte (Stripe)</a>' : '')
+    + (paypal ? '<a href="' + paypal.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener noreferrer" style="' + bt + 'background:#ffc439;color:#111;">🅿️ Payer avec PayPal</a>' : '');
+}
+
 function showPage(id, btn) {
   mfArreterLectures();
   _chansonOuverteUid = null;
@@ -4319,6 +4368,7 @@ function showPage(id, btn) {
   if (id === 'basique') chargerBasiqueEleve();
   if (id === 'suivi') { chargerSuivi(); chargerMonSuivi(); }
   if (id === 'compte') chargerCompte();
+  if (id === 'paiement') chargerPaiementEleve();
   if (id === 'reglages') reglagesCharger();
   if (id === 'aide') chargerAide();
   if (id === 'bibliotheque') { if (!window._biblioTuile) window._biblioMode = null; window._biblioTuile = false; _mfTitreBiblio(); }
