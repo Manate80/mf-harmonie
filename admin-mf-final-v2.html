@@ -9683,7 +9683,7 @@ function mfChoisirLangue(id, lg, on, cfCid) {
 // et on garde celle qui donne les paroles les plus grosses. Si l'écart est faible (< 3 %), on garde l'ancien choix (en bas).
 function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raison) {
   const nb = opts.nbParoles || (trad ? trad.length : 0);
-  const auto = (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3 && nb <= 14;
+  const auto = (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3 && nb <= 30;
   if (!auto) { _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, opts); return; }
   toast('ℹ Calcul de la meilleure mise en page…');
   let zCote = 0, fini = false;
@@ -9692,14 +9692,19 @@ function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raiso
     if (fini) return; fini = true; clearTimeout(garde);
     _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, Object.assign({}, opts, { place: place }));
   };
-  const garde = setTimeout(() => imprimer('dessous'), 10000);
+  const garde = setTimeout(() => imprimer('dessous'), 20000);
   const lancer = (place, suite) => {
     _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, Object.assign({}, opts, { place: place, mesure: suite }));
   };
   lancer('cote', function(z1) {
     zCote = z1;
     lancer('dessous', function(z2) {
-      imprimer((zCote > z2 * 1.03) ? 'cote' : 'dessous');
+      lancer('dessous2', function(z3) {
+        let choix = (zCote > z2 * 1.03) ? 'cote' : 'dessous';
+        const zc = Math.max(zCote > z2 * 1.03 ? zCote : z2, 0);
+        if (z3 > zc * 1.03) choix = 'dessous2';
+        imprimer(choix);
+      });
     });
   });
 }
@@ -9770,17 +9775,24 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   const boite = arr => '<div class="mfp-trad">' + arr.map(l => '<div class="mfp-tl" style="color:' + colL(l) + '">' + esc(l.t) + '</div>').join('') + '</div>';
   const cols3 = !!(opts.cols3 && trad && trad.length);
   const nbTrad = trad ? trad.length : 0;
-  const dessous = !!(trad && nbTrad && !cols3 && (opts.place === 'dessous' || ((opts.place || 'auto') === 'auto' && (opts.nbParoles || nbTrad) <= 14)));
+  const dessous2 = !!(trad && nbTrad && !cols3 && opts.place === 'dessous2');
+  const dessous = dessous2 || !!(trad && nbTrad && !cols3 && (opts.place === 'dessous' || ((opts.place || 'auto') === 'auto' && (opts.nbParoles || nbTrad) <= 14)));
   let tradHtml = '';
   if (cols3) tradHtml = '<div class="mfp-r3">' + boite((opts.tradEn && opts.tradEn.length) ? opts.tradEn : trad.map(l => Object.assign({}, l, { t: '' }))) + boite(trad) + '</div>';
   else if (trad && nbTrad && !dessous) tradHtml = boite(trad);
   let dessousHtml = '';
   if (dessous) {
-    let precSec = null;
-    dessousHtml = '<div class="mfp-below">' + trad.map(l => {
+    const corps = arr => { let precSec = null; return arr.map(l => {
       const nouv = precSec !== null && l.sec !== precSec; precSec = l.sec;
       return '<div class="mfp-bl' + (nouv ? ' mfp-bsec' : '') + '" style="color:' + colL(l) + '">' + esc(l.t) + '</div>';
-    }).join('') + '</div>';
+    }).join(''); };
+    if (dessous2) {
+      // 2 colonnes : couplets + pont à gauche, refrain + finale à droite (même répartition que les paroles)
+      const aDroite = l => { let col = String(colL(l)).trim(); const m = col.match(/^#([0-9a-f]{6})$/i);
+        if (m) col = 'rgb(' + parseInt(m[1].slice(0, 2), 16) + ',' + parseInt(m[1].slice(2, 4), 16) + ',' + parseInt(m[1].slice(4), 16) + ')';
+        const v = _couleurPalettePrint(col); return v === '#FF0000' || v === '#0070C0'; };
+      dessousHtml = '<div class="mfp-below mfp-below2"><div class="mfp-bc">' + corps(trad.filter(l => !aDroite(l))) + '</div><div class="mfp-bc">' + corps(trad.filter(aDroite)) + '</div></div>';
+    } else dessousHtml = '<div class="mfp-below">' + corps(trad) + '</div>';
   }
 
   // Main + légende des doigts (mêmes couleurs que la fiche Starter), à la place du logo
@@ -9820,7 +9832,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     + '.mfp-d [style*="background:#FFFFFF"]{background:#333!important;}'
     + '.mfp-main{display:flex;align-items:flex-start;gap:14px;}.mfp-left{flex:1 1 58%;min-width:0;}.mfp-right{flex:0 0 34%;}.mfp-seul .mfp-left{flex:1 1 100%;}'
     + '.mfp-trad{border:1px solid #444;padding:10px 12px;box-sizing:border-box;}.mfp-fit .mfp-trad{height:0!important;overflow:hidden;padding:0!important;border:0!important;}.mfp-al{position:relative;padding:0!important;}.mfp-al .mfp-tl{position:absolute;left:8px;right:6px;line-height:1.2!important;margin:0;}.mfp-tl{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.9;}'
-    + '.mfp-r3{display:flex;gap:8px;align-items:flex-start;}.mfp-r3 .mfp-trad{flex:1 1 0;min-width:0;}.mfp-below{margin-top:8px;border-top:1px solid #444;padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:14px;}.mfp-bl{line-height:1.25;margin:0;}.mfp-bsec{margin-top:.6em;}'
+    + '.mfp-r3{display:flex;gap:8px;align-items:flex-start;}.mfp-r3 .mfp-trad{flex:1 1 0;min-width:0;}.mfp-below{margin-top:8px;border-top:1px solid #444;padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:14px;}.mfp-below2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;}.mfp-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.mfp-col{min-width:0;}.mfp-bl{line-height:1.25;margin:0;}.mfp-bsec{margin-top:.6em;}'
     + '.mfp-left .taille-ctrl,.mfp-left button,.mfp-left select,.mfp-left .btn-fullscreen,.mfp-left .fond-popup,.mfp-left .popup,.mfp-left #pe,.mfp-left .pe-fermer,.mfp-left .sec-metro{display:none!important;}'
     + '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'
     + 'html,body,.mfp-outer,.mfp-page{overflow:hidden!important;}*{scrollbar-width:none!important;}*::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}.mfp-left,.mfp-left *{overflow:visible!important;}'
@@ -9915,6 +9927,23 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     }
     const outer = d.querySelector('.mfp-outer'), page = d.querySelector('.mfp-page');
     const dispo = 1030;
+    // Mode « 2 colonnes » : les blocs de paroles sont rangés en 2 colonnes selon leur couleur
+    // (couplets noirs + pont vert à gauche ; refrain rouge + finale bleue à droite)
+    let colsEl = null, colsOk = null;
+    const majGap = t => { if (colsEl) colsEl[0].parentElement.style.columnGap = (16 / t) + 'px'; };
+    if (dessous2 && left) {
+      const blocs = Array.from(left.querySelectorAll('.bloc')).filter(b => !b.querySelector('.bloc') && w.getComputedStyle(b).display !== 'none');
+      const c1 = d.createElement('div'), c2 = d.createElement('div'), wrap = d.createElement('div');
+      c1.className = 'mfp-col'; c2.className = 'mfp-col'; wrap.className = 'mfp-cols';
+      let nbD = 0, nbG = 0;
+      blocs.forEach(b => {
+        const lg = Array.from(b.querySelectorAll('.ligne')).find(l => !l.querySelector('.ligne') && w.getComputedStyle(l).display !== 'none');
+        if (!lg) return;
+        const v = _couleurPalettePrint(w.getComputedStyle(lg).color);
+        if (v === '#FF0000' || v === '#0070C0') { c2.appendChild(b); nbD++; } else { c1.appendChild(b); nbG++; }
+      });
+      if (nbD && nbG) { wrap.appendChild(c1); wrap.appendChild(c2); left.insertBefore(wrap, left.firstChild); colsEl = [c1, c2]; }
+    }
     // Blanc entre l'en-tête et le premier texte visible (blocs masqués, marges de la fiche…) : on remonte tout le bloc paroles + traduction.
     // Mesuré sur le texte réellement affiché, donc valable pour tous les chants ; à refaire à chaque changement de taille.
     const rogner = () => {
@@ -9984,9 +10013,9 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       // La largeur est mesurée sur le texte réellement écrit (paroles + accords), pas sur les boîtes de la fiche.
       const mainEl = d.querySelector('.mfp-main'), rightEl = d.querySelector('.mfp-right');
       if (mainEl) mainEl.classList.add('mfp-fit');
-      const etendue = () => {
+      const etendue = racine => {
         let mn = 1e9, mx = -1e9;
-        left.querySelectorAll('.ligne').forEach(l => {
+        (racine || left).querySelectorAll('.ligne').forEach(l => {
           if (l.querySelector('.ligne') || w.getComputedStyle(l).display === 'none') return;
           const tw = d.createTreeWalker(l, 4);
           let n;
@@ -9998,6 +10027,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         });
         return mx < mn ? null : { mn, mx };
       };
+      if (colsEl) colsOk = () => colsEl.every(cl => { const e = etendue(cl); return !e || (e.mx - e.mn) <= cl.getBoundingClientRect().width - 2; });
       // Largeur mesurée sur le texte réellement écrit : le texte ne peut jamais passer sous l'encadré de traduction.
       const deborde = () => {
         const lim = left.getBoundingClientRect().right + 1;
@@ -10007,14 +10037,14 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         left.style.marginLeft = '0px';
         let meilleur = 0.3, ok = false;
         // Taille maximale qui tient en hauteur et en largeur, trouvée par dichotomie (précision ≈ 0,002)
-        const tient = t => { left.style.zoom = t; rogner(); const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (e.mx - e.mn) <= lr.width - 2; };
+        const tient = t => { left.style.zoom = t; majGap(t); rogner(); const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (colsOk ? colsOk() : (e.mx - e.mn) <= lr.width - 2); };
         if (tient(5)) { meilleur = 5; ok = true; }
         else if (tient(0.3)) {
           let bas = 0.3, haut = 5;
           for (let i = 0; i < 14; i++) { const mil = (bas + haut) / 2; if (tient(mil)) bas = mil; else haut = mil; }
           meilleur = bas; ok = true;
         }
-        left.style.zoom = meilleur; rogner();
+        left.style.zoom = meilleur; majGap(meilleur); rogner();
         return ok ? meilleur : 0;
       };
       // Largeur de l'encadré de traduction : le plus étroit possible tant que cela fait grossir les paroles
@@ -10099,11 +10129,11 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       const base = parseFloat(w.getComputedStyle(left).zoom) || 1;
       const fitte = () => {
         const lim = left.getBoundingClientRect().right + 1;
-        const large = Array.from(left.querySelectorAll('.ligne,.ch,.chb,.accord,.seg')).some(x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.right > lim; });
+        const large = colsOk ? !colsOk() : Array.from(left.querySelectorAll('.ligne,.ch,.chb,.accord,.seg')).some(x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.right > lim; });
         return page.offsetHeight <= dispo && !large;
       };
       let t = base * facteurTaille;
-      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; rogner(); if (facteurTaille < 1 || fitte()) break; }
+      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; majGap(t); rogner(); if (facteurTaille < 1 || fitte()) break; }
       rogner();
     }
     // Alignement global des accords (curseur) : décalage identique pour tous les accords
@@ -10115,8 +10145,9 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       const zz = parseFloat(w.getComputedStyle(left).zoom) || 1;
       const unites = Array.from(left.querySelectorAll('.paire,.ligne')).filter(l => !l.parentElement.closest('.paire') && !l.querySelector('.ligne') && w.getComputedStyle(l).display !== 'none');
       const reste = dispo - page.offsetHeight - 6;
+      const nU = colsEl ? Math.max(1, ...colsEl.map(cl => unites.filter(u => cl.contains(u)).length)) : unites.length;
       if (unites.length && reste > 0) {
-        let m = Math.min(reste / unites.length / zz, 40);
+        let m = Math.min(reste / nU / zz, 40);
         for (; m > 0.5; m -= 1) {
           unites.forEach(l => l.style.setProperty('margin-bottom', m + 'px', 'important'));
           if (page.offsetHeight <= dispo) break;
@@ -10273,7 +10304,7 @@ function buildPanneauBiblioAdmin(c) {
           let pl = 'auto'; try { pl = localStorage.getItem('mfPdfPlace_' + c.id) || 'auto'; } catch(e) {}
           const lg = _mfLangueChanson(c), c3 = _mfCols3(c);
           return '<select id="' + cfCid + '-pdfplace" onchange="try{localStorage.setItem(\'mfPdfPlace_' + c.id + '\',this.value)}catch(e){}" title="Où mettre la traduction dans le PDF" style="' + st + '">'
-            + [['auto','🌐 Traduction : Auto'],['dessous','🌐 Sous la chanson'],['cote','🌐 Sur le côté']].map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === pl ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'
+            + [['auto','🌐 Traduction : Auto'],['dessous','🌐 Sous la chanson'],['dessous2','🌐 Sous la chanson, 2 colonnes'],['cote','🌐 Sur le côté']].map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === pl ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'
             + '<label title="Affichage 3 colonnes : Māori | English | Français (chants de Rarotonga…)" style="' + lb + '"><input type="checkbox" id="' + cfCid + '-pdfcols3"' + (c3 ? ' checked' : '') + ' onchange="mfChoisirCols3(\'' + c.id + '\',this.checked)"> Affichage 3 colonnes</label>'
             + '<label title="Chanson en français : pas de traduction, paroles pleine page" style="' + lb + '"><input type="checkbox" id="' + cfCid + '-langfr"' + (lg === 'fr' ? ' checked' : '') + ' onchange="mfChoisirLangue(\'' + c.id + '\',\'fr\',this.checked,\'' + cfCid + '\')"> Chanson en français</label>'
             + '<label title="Chanson en anglais : pas de traduction, paroles pleine page" style="' + lb + '"><input type="checkbox" id="' + cfCid + '-langen"' + (lg === 'en' ? ' checked' : '') + ' onchange="mfChoisirLangue(\'' + c.id + '\',\'en\',this.checked,\'' + cfCid + '\')"> Chanson en anglais</label>';
@@ -12727,7 +12758,7 @@ function mfBiblioInjecter() {
       + '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">' + opt([['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']], t) + '</select>'
       + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="' + lb + '">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '" style="width:90px;"></label>'
       + '<label title="Mettre l\'encadré de traduction (fiche Immersion) dans le PDF" style="' + lb + '"><input class="tr" type="checkbox"' + (on ? ' checked' : '') + '> 🌐 Traduction</label>'
-      + '<select class="pl" title="Où mettre la traduction dans le PDF" style="' + st + '">' + opt([['auto','🌐 Traduction : Auto'],['dessous','🌐 Sous la chanson'],['cote','🌐 Sur le côté']], pl) + '</select>'
+      + '<select class="pl" title="Où mettre la traduction dans le PDF" style="' + st + '">' + opt([['auto','🌐 Traduction : Auto'],['dessous','🌐 Sous la chanson'],['dessous2','🌐 Sous la chanson, 2 colonnes'],['cote','🌐 Sur le côté']], pl) + '</select>'
       + '<label title="Affichage 3 colonnes : Māori | English | Français (chants de Rarotonga…)" style="' + lb + '"><input class="c3" type="checkbox"' + (c3 ? ' checked' : '') + '> Affichage 3 colonnes</label>'
       + '<label title="Chanson en français : pas de traduction, paroles pleine page" style="' + lb + '"><input class="lf" type="checkbox"' + (lg === 'fr' ? ' checked' : '') + '> Chanson en français</label>'
       + '<label title="Chanson en anglais : pas de traduction, paroles pleine page" style="' + lb + '"><input class="le" type="checkbox"' + (lg === 'en' ? ' checked' : '') + '> Chanson en anglais</label>'
