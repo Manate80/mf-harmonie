@@ -9929,7 +9929,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     const dispo = 1030;
     // Mode « 2 colonnes » : les blocs de paroles sont rangés en 2 colonnes selon leur couleur
     // (couplets noirs + pont vert à gauche ; refrain rouge + finale bleue à droite)
-    let colsEl = null, colsOk = null;
+    let colsEl = null, colsOk = null, alignerCols = () => {};
     const majGap = t => { if (colsEl) colsEl[0].parentElement.style.columnGap = (16 / t) + 'px'; };
     if (dessous2 && left) {
       const blocs = Array.from(left.querySelectorAll('.bloc')).filter(b => !b.querySelector('.bloc') && w.getComputedStyle(b).display !== 'none');
@@ -10027,6 +10027,25 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         });
         return mx < mn ? null : { mn, mx };
       };
+      // Colonne de droite au même niveau que la colonne de gauche : les 1res lignes de paroles (hors accords) sont alignées
+      if (colsEl) alignerCols = () => {
+        const haut = col => {
+          for (const l of Array.from(col.querySelectorAll('.ligne'))) {
+            if (l.querySelector('.ligne') || w.getComputedStyle(l).display === 'none' || soloAccords(l)) continue;
+            const tw = d.createTreeWalker(l, 4); let n;
+            while ((n = tw.nextNode())) {
+              if (!n.textContent.trim() || (n.parentElement && n.parentElement.closest('.ch,.chb,.accord'))) continue;
+              const r = d.createRange(); r.selectNodeContents(n); const q = r.getBoundingClientRect(); if (q.height > 0) return q.top;
+            }
+          }
+          return null;
+        };
+        colsEl.forEach(cl => { cl.style.marginTop = '0px'; });
+        const t1 = haut(colsEl[0]), t2 = haut(colsEl[1]);
+        if (t1 === null || t2 === null) return;
+        const zf = parseFloat(w.getComputedStyle(left).zoom) || 1, dlt = (t1 - t2) / zf;
+        if (dlt > 0.5) colsEl[1].style.marginTop = dlt + 'px'; else if (dlt < -0.5) colsEl[0].style.marginTop = (-dlt) + 'px';
+      };
       if (colsEl) colsOk = () => colsEl.every(cl => { const e = etendue(cl); return !e || (e.mx - e.mn) <= cl.getBoundingClientRect().width - 2; });
       // Largeur mesurée sur le texte réellement écrit : le texte ne peut jamais passer sous l'encadré de traduction.
       const deborde = () => {
@@ -10037,14 +10056,14 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         left.style.marginLeft = '0px';
         let meilleur = 0.3, ok = false;
         // Taille maximale qui tient en hauteur et en largeur, trouvée par dichotomie (précision ≈ 0,002)
-        const tient = t => { left.style.zoom = t; majGap(t); rogner(); const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (colsOk ? colsOk() : (e.mx - e.mn) <= lr.width - 2); };
+        const tient = t => { left.style.zoom = t; majGap(t); alignerCols(); rogner(); const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (colsOk ? colsOk() : (e.mx - e.mn) <= lr.width - 2); };
         if (tient(5)) { meilleur = 5; ok = true; }
         else if (tient(0.3)) {
           let bas = 0.3, haut = 5;
           for (let i = 0; i < 14; i++) { const mil = (bas + haut) / 2; if (tient(mil)) bas = mil; else haut = mil; }
           meilleur = bas; ok = true;
         }
-        left.style.zoom = meilleur; majGap(meilleur); rogner();
+        left.style.zoom = meilleur; majGap(meilleur); alignerCols(); rogner();
         return ok ? meilleur : 0;
       };
       // Largeur de l'encadré de traduction : le plus étroit possible tant que cela fait grossir les paroles
@@ -10150,9 +10169,10 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         let m = Math.min(reste / nU / zz, 40);
         for (; m > 0.5; m -= 1) {
           unites.forEach(l => l.style.setProperty('margin-bottom', m + 'px', 'important'));
+          alignerCols();
           if (page.offsetHeight <= dispo) break;
         }
-        if (m <= 0.5) unites.forEach(l => l.style.removeProperty('margin-bottom'));
+        if (m <= 0.5) { unites.forEach(l => l.style.removeProperty('margin-bottom')); alignerCols(); }
       }
     }
     // Traduction : chaque ligne traduite en face de sa ligne de paroles, même mise en page
