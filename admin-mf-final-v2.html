@@ -1262,6 +1262,16 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
           <button class="btn-sm" onclick="setBiblioFiltre('rythme',this)" id="bf-rythme">Rythme</button>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;" id="biblio-count">—</div>
+        <!-- EXPORT / IMPORT DE TOUS LES JSON DES CHANTS (un seul fichier, à déposer sur le Drive) -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--orL);font-weight:700;margin-bottom:8px;">🗂 JSON des chants (Drive)</div>
+          <button type="button" class="btn" style="width:100%;margin-bottom:8px;" onclick="exporterTousLesJSONChants()">⬇ Exporter les JSON des chants</button>
+          <div class="upload-zone" style="margin-bottom:6px;">
+            <input type="file" accept=".json,application/json" onchange="importerExportChants(this.files[0]);this.value=''">
+            <p>⬆ Importer le fichier JSON des chants (corrigé)</p>
+          </div>
+          <div id="biblio-export-statut" style="font-size:11px;color:var(--muted);line-height:1.6;"></div>
+        </div>
       </div>
       <!-- LISTE DES CHANSONS -->
       <div id="biblio-admin-liste"></div>
@@ -14114,6 +14124,7 @@ async function importerDuGenerateurChants(fichiers) {
     try {
       if (n.endsWith('.json')) {
         const d = JSON.parse(await _lireFichierTexte(f));
+        if (d && d.format === 'mf-export-chants') { importerExportChants(f); rapport.push('fichier « tous les chants » lancé (suivi dans la Bibliothèque)'); continue; }
         if (!d || !d.champs) { rapport.push('⚠ ' + f.name + ' n\'est pas un fichier du Générateur de chants'); continue; }
         rythmeOk = _genRemplirChampsAdmin(d.champs);
         window._genSource = _genSourceDepuisData(d, '');
@@ -14490,6 +14501,84 @@ function telechargerJSONChant(src, titre) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     toast('⬇ JSON corrigé téléchargé — remplace-le dans Storage (même nom de fichier)');
   } catch (e) { toast('❌ Téléchargement du JSON impossible : ' + e.message); }
+}
+// ════ EXPORT / IMPORT DE TOUS LES JSON DES CHANTS (un seul fichier « mf-chants-export-DATE.json ») ════
+// Export : un JSON au format du Générateur de chants pour chaque chant qui en a un. Les chants sans JSON (anciens) sont seulement listés.
+function exporterTousLesJSONChants() {
+  const st = document.getElementById('biblio-export-statut');
+  try {
+    const list = S.get('chansons') || [];
+    const chants = [], sansJson = [];
+    list.forEach(c => {
+      const g = c && c.generateur;
+      if (g && g.champs && Object.keys(g.champs).length) {
+        chants.push({
+          titre: c.titre || (g.champs['m-titre'] || ''), id: c.id, statut: c.statut || '', date: g.date || '', jsonLien: c.jsonLien || g.lien || '',
+          source: { champs: g.champs, pistes: g.pistes || [], images: g.images || [], calibrationImmersion: g.calibrationImmersion || null, calibrationStarter: g.calibrationStarter || null, date: g.date || '', version: g.version || 1 }
+        });
+      } else if (c && c.titre) sansJson.push(c.titre);
+    });
+    if (!chants.length) { if (st) st.innerHTML = '<span style="color:#e67e22;">⚠ Aucun chant avec JSON à exporter.</span>'; toast('⚠ Aucun chant avec JSON'); return; }
+    const data = { format: 'mf-export-chants', version: 1, dateExport: new Date().toISOString(), nbChants: chants.length, chants: chants, sansJson: sansJson };
+    const _n = new Date(), jour = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'mf-chants-export-' + jour + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    if (st) st.innerHTML = '<span style="color:#2ecc71;">✅ ' + chants.length + ' chant(s) exporté(s) dans « mf-chants-export-' + jour + '.json ». Dépose ce fichier dans le dossier Drive « JSON des chansons (export admin) ».</span>'
+      + (sansJson.length ? '<br><span style="color:#e67e22;">ℹ ' + sansJson.length + ' chant(s) sans JSON (non exportés) : ' + sansJson.map(x => String(x).replace(/</g, '&lt;')).join(', ') + '</span>' : '');
+    toast('⬇ ' + chants.length + ' JSON de chants exportés');
+  } catch (e) {
+    if (st) st.innerHTML = '<span style="color:#e74c3c;">❌ Export impossible : ' + (e && e.message ? e.message : e) + '</span>';
+    toast('❌ Export impossible : ' + (e && e.message ? e.message : e));
+  }
+}
+// Import : relit le fichier corrigé. Un chant n'est rechargé que s'il a changé ; si l'admin a un chant plus récent que celui du fichier, on prévient au lieu d'écraser.
+async function importerExportChants(fichier) {
+  const st = document.getElementById('biblio-export-statut');
+  const msg = x => { if (st) st.innerHTML = x; };
+  if (!fichier) return;
+  if (window._importExportChantsEnCours) { toast('⏳ Un import est déjà en cours'); return; }
+  try {
+    const d = JSON.parse(await _lireFichierTexte(fichier));
+    if (!d || d.format !== 'mf-export-chants' || !Array.isArray(d.chants)) throw new Error('ce fichier n\'est pas un export « tous les chants » (mf-chants-export-….json)');
+    const titreForm = (document.getElementById('gen-titre') || {}).value;
+    if (titreForm && titreForm.trim() && !confirm('Le formulaire Paroles contient « ' + titreForm.trim() + ' ». L\'import va s\'en servir et le vider. Continuer ?')) return;
+    window._importExportChantsEnCours = true;
+    const norm = x => String(x == null ? '' : x).trim().toLowerCase();
+    const memeChamps = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {}) ;
+    const faits = [], inchanges = [], plusRecents = [], introuvables = [], echecs = [];
+    for (let k = 0; k < d.chants.length; k++) {
+      const it = d.chants[k], src = it && it.source;
+      const titre = (it && it.titre) || (src && src.champs && src.champs['m-titre']) || '?';
+      if (!src || !src.champs) { echecs.push(titre + ' (pas de données)'); continue; }
+      const c = (S.get('chansons') || []).find(x => norm(x.titre) === norm(titre));
+      if (!c) { introuvables.push(titre); continue; }
+      const g = c.generateur || {};
+      if (g.champs && memeChamps(g.champs, src.champs) && memeChamps(g.pistes || [], src.pistes || [])) { inchanges.push(titre); continue; }
+      const dFichier = Date.parse(src.date || it.date || '') || 0, dAdmin = Date.parse(g.date || '') || 0;
+      if (dAdmin && dFichier && dAdmin > dFichier) { plusRecents.push(titre); continue; }
+      msg('<span style="color:var(--orL);">⏳ (' + (k + 1) + '/' + d.chants.length + ') Mise à jour de « ' + String(titre).replace(/</g, '&lt;') + ' »…</span>');
+      // Images intégrées (base64) : absentes de l'export, on les reprend du JSON en ligne s'il est lisible
+      let images = src.images || [];
+      const lien = (it.jsonLien || c.jsonLien || '').trim();
+      if (lien) { try { const r = await fetch(lien, { cache: 'reload' }); if (r.ok) { const dj = JSON.parse(await r.text()); if (dj && Array.isArray(dj.images) && dj.images.length) images = dj.images; } } catch (e) {} }
+      const data = { champs: src.champs, pistes: src.pistes || [], images: images, calibrationImmersion: src.calibrationImmersion || null, calibrationStarter: src.calibrationStarter || null, date: new Date().toISOString(), version: src.version || 1 };
+      try { await _chargerChantDepuisData(data, lien, true, true); } catch (e) {}
+      const c2 = (S.get('chansons') || []).find(x => norm(x.titre) === norm(titre));
+      if (c2 && c2.generateur && memeChamps(c2.generateur.champs, src.champs)) faits.push(titre); else echecs.push(titre);
+    }
+    const li = a => a.map(x => String(x).replace(/</g, '&lt;')).join(', ');
+    msg('<span style="color:' + (echecs.length ? '#e67e22' : '#2ecc71') + ';">' + (echecs.length ? '⚠' : '✅') + ' Import terminé : ' + faits.length + ' chant(s) mis à jour' + (faits.length ? ' (' + li(faits) + ')' : '') + ' · ' + inchanges.length + ' inchangé(s).</span>'
+      + (plusRecents.length ? '<br><span style="color:#e67e22;">⚠ Non remplacé(s), plus récent(s) dans l\'admin : ' + li(plusRecents) + '</span>' : '')
+      + (introuvables.length ? '<br><span style="color:#e67e22;">⚠ Introuvable(s) dans l\'admin : ' + li(introuvables) + '</span>' : '')
+      + (echecs.length ? '<br><span style="color:#e74c3c;">❌ Échec : ' + li(echecs) + ' (voir le message du formulaire Paroles)</span>' : ''));
+    toast(echecs.length ? '⚠ Import terminé avec des échecs' : '✅ Import terminé : ' + faits.length + ' chant(s) mis à jour');
+    try { renderBiblioAdmin(); renderChansons(); } catch (e) {}
+  } catch (e) {
+    msg('<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + '</span>');
+    toast('❌ ' + (e && e.message ? e.message : e));
+  } finally { window._importExportChantsEnCours = false; }
 }
 // Génère les 3 fiches avec le moteur du Générateur de chants (dans une page cachée), à partir d'une source JSON
 async function _genererFichesDepuisSource(src) {
