@@ -1518,6 +1518,9 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
     <div id="biblio-live-barre" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);flex:0 0 auto;">
       <button class="btn-sm" onclick="mfBiblioQuitter()" style="border-color:var(--or);color:var(--orL);">← Admin</button>
       <span style="flex:1;text-align:center;">👁 Vue élève · accès complet</span>
+      <button class="btn-sm" onclick="exporterTousLesJSONChants()" title="Exporter les JSON de tous les chants (un seul fichier, à déposer sur le Drive)">⬇ JSON</button>
+      <button class="btn-sm" onclick="document.getElementById('biblio-import-json').click()" title="Importer le fichier JSON des chants corrigé">⬆ JSON</button>
+      <input type="file" id="biblio-import-json" accept=".json,application/json" style="display:none;" onchange="importerExportChants(this.files[0]);this.value=''">
       <button class="btn-sm" onclick="mfBiblioLiveRecharger()" title="Recharger la vue (perd la position)">↻</button>
     </div>
     <iframe id="mf-biblio-live" title="Bibliothèque (vue élève)" style="display:block;width:100%;border:none;background:#0d0d0d;" allow="autoplay; fullscreen"></iframe>
@@ -14527,7 +14530,7 @@ function exporterTousLesJSONChants() {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     if (st) st.innerHTML = '<span style="color:#2ecc71;">✅ ' + chants.length + ' chant(s) exporté(s) dans « mf-chants-export-' + jour + '.json ». Dépose ce fichier dans le dossier Drive « JSON des chansons (export admin) ».</span>'
       + (sansJson.length ? '<br><span style="color:#e67e22;">ℹ ' + sansJson.length + ' chant(s) sans JSON (non exportés) : ' + sansJson.map(x => String(x).replace(/</g, '&lt;')).join(', ') + '</span>' : '');
-    toast('⬇ ' + chants.length + ' JSON de chants exportés');
+    toast('⬇ ' + chants.length + ' chant(s) exporté(s) dans mf-chants-export-' + jour + '.json' + (sansJson.length ? ' · ' + sansJson.length + ' sans JSON (non exportés)' : ''), 6000);
   } catch (e) {
     if (st) st.innerHTML = '<span style="color:#e74c3c;">❌ Export impossible : ' + (e && e.message ? e.message : e) + '</span>';
     toast('❌ Export impossible : ' + (e && e.message ? e.message : e));
@@ -14573,7 +14576,7 @@ async function importerExportChants(fichier) {
       + (plusRecents.length ? '<br><span style="color:#e67e22;">⚠ Non remplacé(s), plus récent(s) dans l\'admin : ' + li(plusRecents) + '</span>' : '')
       + (introuvables.length ? '<br><span style="color:#e67e22;">⚠ Introuvable(s) dans l\'admin : ' + li(introuvables) + '</span>' : '')
       + (echecs.length ? '<br><span style="color:#e74c3c;">❌ Échec : ' + li(echecs) + ' (voir le message du formulaire Paroles)</span>' : ''));
-    toast(echecs.length ? '⚠ Import terminé avec des échecs' : '✅ Import terminé : ' + faits.length + ' chant(s) mis à jour');
+    toast((echecs.length ? '⚠ Import terminé avec des échecs : ' + echecs.join(', ') : '✅ Import terminé : ' + faits.length + ' chant(s) mis à jour') + ' · ' + inchanges.length + ' inchangé(s)' + (plusRecents.length ? ' · plus récent(s) dans l\'admin, non remplacé(s) : ' + plusRecents.join(', ') : '') + (introuvables.length ? ' · introuvable(s) : ' + introuvables.join(', ') : ''), 9000);
     try { renderBiblioAdmin(); renderChansons(); } catch (e) {}
   } catch (e) {
     msg('<span style="color:#e74c3c;">❌ ' + (e && e.message ? e.message : e) + '</span>');
