@@ -9784,20 +9784,25 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   }
 
   // Main + légende des doigts (mêmes couleurs que la fiche Starter), à la place du logo
-  const mainSvg = _apepeSvgMain().replace('width="36" height="50"', 'width="62" height="86"');
+  const mainSvg = _apepeSvgMain().replace('width="36" height="50"', 'width="52" height="72"');
   const legendeMain = '<div class="mfp-leg">' + [['index','Index'],['majeur','Majeur'],['annulaire','Annulaire'],['auriculaire','Auriculaire']].map(f =>
     '<div><i style="background:' + APEPE_CLR_D[f[0]] + ';"></i><span>' + f[1] + '</span></div>').join('') + '</div>';
+  // Diagrammes d'accords sous le titre (colonne du milieu) : l'en-tête est plus bas, donc les paroles peuvent être plus grosses.
+  // Au-delà de 7 diagrammes, ils restent sur leur propre rangée, pleine largeur.
+  const nbDiag = accords.filter(a => dict[a]).length;
+  const diagDansEntete = nbDiag > 0 && nbDiag <= 7;
   const entete = '<div class="mfp-head">'
     + '<div class="mfp-hl">' + mainSvg + legendeMain + '</div>'
     + '<div class="mfp-hc"><div class="mfp-titre">' + esc(c.titre) + '</div>'
     + '<div class="mfp-co">MF Harmonie des Îles (tél ' + esc(ent.tel) + ', ' + esc(ent.email) + ')</div>'
     + (c.artiste ? '<div class="mfp-sous">Interprète : ' + esc(c.artiste) + '</div>' : '')
     + (c.auteur ? '<div class="mfp-sous">Auteur / Compositeur : ' + esc(c.auteur) + '</div>' : '')
+    + (diagDansEntete ? '<div class="mfp-diags">' + diag + '</div>' : '')
     + '</div>'
     + '<div class="mfp-hr"><div class="mfp-rythme">' + esc(rythme) + '</div>'
     + (nomTon ? '<div class="mfp-cle">Clé ' + esc(lettreTon) + ' / ' + esc(nomTon) + '</div>' : '')
     + '<div class="mfp-pat">' + fl + '</div></div></div>'
-    + (diag ? '<div class="mfp-diags">' + diag + '</div>' : '');
+    + (diag && !diagDansEntete ? '<div class="mfp-diags">' + diag + '</div>' : '');
 
   const css = '<style>@page{size:A4;margin:12mm;}html,body{margin:0!important;padding:0!important;background:#fff!important;}'
     + '.mfp-outer{width:703px;overflow:hidden;font-family:Georgia,serif;}.mfp-page{transform-origin:top left;}'
@@ -9984,10 +9989,13 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       const ajusterZoomBase = () => {
         left.style.marginLeft = '0px';
         let meilleur = 0.3, ok = false;
-        for (let t = 5; t >= 0.3; t -= 0.05) {
-          left.style.zoom = t;
-          const e = etendue(), lr = left.getBoundingClientRect();
-          if (page.offsetHeight <= dispo && e && (e.mx - e.mn) <= lr.width - 2) { meilleur = t; ok = true; break; }
+        // Taille maximale qui tient en hauteur et en largeur, trouvée par dichotomie (précision ≈ 0,002)
+        const tient = t => { left.style.zoom = t; const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (e.mx - e.mn) <= lr.width - 2; };
+        if (tient(5)) { meilleur = 5; ok = true; }
+        else if (tient(0.3)) {
+          let bas = 0.3, haut = 5;
+          for (let i = 0; i < 14; i++) { const mil = (bas + haut) / 2; if (tient(mil)) bas = mil; else haut = mil; }
+          meilleur = bas; ok = true;
         }
         left.style.zoom = meilleur;
         return ok ? meilleur : 0;
