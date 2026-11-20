@@ -9679,6 +9679,30 @@ function mfChoisirLangue(id, lg, on, cfCid) {
   try { renderBibliothequePublique(); } catch (e) {}
 }
 
+// Choix automatique de l'emplacement de la traduction (droite ou en bas) : on mesure les deux mises en page
+// et on garde celle qui donne les paroles les plus grosses. Si l'écart est faible (< 3 %), on garde l'ancien choix (en bas).
+function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raison) {
+  const nb = opts.nbParoles || (trad ? trad.length : 0);
+  const auto = (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3 && nb <= 14;
+  if (!auto) { _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, opts); return; }
+  toast('ℹ Calcul de la meilleure mise en page…');
+  let zCote = 0, fini = false;
+  // Lance l'impression une seule fois, avec le choix trouvé (ou l'ancien choix si le calcul échoue)
+  const imprimer = place => {
+    if (fini) return; fini = true; clearTimeout(garde);
+    _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, Object.assign({}, opts, { place: place }));
+  };
+  const garde = setTimeout(() => imprimer('dessous'), 10000);
+  const lancer = (place, suite) => {
+    _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, Object.assign({}, opts, { place: place, mesure: suite }));
+  };
+  lancer('cote', function(z1) {
+    zCote = z1;
+    lancer('dessous', function(z2) {
+      imprimer((zCote > z2 * 1.03) ? 'cote' : 'dessous');
+    });
+  });
+}
 function imprimerStarterParolesAdmin(chansonId, cid) {
   const c = (S.get('chansons')||[]).find(x => String(x.id) === String(chansonId));
   if (!c || !c.svg) { toast('⚠ Aucune fiche Starter à imprimer'); return; }
@@ -9709,12 +9733,12 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
     const fr = _mfTradPlat(ch['m-traduction-lignes']);
     if (fr.length) {
       if (cols3) opts.tradEn = _mfTradPlat(ch['m-anglais']);
-      _imprimerStarterParolesAvecTrad(c, cid, fr, mode, taille / 100, align, true, '', opts); return;
+      _imprimerAvecChoixPlace(c, cid, fr, mode, taille / 100, align, opts, ''); return;
     }
   }
   // Pas de source JSON (ou sans traduction ligne par ligne) : ancien fonctionnement, lecture de l'encadré de la fiche Immersion
   opts.json = false; opts.cols3 = false;
-  _extraireTraductionImmersion(c.svgImmersion, c.titre, function(trad, raison) { _imprimerStarterParolesAvecTrad(c, cid, trad, mode, taille / 100, align, true, (ch ? 'pas de traduction ligne par ligne dans le JSON — ' : 'pas de source JSON — ') + (raison || ''), opts); });
+  _extraireTraductionImmersion(c.svgImmersion, c.titre, function(trad, raison) { _imprimerAvecChoixPlace(c, cid, trad, mode, taille / 100, align, opts, (ch ? 'pas de traduction ligne par ligne dans le JSON — ' : 'pas de source JSON — ') + (raison || '')); });
 }
 function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, decalAccords, avecTrad, raisonTrad, opts) {
   opts = opts || {};
@@ -10133,6 +10157,13 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       z -= 0.03;
     }
     outer.style.height = Math.min(dispo, page.offsetHeight * z) + 'px';
+    if (typeof opts.mesure === 'function') {
+      // Mode « mesure » : on renvoie la taille réelle des paroles (zoom × réduction éventuelle), sans imprimer
+      const zl = left ? (parseFloat(w.getComputedStyle(left).zoom) || 1) : 1;
+      iframe.remove();
+      opts.mesure(zl * z);
+      return;
+    }
     if (typeof opts.capture === 'function') {
       // Mode « publier pour les élèves » : on récupère la page finale prête à imprimer, sans lancer l'impression.
       const cloneDoc = d.documentElement.cloneNode(true);
