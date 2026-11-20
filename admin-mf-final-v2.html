@@ -9915,6 +9915,23 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     }
     const outer = d.querySelector('.mfp-outer'), page = d.querySelector('.mfp-page');
     const dispo = 1030;
+    // Blanc entre l'en-tête et le premier texte visible (blocs masqués, marges de la fiche…) : on remonte tout le bloc paroles + traduction.
+    // Mesuré sur le texte réellement affiché, donc valable pour tous les chants ; à refaire à chaque changement de taille.
+    const rogner = () => {
+      const mn = d.querySelector('.mfp-main'), lf = d.querySelector('.mfp-left');
+      if (!mn || !lf) return;
+      mn.style.marginTop = '0px';
+      let haut = 1e9;
+      const tw = d.createTreeWalker(lf, 4); let n;
+      while ((n = tw.nextNode())) {
+        if (!n.textContent.trim()) continue;
+        const r = d.createRange(); r.selectNodeContents(n);
+        Array.from(r.getClientRects()).forEach(q => { if (q.width > 0 && q.height > 0) haut = Math.min(haut, q.top); });
+      }
+      if (haut > 1e8) return;
+      const ecart = haut - mn.getBoundingClientRect().top - 2;
+      if (ecart > 1) mn.style.marginTop = (-ecart) + 'px';
+    };
     // Diagrammes d'accords : taille réduite et ajustée pour tenir sur une seule rangée dans l'en-tête
     const hc = d.querySelector('.mfp-diags'), ds = Array.from(d.querySelectorAll('.mfp-d'));
     if (hc && ds.length) {
@@ -9990,14 +10007,14 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         left.style.marginLeft = '0px';
         let meilleur = 0.3, ok = false;
         // Taille maximale qui tient en hauteur et en largeur, trouvée par dichotomie (précision ≈ 0,002)
-        const tient = t => { left.style.zoom = t; const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (e.mx - e.mn) <= lr.width - 2; };
+        const tient = t => { left.style.zoom = t; rogner(); const e = etendue(), lr = left.getBoundingClientRect(); return page.offsetHeight <= dispo && e && (e.mx - e.mn) <= lr.width - 2; };
         if (tient(5)) { meilleur = 5; ok = true; }
         else if (tient(0.3)) {
           let bas = 0.3, haut = 5;
           for (let i = 0; i < 14; i++) { const mil = (bas + haut) / 2; if (tient(mil)) bas = mil; else haut = mil; }
           meilleur = bas; ok = true;
         }
-        left.style.zoom = meilleur;
+        left.style.zoom = meilleur; rogner();
         return ok ? meilleur : 0;
       };
       // Largeur de l'encadré de traduction : le plus étroit possible tant que cela fait grossir les paroles
@@ -10074,6 +10091,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         }
       }
       decaler();
+      rogner();
       if (mainEl) mainEl.classList.remove('mfp-fit');
     }
     // Réglage de taille : % de la taille automatique, limité à ce qui tient dans la page
@@ -10085,7 +10103,8 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         return page.offsetHeight <= dispo && !large;
       };
       let t = base * facteurTaille;
-      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; if (facteurTaille < 1 || fitte()) break; }
+      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; rogner(); if (facteurTaille < 1 || fitte()) break; }
+      rogner();
     }
     // Alignement global des accords (curseur) : décalage identique pour tous les accords
     if (left && decalAccords) {
