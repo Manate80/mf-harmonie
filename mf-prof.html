@@ -1237,6 +1237,15 @@ function buildFiche(el, enVacances, assignees, coursM) {
     '<button class="btn-action-or" onclick="validerRapport(' + el.id + ')">✅ Valider le rapport (+1 cours)</button>' +
     '</div>';
 
+  // NOTES DU PROFESSEUR (privées : jamais affichées à l'élève, aucune notification, aucun cours ajouté)
+  const npro = (el.notesProf || []).slice(0, 5);
+  html += '<div class="fiche-section">' +
+    '<div class="fiche-label">🔒 Notes du professeur (non visibles par l\'élève)</div>' +
+    '<textarea class="fiche-textarea" id="notepro-' + el.id + '" placeholder="Chansons vues, accords, points travaillés… (aucun cours ajouté)"></textarea>' +
+    '<button class="btn-action" onclick="enregistrerNoteProf(' + el.id + ')">💾 Enregistrer la note</button>' +
+    (npro.length ? npro.map(n => '<div class="historique-item"><div class="historique-date">' + (n.d || '') + '</div><div class="historique-texte">' + escHtml(n.t || '') + '</div></div>').join('') : '') +
+    '</div>';
+
   // HISTORIQUE
   const notes = (el.notes || []).slice(0, 5);
   if (notes.length) {
@@ -1343,6 +1352,19 @@ function retirerChansons(eleveId) {
   if (window.saveEleveFirestoreProf && eleves[i].identifiant) window.saveEleveFirestoreProf(eleves[i].identifiant, eleves[i]);
   toast('Chansons retirées — Firestore mis à jour.');
   chargerEleves();
+}
+
+// Note du professeur : enregistrée sans notification, sans +1 cours, jamais affichée côté élève
+function enregistrerNoteProf(eleveId) {
+  const ta = document.getElementById('notepro-' + eleveId);
+  if (!ta || !ta.value.trim()) { toast('⚠ Écrivez la note avant d\'enregistrer'); return; }
+  const l = S.getArr('eleves'); const i = l.findIndex(e => String(e.id) === String(eleveId)); if (i < 0) return;
+  const notesProf = (l[i].notesProf || []).slice();
+  notesProf.unshift({ t: ta.value.trim(), d: new Date().toLocaleString('fr-FR') });
+  sauverEleveChamps(eleveId, { notesProf });
+  ta.value = '';
+  toast('✅ Note enregistrée (non visible par l\'élève)');
+  if (typeof ouvrirFiche === 'function') { try { ouvrirFiche(eleveId); } catch (e) {} }
 }
 
 function validerRapport(eleveId) {
