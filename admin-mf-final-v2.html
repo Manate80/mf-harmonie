@@ -9732,7 +9732,10 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
   const cols3 = !!(ch && langue === 'tah' && (cb3 ? cb3.checked : _mfCols3(c)));
   const opts = { langue, cols3, place, json: !!ch, tradEn: null, nbParoles: ch ? _mfLignesParoles(ch).length : 0 };
   // Chanson en français ou en anglais : pas de traduction, les paroles prennent toute la page
-  if (ch && langue !== 'tah') { _imprimerStarterParolesAvecTrad(c, cid, null, mode, taille / 100, align, false, '', opts); return; }
+  // Mais si le JSON contient des lignes de traduction, elles sont TOUJOURS imprimées (chants mixtes tahitien/français comme Au Manava)
+  let langueManuelle = ''; try { langueManuelle = localStorage.getItem('mfLangue_' + c.id) || ''; } catch (e) {}
+  const aTradJson = !!(ch && !langueManuelle && _mfTradPlat(ch['m-traduction-lignes']).length);
+  if (ch && langue !== 'tah' && !aTradJson) { _imprimerStarterParolesAvecTrad(c, cid, null, mode, taille / 100, align, false, '', opts); return; }
   if (!avecTrad) { _imprimerStarterParolesAvecTrad(c, cid, null, mode, taille / 100, align, false, '', opts); return; }
   if (ch) {
     const fr = _mfTradPlat(ch['m-traduction-lignes']);
