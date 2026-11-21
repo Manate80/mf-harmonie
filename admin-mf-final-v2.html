@@ -9767,7 +9767,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   }).join('');
   const accords = detecterAccordsHTML(htmlTr);
   const dict = getAccordsDict();
-  const diag = accords.filter(a => dict[a]).map(a => '<div class="mfp-d">' + genDiagAdmin(a, false, 'droitier') + '<div class="mfp-dn">' + esc(String(dict[a].nom || a).replace(/\s*\/\s*/g, ' / ')) + '</div></div>').join('');
+  const diag = accords.filter(a => dict[a]).map(a => '<div class="mfp-d">' + genDiagAdmin(a, false, 'droitier') + '<div class="mfp-dn">' + esc(String(dict[a].nom || a).split('/')[0].trim()) + '</div></div>').join('');
   const _motifTitreSection = /^(intro|coupl\w*|pr[eé]-?refrain|refrain|pont|finale?|solo|instrumentale|outro)\s*\d*\s*:?$/i;
   const _sa = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   if (trad && !opts.json) trad = trad.filter(l => !_motifTitreSection.test(String(l.t || '').trim()) && _sa(l.t) !== _sa(c.titre));
@@ -9828,7 +9828,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     + '.mfp-pat{display:flex;justify-content:center;gap:3px;margin-top:4px;}.mfp-fc{display:flex;flex-direction:column;align-items:center;width:18px;}'
     + '.mfp-f{font-size:34px;font-weight:900;line-height:34px;}.mfp-bas{color:#e74c3c;}.mfp-haut{color:#27ae60;}.mfp-p{opacity:.45;}.mfp-s{color:#bbb;font-size:20px;}'
     + '.mfp-fl{font-size:11px;color:#222;}'
-    + '.mfp-diags{display:flex;flex-wrap:nowrap;justify-content:center;gap:0 8px;margin:2px 0 8px 0;}.mfp-d{text-align:center;zoom:.6;flex:none;}.mfp-dn{font-size:20px;font-weight:600;line-height:1.1;color:#111;width:0;min-width:100%;}'
+    + '.mfp-diags{display:flex;flex-wrap:nowrap;justify-content:center;gap:0 8px;margin:2px 0 8px 0;}.mfp-d{text-align:center;zoom:.6;flex:none;}.mfp-dn{font-size:24px;font-weight:600;line-height:1.1;color:#111;width:0;min-width:100%;}'
     + '.mfp-d [style*="background:#FFFFFF"]{background:#333!important;}'
     + '.mfp-main{display:flex;align-items:flex-start;gap:14px;}.mfp-left{flex:1 1 58%;min-width:0;}.mfp-right{flex:0 0 34%;}.mfp-seul .mfp-left{flex:1 1 100%;}'
     + '.mfp-trad{border:1px solid #444;padding:10px 12px;box-sizing:border-box;}.mfp-fit .mfp-trad{height:0!important;overflow:hidden;padding:0!important;border:0!important;}.mfp-al{position:relative;padding:0!important;}.mfp-al .mfp-tl{position:absolute;left:8px;right:6px;line-height:1.2!important;margin:0;}.mfp-tl{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.9;}'
@@ -10155,7 +10155,9 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         return page.offsetHeight <= dispo && !large;
       };
       let t = base * facteurTaille;
-      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; majGap(t); rogner(); if (facteurTaille < 1 || fitte()) break; }
+      // « Taille + / − » FORCE la taille demandée (même si ça dépasse : la page est ensuite réduite pour tenir en hauteur)
+      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; majGap(t); alignerCols(); rogner(); if (facteurTaille !== 1 || fitte()) break; }
+      alignerCols();
       rogner();
     }
     // Alignement global des accords (curseur) : décalage identique pour tous les accords
