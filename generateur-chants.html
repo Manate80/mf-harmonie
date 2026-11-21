@@ -694,7 +694,11 @@ function parserStructureAccordsParEtape(texte, tempsParMesure){
             parts.forEach(function(p){ for(var c=0; c<moitie; c++) flat.push(p); });
             for(var i=0; i<flat.length; i+=tempsParMesure){
               var chunk = flat.slice(i, i+tempsParMesure);
-              while(chunk.length < tempsParMesure) chunk.push(chunk[chunk.length-1] || '');
+              // Demi-mesure seule écrite avec une barre finale (ex: "Bb/") : elle reste à 2 temps, sans être
+              // complétée par répétition ; le recalage en mesures pleines est fait plus bas (_recalerMesuresPleines).
+              if(!(m.charAt(m.length-1) === '/' && i + tempsParMesure >= flat.length)){
+                while(chunk.length < tempsParMesure) chunk.push(chunk[chunk.length-1] || '');
+              }
               mesuresIci.push(chunk);
             }
           } else {
@@ -806,7 +810,31 @@ function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVi
     }
   });
 
-  return mesures;
+  return _recalerMesuresPleines(mesures, tempsParMesure);
+}
+
+// Une demi-mesure seule (2 temps, écrite "Bb/") laisse un décalage de 2 temps : on remet bout à bout
+// tous les temps puis on les regroupe en mesures pleines, pour que chaque accord tombe au bon temps
+// (sinon la vidéo attend une mesure entière). Les paroles et le nom de section restent attachés à la
+// mesure où leur 1er temps tombe.
+function _recalerMesuresPleines(mesures, tempsParMesure){
+  var aCourte = mesures.some(function(m){ return m.temps && m.temps.length !== tempsParMesure; });
+  if(!aCourte) return mesures;
+  var flux = [];
+  mesures.forEach(function(m){
+    (m.temps || []).forEach(function(a, k){ flux.push({ a: a, mes: k === 0 ? m : null }); });
+  });
+  var res = [];
+  for(var i=0; i<flux.length; i+=tempsParMesure){
+    var morceau = flux.slice(i, i+tempsParMesure);
+    var temps = morceau.map(function(x){ return x.a; });
+    while(temps.length < tempsParMesure) temps.push(temps[temps.length-1] || '');
+    var debuts = morceau.filter(function(x){ return x.mes; }).map(function(x){ return x.mes; });
+    var paroles = debuts.map(function(d){ return d.paroles; }).filter(Boolean).join('\n');
+    var section = debuts.length ? debuts[0].section : (res.length ? res[res.length-1].section : '');
+    res.push({ mesure: res.length + 1, temps: temps, paroles: paroles, section: section });
+  }
+  return res;
 }
 
 // Ajoute des mesures vides (sans accord ni parole) en tête, pour que le prompteur ne commence
