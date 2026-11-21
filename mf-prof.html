@@ -1242,6 +1242,7 @@ function buildFiche(el, enVacances, assignees, coursM) {
   html += '<div class="fiche-section">' +
     '<div class="fiche-label">🔒 Notes du professeur (non visibles par l\'élève)</div>' +
     '<textarea class="fiche-textarea" id="notepro-' + el.id + '" placeholder="Chansons vues, accords, points travaillés… (aucun cours ajouté)"></textarea>' +
+    noteProgHtml(el) +
     '<button class="btn-action" onclick="enregistrerNoteProf(' + el.id + ')">💾 Enregistrer la note</button>' +
     (npro.length ? npro.map(n => '<div class="historique-item"><div class="historique-date">' + (n.d || '') + '</div><div class="historique-texte">' + escHtml(n.t || '') + '</div></div>').join('') : '') +
     '</div>';
@@ -1354,17 +1355,89 @@ function retirerChansons(eleveId) {
   chargerEleves();
 }
 
-// Note du professeur : enregistrée sans notification, sans +1 cours, jamais affichée côté élève
+// Note du professeur : enregistrée sans notification, sans +1 cours, jamais affichée côté élève.
+// Option : mettre à jour la progression (compétences + chansons par cœur) en même temps que la note.
+var NOTEPROG = {}; // par élève : { comp:{id:statut}, rep:{rythme:+n} }
+function noteProgEtat(id) { if (!NOTEPROG[id]) NOTEPROG[id] = { comp: {}, rep: {} }; return NOTEPROG[id]; }
+function noteProgNomComp(cid) { var n = ''; MFPROG_NIVEAUX.forEach(function (b) { b.competences.forEach(function (c) { if (c.id === cid) n = c.nom; }); }); return n; }
+function noteProgCourt(t) { return t.length > 48 ? t.slice(0, 46) + '…' : t; }
+function noteProgHtml(el) {
+  var comp = '';
+  MFPROG_NIVEAUX.forEach(function (n, ni) {
+    n.competences.forEach(function (c) { if (!c.repertoire) comp += '<option value="' + c.id + '">N' + (ni + 1) + ' · ' + escHtml(noteProgCourt(c.nom)) + '</option>'; });
+  });
+  var stat = MFPROG_STATUTS.map(function (x) { return '<option value="' + x.k + '">' + x.l + '</option>'; }).join('');
+  var ryt = MFPROG_RYTHMES.map(function (r) { return '<option value="' + r.k + '">' + r.l + '</option>'; }).join('');
+  var st = 'width:100%;margin:4px 0;padding:8px;background:var(--bg,#111);color:inherit;border:1px solid var(--border,#333);border-radius:6px;';
+  return '<details style="margin:8px 0;"><summary style="cursor:pointer;font-size:13px;">📈 Mettre à jour la progression avec cette note (facultatif)</summary>' +
+    '<div style="padding:6px 0;"><div style="font-size:12px;opacity:.8;">Compétence travaillée</div>' +
+    '<select id="npc-' + el.id + '" style="' + st + '">' + comp + '</select>' +
+    '<select id="npl-' + el.id + '" style="' + st + '">' + stat + '</select>' +
+    '<button type="button" class="btn-action" onclick="noteProgAjouterComp(' + el.id + ')">+ Ajouter cette compétence</button>' +
+    '<div style="font-size:12px;opacity:.8;margin-top:10px;">Chansons par cœur apprises (sans cahier)</div>' +
+    '<select id="npr-' + el.id + '" style="' + st + '">' + ryt + '</select>' +
+    '<select id="npn-' + el.id + '" style="' + st + '"><option value="1">+1 chanson</option><option value="2">+2 chansons</option><option value="3">+3 chansons</option><option value="4">+4 chansons</option><option value="5">+5 chansons</option></select>' +
+    '<button type="button" class="btn-action" onclick="noteProgAjouterRep(' + el.id + ')">+ Ajouter ces chansons</button>' +
+    '<div id="npl-liste-' + el.id + '" style="margin-top:8px;font-size:12px;"></div></div></details>';
+}
+function noteProgRendu(id) {
+  var e = noteProgEtat(id), h = '';
+  Object.keys(e.comp).forEach(function (cid) {
+    var inf = mfProgInfoStatut(e.comp[cid]);
+    h += '<div style="padding:4px 0;">• ' + escHtml(noteProgCourt(noteProgNomComp(cid))) + ' → <b>' + inf.l + '</b> <a href="#" onclick="noteProgRetirer(' + id + ',\'comp\',\'' + cid + '\');return false;">✕</a></div>';
+  });
+  Object.keys(e.rep).forEach(function (k) {
+    var r = MFPROG_RYTHMES.filter(function (x) { return x.k === k; })[0];
+    h += '<div style="padding:4px 0;">• Par cœur ' + escHtml(r ? r.l : k) + ' : <b>+' + e.rep[k] + '</b> <a href="#" onclick="noteProgRetirer(' + id + ',\'rep\',\'' + k + '\');return false;">✕</a></div>';
+  });
+  var box = document.getElementById('npl-liste-' + id); if (box) box.innerHTML = h;
+}
+function noteProgAjouterComp(id) {
+  var c = document.getElementById('npc-' + id), l = document.getElementById('npl-' + id); if (!c || !l) return;
+  noteProgEtat(id).comp[c.value] = l.value; noteProgRendu(id);
+}
+function noteProgAjouterRep(id) {
+  var r = document.getElementById('npr-' + id), n = document.getElementById('npn-' + id); if (!r || !n) return;
+  var e = noteProgEtat(id); e.rep[r.value] = (e.rep[r.value] || 0) + parseInt(n.value, 10); noteProgRendu(id);
+}
+function noteProgRetirer(id, type, cle) { delete noteProgEtat(id)[type][cle]; noteProgRendu(id); }
+
 function enregistrerNoteProf(eleveId) {
   const ta = document.getElementById('notepro-' + eleveId);
-  if (!ta || !ta.value.trim()) { toast('⚠ Écrivez la note avant d\'enregistrer'); return; }
+  const txt = ta ? ta.value.trim() : '';
+  const np = noteProgEtat(eleveId);
+  const nbProg = Object.keys(np.comp).length + Object.keys(np.rep).length;
+  if (!txt && !nbProg) { toast('⚠ Écrivez la note avant d\'enregistrer'); return; }
   const l = S.getArr('eleves'); const i = l.findIndex(e => String(e.id) === String(eleveId)); if (i < 0) return;
+  const patch = {};
+  let texteFinal = txt;
+  if (nbProg) {
+    const suivi = mfProgNormaliser(l[i].suiviProgression);
+    const lignes = [];
+    Object.keys(np.comp).forEach(cid => { suivi.statuts[cid] = np.comp[cid]; lignes.push(noteProgCourt(noteProgNomComp(cid)) + ' : ' + mfProgInfoStatut(np.comp[cid]).l); });
+    Object.keys(np.rep).forEach(k => {
+      const r = MFPROG_RYTHMES.filter(x => x.k === k)[0];
+      suivi.compteurs[k] = Math.min(10, (suivi.compteurs[k] || 0) + np.rep[k]);
+      lignes.push('par cœur ' + (r ? r.l : k) + ' +' + np.rep[k]);
+    });
+    const r = mfProgCalculer(suivi); suivi.badges = r.badges.map(b => b.nom); suivi.maj = new Date().toISOString();
+    patch.suiviProgression = suivi; patch.progression = r.pct;
+    texteFinal = (txt ? txt + '\n' : '') + '📈 Progression : ' + lignes.join(' ; ') + ' (' + r.pct + ' %)';
+  }
   const notesProf = (l[i].notesProf || []).slice();
-  notesProf.unshift({ t: ta.value.trim(), d: new Date().toLocaleString('fr-FR') });
-  sauverEleveChamps(eleveId, { notesProf });
-  ta.value = '';
-  toast('✅ Note enregistrée (non visible par l\'élève)');
-  if (typeof ouvrirFiche === 'function') { try { ouvrirFiche(eleveId); } catch (e) {} }
+  notesProf.unshift({ t: texteFinal, d: new Date().toLocaleString('fr-FR') });
+  patch.notesProf = notesProf;
+  sauverEleveChamps(eleveId, patch);
+  if (ta) ta.value = '';
+  NOTEPROG[eleveId] = { comp: {}, rep: {} }; noteProgRendu(eleveId);
+  if (nbProg) {
+    MFPROG_DIRTY[eleveId] = false; delete MFPROG_DRAFT[eleveId];
+    const maj = S.getArr('eleves').find(e => String(e.id) === String(eleveId));
+    try { mfProgMount('mfprog-box-' + eleveId, eleveId, 'edit', maj); } catch (e) {}
+    toast('✅ Note et progression enregistrées (' + patch.progression + ' %)');
+  } else {
+    toast('✅ Note enregistrée (non visible par l\'élève)');
+  }
 }
 
 function validerRapport(eleveId) {
