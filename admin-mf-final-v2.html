@@ -9772,7 +9772,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   const _sa = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   if (trad && !opts.json) trad = trad.filter(l => !_motifTitreSection.test(String(l.t || '').trim()) && _sa(l.t) !== _sa(c.titre));
   const colL = l => l.json ? l.col : (_couleurPalettePrint(l.col) || '#000');
-  const boite = arr => '<div class="mfp-trad">' + arr.map(l => '<div class="mfp-tl" style="color:' + colL(l) + '">' + esc(l.t) + '</div>').join('') + '</div>';
+  const boite = arr => { let precS = null; return '<div class="mfp-trad">' + arr.map(l => { const nouv = precS !== null && l.sec !== precS; precS = l.sec; return '<div class="mfp-tl' + (nouv ? ' mfp-tsec' : '') + '" style="color:' + colL(l) + '">' + esc(l.t) + '</div>'; }).join('') + '</div>'; };
   const cols3 = !!(opts.cols3 && trad && trad.length);
   const nbTrad = trad ? trad.length : 0;
   const dessous2 = !!(trad && nbTrad && !cols3 && opts.place === 'dessous2');
@@ -9831,7 +9831,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     + '.mfp-diags{display:flex;flex-wrap:nowrap;justify-content:center;gap:0 8px;margin:2px 0 8px 0;}.mfp-d{text-align:center;zoom:.6;flex:none;}.mfp-dn{font-size:24px;font-weight:600;line-height:1.1;color:#111;width:0;min-width:100%;}'
     + '.mfp-d [style*="background:#FFFFFF"]{background:#333!important;}'
     + '.mfp-main{display:flex;align-items:flex-start;gap:14px;}.mfp-left{flex:1 1 58%;min-width:0;}.mfp-right{flex:0 0 34%;}.mfp-seul .mfp-left{flex:1 1 100%;}'
-    + '.mfp-trad{border:1px solid #444;padding:10px 12px;box-sizing:border-box;}.mfp-fit .mfp-trad{height:0!important;overflow:hidden;padding:0!important;border:0!important;}.mfp-al{position:relative;padding:0!important;}.mfp-al .mfp-tl{position:absolute;left:8px;right:6px;line-height:1.2!important;margin:0;}.mfp-tl{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.9;}'
+    + '.mfp-trad{border:1px solid #444;padding:10px 12px;box-sizing:border-box;}.mfp-fit .mfp-trad{height:0!important;overflow:hidden;padding:0!important;border:0!important;}.mfp-al{position:relative;padding:0!important;}.mfp-al .mfp-tl{position:absolute;left:8px;right:6px;line-height:1.2!important;margin:0;}.mfp-tl{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.9;}.mfp-tsec{margin-top:.8em;}'
     + '.mfp-r3{display:flex;gap:8px;align-items:flex-start;}.mfp-r3 .mfp-trad{flex:1 1 0;min-width:0;}.mfp-below{margin-top:8px;border-top:1px solid #444;padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:14px;}.mfp-below2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;}.mfp-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.mfp-col{min-width:0;}.mfp-bl{line-height:1.25;margin:0;}.mfp-bsec{margin-top:.6em;}'
     + '.mfp-left .taille-ctrl,.mfp-left button,.mfp-left select,.mfp-left .btn-fullscreen,.mfp-left .fond-popup,.mfp-left .popup,.mfp-left #pe,.mfp-left .pe-fermer,.mfp-left .sec-metro{display:none!important;}'
     + '*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}'
@@ -10198,7 +10198,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
           return b > -1e8 ? b : l.getBoundingClientRect().bottom;
         };
         let alignOk = false;
-        if (lignes.length && lignes.length === tls.length && !left.querySelector('.paire')) {
+        if (opts.aligneLigne && lignes.length && lignes.length === tls.length && !left.querySelector('.paire')) {
           const r0 = lignes[0].getBoundingClientRect(), rN = lignes[lignes.length - 1].getBoundingClientRect();
           trad.classList.add('mfp-al');
           trad.style.marginTop = Math.max(0, r0.top - lr.top) + 'px';
@@ -10224,8 +10224,8 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         if (!alignOk) {
           // Encadré compact : commence au niveau de la première ligne de paroles, hauteur = celle de son texte
           trad.style.marginTop = (lignes.length ? Math.max(0, lignes[0].getBoundingClientRect().top - lr.top) : 0) + 'px';
-          for (let fs = 13; fs >= 6.5; fs -= 0.5) {
-            tls.forEach(el => { el.style.fontSize = fs + 'px'; el.style.lineHeight = '1.3'; el.style.marginBottom = Math.max(1, fs / 5) + 'px'; });
+          for (let fs = 16; fs >= 6.5; fs -= 0.5) {
+            tls.forEach(el => { el.style.fontSize = fs + 'px'; el.style.lineHeight = '1.3'; el.style.marginBottom = Math.max(1, fs / 6) + 'px'; });
             if (page.offsetHeight <= dispo) break;
           }
           if (tls.length && lignes.length !== tls.length) toast('ℹ Traduction : ' + tls.length + ' lignes pour ' + lignes.length + ' lignes de paroles — alignement ligne par ligne impossible');
