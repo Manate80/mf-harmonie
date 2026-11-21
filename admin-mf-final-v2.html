@@ -9816,19 +9816,19 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     + '<div class="mfp-pat">' + fl + '</div></div></div>'
     + (diag && !diagDansEntete ? '<div class="mfp-diags">' + diag + '</div>' : '');
 
-  const css = '<style>@page{size:A4;margin:12mm;}html,body{margin:0!important;padding:0!important;background:#fff!important;}'
-    + '.mfp-outer{width:703px;overflow:hidden;font-family:Georgia,serif;}.mfp-page{transform-origin:top left;}'
+  const css = '<style>@page{size:A4;margin:8mm 7mm 12mm 7mm;}html,body{margin:0!important;padding:0!important;background:#fff!important;}'
+    + '.mfp-outer{width:740px;overflow:hidden;font-family:Georgia,serif;}.mfp-page{transform-origin:top left;}'
     + '.mfp-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;}'
     + '.mfp-hl{width:90px;flex:none;text-align:left;}.mfp-leg{display:flex;flex-direction:column;gap:2px;margin-top:4px;}'
     + '.mfp-leg div{display:flex;align-items:center;gap:4px;font-size:9px;color:#222;}.mfp-leg i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;}'
     + '.mfp-hc{flex:1;min-width:0;text-align:center;}.mfp-hr{flex:none;text-align:center;min-width:170px;}'
     + '.mfp-titre{font-size:22px;font-weight:700;color:#c0392b;text-transform:uppercase;}'
-    + '.mfp-sous{font-size:13px;color:#222;}.mfp-co{font-size:11px;color:#222;margin-top:4px;}'
+    + '.mfp-sous{font-size:13px;color:#222;}.mfp-co{font-size:11px;color:#222;margin-top:4px;white-space:nowrap;}'
     + '.mfp-rythme{font-size:15px;font-weight:700;color:#c0392b;text-transform:uppercase;letter-spacing:2px;}.mfp-cle{font-size:13px;color:#2e9e6b;}'
     + '.mfp-pat{display:flex;justify-content:center;gap:3px;margin-top:4px;}.mfp-fc{display:flex;flex-direction:column;align-items:center;width:18px;}'
     + '.mfp-f{font-size:34px;font-weight:900;line-height:34px;}.mfp-bas{color:#e74c3c;}.mfp-haut{color:#27ae60;}.mfp-p{opacity:.45;}.mfp-s{color:#bbb;font-size:20px;}'
     + '.mfp-fl{font-size:11px;color:#222;}'
-    + '.mfp-diags{display:flex;flex-wrap:nowrap;justify-content:center;gap:0 8px;margin:2px 0 8px 0;}.mfp-d{text-align:center;zoom:.6;flex:none;}.mfp-dn{font-size:11px;color:#333;}'
+    + '.mfp-diags{display:flex;flex-wrap:nowrap;justify-content:center;gap:0 8px;margin:2px 0 8px 0;}.mfp-d{text-align:center;zoom:.6;flex:none;}.mfp-dn{font-size:20px;font-weight:600;line-height:1.1;color:#111;width:0;min-width:100%;}'
     + '.mfp-d [style*="background:#FFFFFF"]{background:#333!important;}'
     + '.mfp-main{display:flex;align-items:flex-start;gap:14px;}.mfp-left{flex:1 1 58%;min-width:0;}.mfp-right{flex:0 0 34%;}.mfp-seul .mfp-left{flex:1 1 100%;}'
     + '.mfp-trad{border:1px solid #444;padding:10px 12px;box-sizing:border-box;}.mfp-fit .mfp-trad{height:0!important;overflow:hidden;padding:0!important;border:0!important;}.mfp-al{position:relative;padding:0!important;}.mfp-al .mfp-tl{position:absolute;left:8px;right:6px;line-height:1.2!important;margin:0;}.mfp-tl{font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.9;}'
@@ -9926,7 +9926,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       });
     }
     const outer = d.querySelector('.mfp-outer'), page = d.querySelector('.mfp-page');
-    const dispo = 1030;
+    const dispo = 1044; // A4 297 mm − haut 8 mm − bas 12 mm = 277 mm ≈ 1047 px (2-3 px de sécurité)
     // Mode « 2 colonnes » : les blocs de paroles sont rangés en 2 colonnes selon leur couleur
     // (couplets noirs + pont vert à gauche ; refrain rouge + finale bleue à droite)
     let colsEl = null, colsOk = null, alignerCols = () => {};
@@ -9969,6 +9969,9 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       const zd = Math.max(0.35, Math.min(0.5, (hc.clientWidth * 0.98) / largeur));
       ds.forEach(x => { x.style.zoom = zd; });
     }
+    // Ligne de contact de l'en-tête : toujours sur UNE seule ligne (police réduite si besoin)
+    const coEl = d.querySelector('.mfp-co');
+    if (coEl) { for (let fs = 11; fs > 6.5 && coEl.scrollWidth > coEl.clientWidth + 0.5; fs -= 0.5) coEl.style.fontSize = fs + 'px'; }
     if (left) {
       const soloAccords = l => { const cl = l.cloneNode(true); cl.querySelectorAll('.ch,.chb,.accord').forEach(x => x.remove()); return !cl.textContent.replace(/[\s .]+/g, ''); };
       // Lignes d'accords seuls (Intro…) : on resserre le blanc qui les suit
@@ -10227,10 +10230,10 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         }
       });
     }
-    // Tout sur une page A4 : réduction progressive jusqu'à tenir (hauteur utile 273 mm ≈ 1030 px)
+    // Tout sur une page A4 : réduction progressive jusqu'à tenir (hauteur utile 277 mm ≈ 1044 px)
     let z = 1;
     while (z > 0.45) {
-      page.style.transform = 'scale(' + z + ')'; page.style.width = (703 / z) + 'px';
+      page.style.transform = 'scale(' + z + ')'; page.style.width = (740 / z) + 'px';
       if (page.offsetHeight * z <= dispo) break;
       z -= 0.03;
     }
