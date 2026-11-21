@@ -1524,7 +1524,6 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
       <button class="btn-sm" onclick="mfBiblioLiveRecharger()" title="Recharger la vue (perd la position)">↻</button>
     </div>
     <iframe id="mf-biblio-live" title="Bibliothèque (vue élève)" style="display:block;width:100%;border:none;background:#0d0d0d;" allow="autoplay; fullscreen"></iframe>
-    <div style="display:none;"><div id="biblio-pub-dossiers"></div></div>
   </div>
 
   <!-- ═══════════════════════════════════════════
@@ -8970,85 +8969,6 @@ function ouvrirBasiqueEcran(cid) {
 function _interpreteChanson(c) { return String((c && (c.artiste || c.auteur)) || '').trim(); }
 // Auteur / compositeur d'une chanson (anciennes chansons : auteur_comp)
 function _auteurChanson(c) { return String((c && (c.auteur_comp || (c.artiste ? c.auteur : ''))) || '').trim(); }
-function renderBibliothequePublique() {
-  const container = document.getElementById('biblio-pub-dossiers');
-  if (!container) return;
-  const toutes = (S.get('chansons') || []).filter(c => (c.rythme || c.type || '').trim());
-  const nbAl = toutes.filter(_mfAlerteACompleter).length;
-  const chansons = _biblioFiltreAlerte ? toutes.filter(_mfAlerteACompleter) : toutes;
-
-  if (!toutes.length) {
-    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:30px;font-style:italic;">Aucune chanson finalisée pour l\'instant — remplis le champ Rythme (Générateur → Parole) pour qu\'une chanson apparaisse ici.</p>';
-    return;
-  }
-
-  const dossiers = {};
-  chansons.forEach(c => {
-    const rythme = (c.rythme || c.type || '').trim();
-    if (!dossiers[rythme]) dossiers[rythme] = [];
-    dossiers[rythme].push(c);
-  });
-
-  container.innerHTML = '';
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;';
-  barre.innerHTML = '<button class="btn-sm" onclick="mfBasculerFiltreAlerte()" title="Afficher seulement les chansons dont la traduction est à compléter" style="border-color:' + (nbAl ? '#e74c3c' : 'var(--border)') + ';color:' + (nbAl ? '#ff7b6b' : 'var(--muted)') + ';' + (_biblioFiltreAlerte ? 'background:rgba(231,76,60,.18);' : '') + '">⚠ ' + nbAl + ' chanson(s) à compléter</button>'
-    + (_biblioFiltreAlerte ? '<span style="font-size:11px;color:var(--muted);">Filtre actif — clique pour tout afficher</span>' : '');
-  const lcLabel = document.createElement('label');
-  lcLabel.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer;margin-left:auto;';
-  lcLabel.innerHTML = '<input type="checkbox" ' + (mfLectureContinue() ? 'checked ' : '') + 'onchange="try{localStorage.setItem(\'mf_lecture_continue\',this.checked?\'on\':\'off\')}catch(e){}"> ▶️ Lecture continue';
-  barre.appendChild(lcLabel);
-  container.appendChild(barre);
-  if (!chansons.length) { const v = document.createElement('p'); v.style.cssText = 'color:var(--muted);text-align:center;padding:30px;font-style:italic;'; v.textContent = 'Aucune chanson à compléter. 🎉'; container.appendChild(v); return; }
-  Object.keys(dossiers).sort((a, b) => a.localeCompare(b, 'fr')).forEach(rythme => {
-    const chansonsDossier = dossiers[rythme].sort((a, b) => (a.titre || '').localeCompare(b.titre || '', 'fr'));
-    const dossierEl = document.createElement('div');
-    dossierEl.style.cssText = 'background:var(--card);border:1px solid var(--border);margin-bottom:10px;border-radius:4px;overflow:hidden;';
-
-    const head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;padding:12px 14px;gap:10px;cursor:pointer;';
-    head.innerHTML =
-      '<div style="font-size:22px;flex-shrink:0;">📁</div>' +
-      '<div style="flex:1;min-width:0;font-weight:700;color:var(--orL);font-size:14px;text-transform:capitalize;">' + rythme + '</div>' +
-      '<span class="badge b-orange" style="font-size:9px;">' + chansonsDossier.length + ' chanson(s)</span>' +
-      '<span style="color:var(--or);font-size:18px;margin-left:6px;transition:transform .3s;" class="ba-arrow">›</span>';
-
-    const liste = document.createElement('div');
-    liste.style.cssText = 'display:' + (_biblioFiltreAlerte ? 'block' : 'none') + ';border-top:1px solid var(--border);';
-    chansonsDossier.forEach(c => {
-      const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;padding:11px 14px 11px 30px;gap:10px;cursor:pointer;border-top:1px solid var(--border);';
-      item.innerHTML =
-        '<div style="font-size:18px;flex-shrink:0;">🎵</div>' +
-        '<div style="flex:1;min-width:0;">' +
-        '<div style="font-weight:700;color:var(--blanc);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (c.titre || 'Sans titre') + '</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-top:1px;">' + (_interpreteChanson(c) || '—') + '</div>' +
-        '</div>' + _mfBadgeAlerte(c) +
-        (c.statut === 'valide' ? '<span class="badge b-vert" style="font-size:9px;">✅ Publié</span>' : '<span class="badge b-orange" style="font-size:9px;">📁 Brouillon</span>');
-      _mfLierBadgesAlerte(item);
-      item.addEventListener('click', () => ouvrirChansonDepuisBibliotheque(String(c.id)));
-      liste.appendChild(item);
-    });
-
-    head.addEventListener('click', () => {
-      const ouvert = liste.style.display !== 'none';
-      // Un seul dossier ouvert à la fois : on referme les autres.
-      if (!ouvert) Array.prototype.forEach.call(container.children, function(autre) {
-        if (autre === dossierEl || !autre.children || autre.children.length < 2) return;
-        const l2 = autre.children[1], h2 = autre.children[0];
-        if (l2 && l2.style && l2.style.borderTop) { l2.style.display = 'none'; const a2 = h2.querySelector('.ba-arrow'); if (a2) a2.style.transform = ''; }
-      });
-      liste.style.display = ouvert ? 'none' : 'block';
-      const arrow = head.querySelector('.ba-arrow');
-      if (arrow) arrow.style.transform = ouvert ? '' : 'rotate(90deg)';
-    });
-
-    dossierEl.appendChild(head);
-    dossierEl.appendChild(liste);
-    container.appendChild(dossierEl);
-  });
-}
-
 // Ouvre la fiche complète d'une chanson (venant d'un clic dans Bibliothèque) directement dans
 // l'onglet Musique → Chanson à finaliser, sans afficher le reste de la liste à côté.
 function ouvrirChansonDepuisBibliotheque(cid) {
@@ -9668,15 +9588,12 @@ function mfAfficherAlerte(cid) {
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
   document.body.appendChild(m);
 }
-function mfBasculerFiltreAlerte() { _biblioFiltreAlerte = !_biblioFiltreAlerte; renderBibliothequePublique(); }
 function mfChoisirCols3(id, on) {
   try { localStorage.setItem('mfPdfCols3_' + id, on ? '1' : '0'); } catch (e) {}
-  try { renderBibliothequePublique(); } catch (e) {}
 }
 function mfChoisirLangue(id, lg, on, cfCid) {
   try { localStorage.setItem('mfLangue_' + id, on ? lg : 'tah'); } catch (e) {}
   const autre = document.getElementById(cfCid + (lg === 'fr' ? '-langen' : '-langfr')); if (on && autre) autre.checked = false;
-  try { renderBibliothequePublique(); } catch (e) {}
 }
 
 // Choix automatique de l'emplacement de la traduction (droite ou en bas) : on mesure les deux mises en page
@@ -10566,7 +10483,6 @@ window.mfReglagesImpressionRestaurer = function (data) {
       const m = /^mfPdfTranspo_(.+)$/.exec(k); if (m) cfTransposeDemi[m[1]] = parseInt(v, 10) || 0;
     });
   } finally { _mfReglSuppr = false; }
-  if (change) { try { if (typeof renderBibliothequePublique === 'function') renderBibliothequePublique(); } catch (e) {} }
 };
 function mfDemiRestaurer(cid) {
   if (cfTransposeDemi[cid] === undefined) { let d = 0; try { d = parseInt(localStorage.getItem('mfPdfTranspo_' + cid), 10) || 0; } catch (e) {} cfTransposeDemi[cid] = d; }
