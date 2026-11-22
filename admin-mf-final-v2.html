@@ -14721,22 +14721,36 @@ async function _chargerChantDepuisData(d, url, recharger, auto) {
     importerHTML(new File([f.starter], slug + '-starter.html', { type: 'text/html' }), 'starter');
     importerHTML(new File([f.immersion], slug + '-immersion.html', { type: 'text/html' }), 'immersion');
     const au = _genRemplirAudioAdmin(src);
+    // Liens Firebase des prompts (champs du Générateur) : s'ils sont remplis, l'admin lit les fichiers ; sinon il utilise ceux qu'il vient de fabriquer.
+    const lienPS = String(d.champs['m-lien-prompt-starter'] || '').trim(), lienPI = String(d.champs['m-lien-prompt-immersion'] || '').trim();
+    let promptS = f.promptStarter, promptI = f.promptImmersion, luS = false, luI = false, avertLiens = '';
+    const lirePrompt = async (lien, cle) => {
+      const r = await fetch(lien, { cache: 'reload' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const t = await r.text(); const j = JSON.parse(t);
+      if (!(j && Array.isArray(j[cle]) && j[cle].length)) throw new Error('fichier sans « ' + cle + ' »');
+      return t;
+    };
+    if (lienPS) { try { promptS = await lirePrompt(lienPS, 'mesures'); luS = true; } catch (e) { avertLiens += '<br><span style="color:#e67e22;">⚠ Lien prompt Starter illisible (' + String(e && e.message || e).replace(/</g, '&lt;') + ') — prompt fabriqué par l\'admin à la place.</span>'; } }
+    if (lienPI) { try { promptI = await lirePrompt(lienPI, 'lignes'); luI = true; } catch (e) { avertLiens += '<br><span style="color:#e67e22;">⚠ Lien prompt Immersion illisible (' + String(e && e.message || e).replace(/</g, '&lt;') + ') — prompt fabriqué par l\'admin à la place.</span>'; } }
     // Données prompteur (Starter + Immersion) : remplies comme si tu avais collé les blocs « Prompt Admin » du Générateur
     let pr = [];
     const edS = document.getElementById('video-data-editor');
-    if (edS && f.promptStarter) { edS.value = f.promptStarter; pr.push('prompt Starter'); }
+    if (edS && promptS) { edS.value = promptS; pr.push(luS ? 'prompt Starter (lu depuis ton lien Firebase)' : 'prompt Starter'); }
     const edI = document.getElementById('video-data-immersion-editor');
-    let calI = false; try { const di = JSON.parse(f.promptImmersion || '{}'); calI = !!(di.calage && Object.keys(di.calage).length); } catch (e) {}
-    if (edI && f.promptImmersion) {
-      if (calI || !edI.value.trim()) { edI.value = f.promptImmersion; pr.push('prompt Immersion' + (calI ? '' : ' (sans calage)')); }
+    let calI = false; try { const di = JSON.parse(promptI || '{}'); calI = !!(di.calage && Object.keys(di.calage).length); } catch (e) {}
+    if (edI && promptI) {
+      if (calI || !edI.value.trim()) { edI.value = promptI; pr.push((luI ? 'prompt Immersion (lu depuis ton lien Firebase)' : 'prompt Immersion') + (calI ? '' : ' (sans calage)')); }
       else pr.push('prompt Immersion conservé (le nouveau n\'a pas de calage)');
     }
     // Prompts envoyés automatiquement sur Firebase (dossier Vidéo du chant) + liens remplis dans les champs « …ou lien du fichier .json »
     let fbMsg = '';
     try {
       const aEnvoyer = [];
-      if (edS && f.promptStarter) aEnvoyer.push({ nom: slug + '-prompt-starter.json', texte: f.promptStarter, champ: 'video-data-lien' });
-      if (edI && f.promptImmersion && (calI || pr.some(x => x.indexOf('prompt Immersion') === 0 && x.indexOf('conservé') < 0))) aEnvoyer.push({ nom: slug + '-prompt-immersion.json', texte: f.promptImmersion, champ: 'video-data-immersion-lien' });
+      if (luS) { const el = document.getElementById('video-data-lien'); if (el) el.value = lienPS; }
+      if (luI) { const el = document.getElementById('video-data-immersion-lien'); if (el) el.value = lienPI; }
+      if (!luS && edS && promptS) aEnvoyer.push({ nom: slug + '-prompt-starter.json', texte: promptS, champ: 'video-data-lien' });
+      if (!luI && edI && promptI && (calI || pr.some(x => x.indexOf('prompt Immersion') === 0 && x.indexOf('conservé') < 0))) aEnvoyer.push({ nom: slug + '-prompt-immersion.json', texte: promptI, champ: 'video-data-immersion-lien' });
       if (aEnvoyer.length && window.mfEnvoyerPromptsFirebase) {
         const dossierVideo = _mfDossierVideoFirebase(d.champs);
         const rf = await window.mfEnvoyerPromptsFirebase(dossierVideo, aEnvoyer);
@@ -14754,7 +14768,7 @@ async function _chargerChantDepuisData(d, url, recharger, auto) {
       + (au.orig ? 'audio original · ' : 'pas d\'audio original · ') + au.stems + ' piste(s) séparée(s) → Audio pour vidéo · ' + (src.images || []).length + ' image(s) · calage vidéo '
       + ((src.calibrationStarter || src.calibrationImmersion) ? 'présent' : 'absent') + ' · 3 fiches générées.'
       + ((f.alertes && f.alertes.length && pr.length) ? '<br><span style="color:#e67e22;">⚠ Avertissements du Générateur : ' + f.alertes.map(x => x.replace(/</g, '&lt;')).join(' || ') + '</span>' : '')
-      + fbMsg
+      + avertLiens + fbMsg
       + (existe ? '<br>Ce chant existe déjà : ses liens vidéo, son calage et son statut seront conservés.' : '<br>Nouveau chant.')
       + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio) et « 💾 Enregistrer les vidéos » (onglet Vidéo).</span>'
       + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));

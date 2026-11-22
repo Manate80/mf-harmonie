@@ -263,6 +263,16 @@ Ending (Finale 2x)"></textarea>
         <input type="text" inputmode="text" id="m-decalage-parole" placeholder="ex: 12.5 ou 0:16"/>
         <div class="aide-syntaxe">Optionnel. La seconde exacte de la vidéo où la 1ère parole doit apparaître au prompteur (regarde la vidéo et note le moment précis).</div>
       </div>
+      <div class="champ">
+        <label>Lien Firebase — prompt Starter</label>
+        <input type="text" inputmode="text" id="m-lien-prompt-starter" placeholder="https://firebasestorage.googleapis.com/…-prompt-starter.json"/>
+        <div class="aide-syntaxe">Optionnel. Télécharge le « Prompt Admin — STARTER » (.json), range-le sur Firebase (dossier Vidéo du chant), colle ici son lien. Le lien voyage avec le chant : « Envoyer tout à l'admin » lit le fichier tout seul. Après chaque correction, renvoie le nouveau fichier sur Firebase avec le même nom. Vide : l'admin fabrique et envoie le prompt lui-même.</div>
+      </div>
+      <div class="champ">
+        <label>Lien Firebase — prompt Immersion</label>
+        <input type="text" inputmode="text" id="m-lien-prompt-immersion" placeholder="https://firebasestorage.googleapis.com/…-prompt-immersion.json"/>
+        <div class="aide-syntaxe">Optionnel. Même principe que Starter, avec le « Prompt Admin — IMMERSION » (.json). Il contient ton calage syllabe par syllabe.</div>
+      </div>
     </div>
   </div>
 
@@ -945,7 +955,7 @@ var compteurPiste = 0;
 var compteurImage = 0;
 
 // ══ SAUVEGARDE GÉNÉRALE (brouillon local, tous les champs + pistes + images) ══
-var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','m-audio-original','parolesInput','structureInput'];
+var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','m-audio-original','m-lien-prompt-starter','m-lien-prompt-immersion','parolesInput','structureInput'];
 var CLE_BROUILLON = 'mf_generateur_brouillon';
 
 function sauvegarderBrouillon(){
