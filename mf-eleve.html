@@ -7382,6 +7382,13 @@ MFREC.snap = function (now) {
   var mem = ''; try { if (performance.memory) mem = ' · mémoire JS ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' Mo'; } catch (e) {}
   var txt = 'position ' + pos.map(function (p) { return p.toFixed(1); }).join('/') + ' s · écart entre pistes ' + Math.round(drift) + ' ms · horloge audio ×' + (ratio == null ? '?' : ratio.toFixed(2)) + ' · tampon min ' + (isFinite(buf) ? buf.toFixed(0) : '?') + ' s' + (pasPrets ? ' · ' + pasPrets + ' piste(s) pas prête(s)' : '') + mem;
   var anomalie = drift > 120 || (ratio != null && ratio < 0.97) || buf < 2 || pasPrets > 0;
+  try {
+    if (ratio != null && ratio > 1.3) MFREC.marque('vitesse', now, ratio);
+    if (ratio != null && ratio > 0 && ratio < 0.9) MFREC.marque('retard', now, ratio);
+    if (drift > 300) MFREC.marque('decalage', now, drift);
+    if (pasPrets > 0) MFREC.marque('charge', now, pasPrets);
+    if (buf < 1) MFREC.marque('tampon', now, buf);
+  } catch (e) {}
   if (anomalie) MFREC.log('MESURE', '⚠ ' + txt);
   else if (now - MFREC.tBase > 10000) { MFREC.tBase = now; MFREC.log('MESURE', 'ok · ' + txt); }
 };
@@ -7413,6 +7420,7 @@ MFREC.tick = function () {
     if (!o.alerte && now - o.t0 > 20000) { o.alerte = true; MFREC.alertes.tonLente = (MFREC.alertes.tonLente || 0) + 1; MFREC.log('ALERTE', '🎼 tonalité ' + o.note + ' toujours pas prête après 20 s'); }
   });
   if (now - MFREC.tSnap >= 1000) { MFREC.tSnap = now; try { MFREC.snap(now); } catch (e) {} }
+  try { MFREC.ecoute(now); } catch (e) {}
 };
 MFREC.demarrer = function () {
   if (MFREC.actif) return; MFREC.actif = true;
@@ -7422,6 +7430,68 @@ MFREC.demarrer = function () {
 };
 (function () { var d = MFPERF.demarrer; MFPERF.demarrer = function () { var premier = !MFPERF.actif; d.apply(this, arguments); if (premier) MFREC.demarrer(); }; })();
 MFREC.glisMax = 0;
+/* ══ VERDICT AUTOMATIQUE — écoute la sortie réelle du son (comptes test seulement) et dit « bon » ou « mauvais », avec la cause ══ */
+MFREC.v = { sec: {} };
+(function () { var r = MFREC.reset; MFREC.reset = function () { r.apply(this, arguments); MFREC.v = { sec: {} }; }; })();
+MFREC.marque = function (cause, now, val) {
+  var k = Math.round(now / 1000), s = MFREC.v.sec[k] = MFREC.v.sec[k] || {};
+  var o = s[cause] = s[cause] || { n: 0, max: 0 };
+  o.n++; if (val != null && Math.abs(val) > Math.abs(o.max)) o.max = val;
+};
+// Écoute de la sortie (sans changer le son) : cherche les claquements/grésillements et la saturation, 4 fois par seconde
+MFREC.ecoute = function (now) {
+  Object.keys(consoleAudioEtat || {}).forEach(function (cid) {
+    var st = consoleAudioEtat[cid];
+    if (!st || !st.run || !st.ctx || !st.limiteur || document.hidden) return;
+    if (!st._mfAn) {
+      try { st._mfAn = st.ctx.createAnalyser(); st._mfAn.fftSize = 2048; st.limiteur.connect(st._mfAn); st._mfBuf = new Float32Array(2048); } catch (e) { st._mfAn = false; }
+    }
+    if (!st._mfAn) return;
+    st._mfAn.getFloatTimeDomainData(st._mfBuf);
+    var b = st._mfBuf, n = b.length, sd = 0, clip = 0, i, d;
+    for (i = 1; i < n; i++) { d = b[i] - b[i - 1]; sd += d * d; if (b[i] > 0.98 || b[i] < -0.98) clip++; }
+    var rd = Math.sqrt(sd / (n - 1)), clics = 0;
+    if (rd > 0.0005) for (i = 1; i < n; i++) { d = Math.abs(b[i] - b[i - 1]); if (d > 0.5 && d > 12 * rd) clics++; }
+    if (clics >= 2) MFREC.marque('grésillement', now, clics);
+    if (clip >= 8) MFREC.marque('saturation', now, clip);
+  });
+};
+MFREC.verdict = function () {
+  var L = [], ks = Object.keys(MFREC.v.sec).map(Number).sort(function (a, b) { return a - b; });
+  var NOMS = {
+    vitesse: function (o) { return 'son trop RAPIDE (horloge ×' + o.max.toFixed(1) + ')'; },
+    retard: function (o) { return 'son trop LENT / téléphone dépassé (horloge ×' + o.max.toFixed(2) + ')'; },
+    decalage: function (o) { return 'pistes DÉCALÉES entre elles (jusqu\'à ' + Math.round(o.max) + ' ms)'; },
+    charge: function (o) { return 'pistes PAS CHARGÉES pendant la lecture'; },
+    tampon: function (o) { return 'réserve de chargement presque vide (coupure)'; },
+    'grésillement': function (o) { return 'GRÉSILLEMENTS mesurés dans le son'; },
+    saturation: function (o) { return 'SATURATION (son écrasé)'; }
+  };
+  var eps = [], cur = null;
+  ks.forEach(function (k) {
+    if (!cur || k - cur.fin > 3) { cur = { deb: k, fin: k, c: {} }; eps.push(cur); }
+    cur.fin = k;
+    Object.keys(MFREC.v.sec[k]).forEach(function (c) {
+      var o = MFREC.v.sec[k][c], t = cur.c[c] = cur.c[c] || { n: 0, max: 0 };
+      t.n += o.n; if (Math.abs(o.max) > Math.abs(t.max)) t.max = o.max;
+    });
+  });
+  var total = ks.length;
+  if (!eps.length) { L.push('🟢 SON BON : aucun problème mesuré (vitesse, synchro des pistes, chargement, grésillement, saturation).'); return L; }
+  L.push('🔴 SON MAUVAIS : ' + eps.length + ' épisode(s), ' + total + ' seconde(s) de problème mesurées au total.');
+  eps.forEach(function (e, i) {
+    var causes = Object.keys(e.c).map(function (c) { return NOMS[c] ? NOMS[c](e.c[c]) : c; });
+    L.push(' ' + (i + 1) + ') de ' + e.deb + ' s à ' + e.fin + ' s (' + (e.fin - e.deb + 1) + ' s) : ' + causes.join(' + '));
+  });
+  var tout = {}; eps.forEach(function (e) { Object.keys(e.c).forEach(function (c) { tout[c] = true; }); });
+  if (tout.vitesse) L.push(' → CAUSE PROBABLE : le chrono audio s\'emballe (le son joue plus vite que la réalité) ; les pistes se décalent ensuite.');
+  else if (tout.charge || tout.tampon) L.push(' → CAUSE PROBABLE : réseau trop lent, des pistes jouent sans être chargées.');
+  else if (tout.retard) L.push(' → CAUSE PROBABLE : téléphone trop chargé (traitement en direct sur trop de pistes).');
+  else if (tout.decalage) L.push(' → CAUSE PROBABLE : des pistes dérivent entre elles (recalage).');
+  else if (tout['grésillement'] || tout.saturation) L.push(' → CAUSE PROBABLE : son abîmé à la sortie (grésillement/saturation) sans problème de synchro.');
+  L.push(' (les temps sont ceux du journal ci-dessous)');
+  return L;
+};
 // Déplacement dans la chanson avec la glissière : on note UNE ligne par geste (avec le nombre de sauts de lecture envoyés)
 MFREC.glisse = function (cid, pos) {
   try {
@@ -7483,6 +7553,8 @@ MFREC.rapport = async function () {
   L.push('Appareil : ' + (n.userAgent || '').slice(0, 100));
   L.push('Réseau : ' + (c.effectiveType || '?') + ' · ' + (c.downlink != null ? c.downlink + ' Mbit/s' : '?') + ' · latence ' + (c.rtt != null ? c.rtt + ' ms' : '?') + (c.saveData ? ' · ÉCONOMIE DE DONNÉES' : '') + ' · délai avant le son : ' + '3000 ms');
   try { if (n.getBattery) { var b = await n.getBattery(); L.push('Batterie : ' + Math.round(b.level * 100) + ' %' + (b.charging ? ' (en charge)' : '')); } } catch (x) {}
+  L.push('\n██ VERDICT AUTOMATIQUE (écoute du son réel)');
+  try { MFREC.verdict().forEach(function (p) { L.push(' ' + p); }); } catch (x) { L.push(' (verdict indisponible)'); }
   L.push('\n██ À CORRIGER — ANALYSE AUTOMATIQUE');
   MFREC.analyse().forEach(function (p) { L.push(' ' + p); });
   L.push('\n██ CHIFFRES CLÉS');
