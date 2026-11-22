@@ -6074,6 +6074,44 @@ function ouvrirChansonDirect(uid) {
   }
 }
 
+// Préchargement discret des chansons du cours de la semaine (pistes de la tonalité de départ).
+// Seulement en Wi-Fi / 4G / 5G, jamais en économie de données ; une chanson à la fois ; plafonné.
+var _mfSemainePrecharge = false;
+async function mfPrechargeSemaine() {
+  try {
+    if (_mfSemainePrecharge || !mfPrechargeActif() || !eleveActif) return;
+    const cn = navigator.connection;
+    if (cn) {
+      if (cn.saveData) return;
+      if (cn.type && cn.type === 'cellular' && !/^(4g|5g)$/.test(String(cn.effectiveType || ''))) return;
+      if (!cn.type && cn.effectiveType && cn.effectiveType !== '4g') return;
+    }
+    if (typeof chargerTonalitesPistes !== 'function' || typeof _tonTrouverEntree !== 'function') return;
+    _mfSemainePrecharge = true;
+    const _mapTon = await chargerTonalitesPistes();
+    if (!_mapTon) return;
+    const chansons = LS.getArr('chansons').filter(c => mfChansonVisible(c) && (eleveActif.chansons || []).includes(c.id));
+    const urls = [];
+    chansons.forEach(c => {
+      ['starter-video', 'immersion-video', 'audio'].forEach(sfx => {
+        _pistesPourSuffix(c, sfx).forEach(p => {
+          if (!p || !p.url || urls.indexOf(p.url) !== -1) return;
+          if (_tonTrouverEntree(_mapTon, c, p)) return; // chanson « par notes » : l'URL dépend de la tonalité, on ne la précharge pas ici
+          urls.push(p.url);
+        });
+      });
+    });
+    (async () => {
+      for (const u of urls) {
+        if (MFBLOB.total > 60 * 1048576) break; // on ne remplit pas toute la mémoire
+        if (document.hidden) { await new Promise(r => setTimeout(r, 5000)); }
+        try { await _mfBlobUrl(u); } catch (e) {}
+        await new Promise(r => setTimeout(r, 300));
+      }
+    })();
+  } catch (e) {}
+}
+
 function chargerCoursSemaine() {
   const container = document.getElementById('cours-semaine');
   if (!container || !eleveActif) return;
@@ -6101,6 +6139,7 @@ function chargerCoursSemaine() {
     html = '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:20px 0;">Votre professeur n\'a pas encore assigné de cours cette semaine.</p>';
   }
   container.innerHTML = html;
+  setTimeout(mfPrechargeSemaine, 4000); // après l'affichage : jamais avant
 }
 
 function scrollToChanson(titre) {
