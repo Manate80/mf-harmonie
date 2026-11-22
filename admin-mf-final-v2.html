@@ -14659,6 +14659,21 @@ async function _genererFichesDepuisSource(src) {
 }
 // Bouton « Charger le chant » / « Recharger » : un seul lien JSON remplit tout le formulaire Paroles
 // Remplit les deux listes audio de l'admin : « Audio » (= audio original, 1 piste) et « Audio pour vidéo » (= pistes séparées du Générateur)
+// Dossier « Vidéo » d'un chant sur Firebase Storage : même dossier de chant que l'audio (…/Audio/… → …/Vidéo).
+// Sans lien audio Firebase : Rythme/Titre/Vidéo. Les dossiers se créent tout seuls à l'envoi du premier fichier.
+function _mfDossierVideoFirebase(ch) {
+  const lien = String((ch && ch['m-audio-original']) || '').trim();
+  const m = lien.match(/\/o\/([^?]+)/);
+  if (m) {
+    let chemin = ''; try { chemin = decodeURIComponent(m[1]); } catch (e) { chemin = m[1]; }
+    const parts = chemin.split('/').filter(Boolean);
+    const i = parts.findIndex(x => /^audio$/i.test(x));
+    if (i > 0) return parts.slice(0, i).join('/') + '/Vidéo';
+    if (parts.length > 1) return parts.slice(0, -1).join('/') + '/Vidéo';
+  }
+  const rythme = String((ch && (ch['m-rythme'] || ch['m-pattern'])) || 'Chants').trim();
+  return rythme + '/' + String((ch && ch['m-titre']) || 'chanson').trim() + '/Vidéo';
+}
 function _genRemplirAudioAdmin(src) {
   const ch = (src && src.champs) || {};
   const orig = String(ch['m-audio-original'] || '').trim();
@@ -14716,12 +14731,30 @@ async function _chargerChantDepuisData(d, url, recharger, auto) {
       if (calI || !edI.value.trim()) { edI.value = f.promptImmersion; pr.push('prompt Immersion' + (calI ? '' : ' (sans calage)')); }
       else pr.push('prompt Immersion conservé (le nouveau n\'a pas de calage)');
     }
+    // Prompts envoyés automatiquement sur Firebase (dossier Vidéo du chant) + liens remplis dans les champs « …ou lien du fichier .json »
+    let fbMsg = '';
+    try {
+      const aEnvoyer = [];
+      if (edS && f.promptStarter) aEnvoyer.push({ nom: slug + '-prompt-starter.json', texte: f.promptStarter, champ: 'video-data-lien' });
+      if (edI && f.promptImmersion && (calI || pr.some(x => x.indexOf('prompt Immersion') === 0 && x.indexOf('conservé') < 0))) aEnvoyer.push({ nom: slug + '-prompt-immersion.json', texte: f.promptImmersion, champ: 'video-data-immersion-lien' });
+      if (aEnvoyer.length && window.mfEnvoyerPromptsFirebase) {
+        const dossierVideo = _mfDossierVideoFirebase(d.champs);
+        const rf = await window.mfEnvoyerPromptsFirebase(dossierVideo, aEnvoyer);
+        if (rf && rf.ok) {
+          aEnvoyer.forEach(x => { const el = document.getElementById(x.champ); if (el && rf.urls[x.nom]) el.value = rf.urls[x.nom]; });
+          fbMsg = '<br><span style="color:#2ecc71;">☁ Prompts envoyés sur Firebase : ' + dossierVideo.replace(/</g, '&lt;') + '/ (' + aEnvoyer.map(x => x.nom).join(', ') + ')</span>';
+        } else {
+          fbMsg = '<br><span style="color:#e67e22;">⚠ Prompts non envoyés sur Firebase (' + String((rf && rf.err) || 'erreur').replace(/</g, '&lt;') + ') — ils restent enregistrés dans la fiche du chant.</span>';
+        }
+      }
+    } catch (e) { fbMsg = '<br><span style="color:#e67e22;">⚠ Envoi des prompts sur Firebase impossible : ' + String(e && e.message || e).replace(/</g, '&lt;') + '</span>'; }
     const existe = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === titre.trim().toLowerCase());
     msg('<span style="color:#2ecc71;">' + (recharger ? '🔄 Rechargé' : '📥 Chargé') + ' : « ' + titre.replace(/</g, '&lt;') + ' » — ' + f.nbLignes + ' lignes de paroles · '
       + (pr.length ? pr.join(' + ') + ' remplis (onglet Vidéo) · ' : 'prompts vidéo non remplis (' + ((f.alertes || []).join(' ; ') || 'raison inconnue') + ') · ')
       + (au.orig ? 'audio original · ' : 'pas d\'audio original · ') + au.stems + ' piste(s) séparée(s) → Audio pour vidéo · ' + (src.images || []).length + ' image(s) · calage vidéo '
       + ((src.calibrationStarter || src.calibrationImmersion) ? 'présent' : 'absent') + ' · 3 fiches générées.'
       + ((f.alertes && f.alertes.length && pr.length) ? '<br><span style="color:#e67e22;">⚠ Avertissements du Générateur : ' + f.alertes.map(x => x.replace(/</g, '&lt;')).join(' || ') + '</span>' : '')
+      + fbMsg
       + (existe ? '<br>Ce chant existe déjà : ses liens vidéo, son calage et son statut seront conservés.' : '<br>Nouveau chant.')
       + '<br>Vérifie, puis clique sur « Enregistrer les paroles », puis sur « 💾 Enregistrer l\'audio » (onglet Audio) et « 💾 Enregistrer les vidéos » (onglet Vidéo).</span>'
       + (rythmeOk ? '' : '<br><span style="color:#e67e22;">⚠ Le rythme du JSON n\'est pas dans la liste : choisis-le à la main.</span>'));
@@ -16675,6 +16708,24 @@ window.mfCreerComptesTest=async function(){
 // Archivage Firebase (V12) : chaque facture générée part automatiquement vers Storage + Firestore, classée
 // factures/{année}/{MM-Mois}/... — plus de dossiers Payées / Non payées (window.archiverFactureFirebase).
 window.saveFactureStorage=async function(){ return null; };
+// Envoi des prompts vidéo (Starter / Immersion) dans le dossier Vidéo du chant sur Firebase Storage.
+// fichiers = [{nom, texte}] ; même nom = même fichier remplacé (le lien reste le même, pas de doublon).
+window.mfEnvoyerPromptsFirebase=async function(dossier, fichiers){
+  try{
+    if(!window.mfAuthPret) await Promise.race([window.mfAuthAttendre, new Promise(r=>setTimeout(r,4000))]);
+    const {getStorage,ref,uploadBytes,getDownloadURL}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js");
+    const storage=getStorage(app); const urls={};
+    for(const f of fichiers){
+      const r=ref(storage,dossier+'/'+f.nom);
+      await uploadBytes(r,new Blob([f.texte],{type:'application/json'}),{contentType:'application/json'});
+      urls[f.nom]=await getDownloadURL(r);
+    }
+    return {ok:true,urls:urls};
+  }catch(e){
+    console.error('mfEnvoyerPromptsFirebase ÉCHEC :',e);
+    return {ok:false,err:(e&&(e.code||e.message))||String(e)};
+  }
+};
 window.archiverFactureFirebase=async function(it){
   try{
     if(!window.mfAuthPret) await Promise.race([window.mfAuthAttendre, new Promise(r=>setTimeout(r,4000))]);

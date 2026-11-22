@@ -1793,25 +1793,6 @@ function escaperHTML(s){
   return d.innerHTML;
 }
 
-// Nombre de passages réels de chaque étape de la structure : le champ « Structure accords » peut prévoir PLUS de lignes d'accords
-// (donc de passages) que la structure du chant. Starter suit déjà cette règle ; Immersion doit faire pareil pour rester synchronisée.
-function repetitionsReellesParEtape(){
-  var res = donneesStructure.map(function(e){ return e.repeat; });
-  var champ = document.getElementById('m-structure-accords');
-  var sa = champ ? parserStructureAccordsParEtape(champ.value, 4) : null;
-  if(!sa) return res;
-  var parLabel = {}, occ = {};
-  sa.forEach(function(a){ var c = _normaliserLabelStructure(a.label); (parLabel[c] = parLabel[c] || []).push(a); });
-  donneesStructure.forEach(function(etape, i){
-    var c = _normaliserLabelStructure(etape.label);
-    var blocs = parLabel[c], a;
-    if(blocs && blocs.length){ var o = occ[c] || 0; a = blocs[Math.min(o, blocs.length - 1)]; occ[c] = o + 1; }
-    else a = sa[i];
-    if(a) res[i] = Math.max(etape.repeat, a.repeats.length);
-  });
-  return res;
-}
-
 window._karaokeAvert = [];
 function construireParolesKaraoke(){
   window._karaokeAvert = [];
@@ -1859,13 +1840,11 @@ function construireParolesKaraoke(){
   }
 
   var sortie = [];
-  var repsReelles = repetitionsReellesParEtape();
-  donneesStructure.forEach(function(etape, idxEtape){
+  donneesStructure.forEach(function(etape){
     var lignesRef = lignesDuType(etape);
     if(lignesRef.length === 0 && !etape.sansParole) return;
-    var nbPassages = repsReelles[idxEtape] || etape.repeat;
-    for(var r=0; r<nbPassages; r++){
-      sortie.push('['+(etape.label||etape.refType).toUpperCase()+(nbPassages>1?' ('+(r+1)+'/'+nbPassages+')':'')+']');
+    for(var r=0; r<etape.repeat; r++){
+      sortie.push('['+(etape.label||etape.refType).toUpperCase()+(etape.repeat>1?' ('+(r+1)+'/'+etape.repeat+')':'')+']');
       if(!etape.sansParole){
         lignesRef.forEach(function(texte){
           if(texte) sortie.push(texte);
