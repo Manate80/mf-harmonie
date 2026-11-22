@@ -4144,7 +4144,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       // Accès complet : toutes les chansons publiées « assignées », impression autorisée — pour tout tester depuis l'admin.
       eleveActif.formule = 'Premium';
       eleveActif.impression = true;
-      eleveActif.chansons = LS.getArr('chansons').filter(c => c.statut === 'valide').map(c => c.id);
+      eleveActif.chansons = LS.getArr('chansons').filter(c => mfChansonVisible(c)).map(c => c.id);
     }
     lancerApp();
     // Bandeau d'identification visuel — empêche toute confusion avec une vraie session
@@ -4787,7 +4787,7 @@ function _basiqueRemplirSelect(id, label, valeurs) {
   if (uniq.indexOf(cur) >= 0) el.value = cur;
 }
 function chargerBasiqueEleve() {
-  const base = LS.getArr('chansons').filter(function(c){ return c.statut === 'valide' && c.svgBasique; });
+  const base = LS.getArr('chansons').filter(function(c){ return mfChansonVisible(c) && c.svgBasique; });
   _basiqueRemplirSelect('basique-f-rythme', 'Tous les rythmes', base.map(function(c){ return c.rythme || c.type || ''; }));
   _basiqueRemplirSelect('basique-f-interprete', 'Tous les interprètes', base.map(_basiqueInterprete));
   _basiqueRemplirSelect('basique-f-auteur', 'Tous les auteurs', base.map(_basiqueAuteur));
@@ -4800,7 +4800,7 @@ function renderBasiqueEleve() {
   const fi = document.getElementById('basique-f-interprete').value;
   const fa = document.getElementById('basique-f-auteur').value;
   const liste = LS.getArr('chansons').filter(function(c){
-    if (c.statut !== 'valide' || !(c.svgBasique || c._hasBq)) return false;
+    if (!mfChansonVisible(c) || !(c.svgBasique || c._hasBq)) return false;
     const r = c.rythme || c.type || '';
     if (fr && r !== fr) return false;
     if (fi && _basiqueInterprete(c) !== fi) return false;
@@ -4879,15 +4879,23 @@ function eleveFicheOriginal(champ, chansonId, selId, frameId) {
   eleveFicheChoisirNote(champ, chansonId, frameId, o);
 }
 
+// Brouillons (chants pas encore publiés) : visibles SEULEMENT par les deux comptes de test ELE_SAMSUNG et ELE_APPLE,
+// pour vérifier le son et les vidéos sur un vrai téléphone avant de publier. Tous les autres élèves ne voient que les chants publiés.
+function mfChansonVisible(c) {
+  if (!c) return false;
+  if (c.statut === 'valide') return true;
+  try { return /^ELE[_-](SAMSUNG|APPLE)$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim()); } catch (e) { return false; }
+}
+
 function chansonAccessible(c) {
   // Plus aucune assignation nécessaire : TOUTE chanson publiée est visible par tous les élèves (domicile et abonnés).
   // Ce qui s'affiche DANS la chanson (Basique / Starter / Immersion, audio, vidéo…) suit l'abonnement via la matrice de droits.
   // L'assignation par le professeur ne sert plus que dans « Mon suivi » (travail à faire, progression).
-  return c.statut === 'valide';
+  return mfChansonVisible(c);
 }
 
 function chargerBibliothequeChansons() {
-  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const toutesChansons = LS.getArr('chansons').filter(c => mfChansonVisible(c));
   const chansonsEleve = toutesChansons.filter(c => chansonAccessible(c));
   chargerBibliotheque(chansonsEleve);
   rafraichirCompteursOffline();
@@ -4900,7 +4908,7 @@ function setBiblioView(view, btn) {
   document.querySelectorAll('.biblio-view').forEach(v => v.style.display = 'none');
   const el = document.getElementById('view-' + view);
   if (el) el.style.display = 'block';
-  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const toutesChansons = LS.getArr('chansons').filter(c => mfChansonVisible(c));
   const chansonsEleve = toutesChansons.filter(c => chansonAccessible(c));
   chargerBibliotheque(chansonsEleve);
 }
@@ -5037,7 +5045,7 @@ function toggleDossier(head) {
 }
 
 function filterBiblio(val) {
-  const toutesChansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const toutesChansons = LS.getArr('chansons').filter(c => mfChansonVisible(c));
   const chansonsEleve = toutesChansons.filter(c => chansonAccessible(c));
   // Recherche sur Titre + Auteur/Interprète + Rythme
   if (val && val.trim()) {
@@ -5583,7 +5591,7 @@ function chargerMonSuivi() {
 
   const assignees = toutesChansons.filter(c =>
     idsAssignes.includes(c.id) || idsAssignes.includes(String(c.id)) || idsAssignes.includes(Number(c.id))
-  ).filter(c => c.statut === 'valide');
+  ).filter(c => mfChansonVisible(c));
 
   if (!assignees.length) {
     container.innerHTML = '<p style="color:var(--muted);font-style:italic;font-size:13px;text-align:center;padding:16px;">Aucune chanson assignée pour le moment.</p>';
@@ -5934,7 +5942,7 @@ function ouvrirChansonDirect(uid) {
 function chargerCoursSemaine() {
   const container = document.getElementById('cours-semaine');
   if (!container || !eleveActif) return;
-  const chansons = LS.getArr('chansons').filter(c => c.statut === 'valide');
+  const chansons = LS.getArr('chansons').filter(c => mfChansonVisible(c));
   const assigned = chansons.filter(c => (eleveActif.chansons || []).includes(c.id));
   const notes = (eleveActif.notes || []).slice(0, 1);
 
