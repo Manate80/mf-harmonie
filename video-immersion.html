@@ -694,6 +694,7 @@ function render(){
       div.classList.add('cur');
       if(p.t==='solo'){
         div.classList.add('solo');
+        if(syl>=0) div.classList.add('active-solo'); // Solo allumé (clic manuel ou lecture automatique)
         div.textContent=p.s[0];
       } else if(p.t==='fin'){
         // rien
@@ -732,13 +733,12 @@ function tapSyl(){
   if(phase!==2) return;
   const p=PRL[lig]; if(!p) return;
 
-  // Solo — rendre jaune au 1er clic, avancer au 2ème
+  // Solo — s'allume au 1er clic, avance au 2ème. Les deux instants sont mémorisés (TS) pour que la lecture automatique
+  // et la vidéo terminée allument le Solo au même moment.
   if(p.t==='solo'){
-    const soloEl=document.querySelector('.lp.solo');
-    if(soloEl && !soloEl.classList.contains('active-solo')){
-      soloEl.classList.add('active-solo'); // 1er clic → jaune
-      return;
-    }
+    if(!TS[lig]) TS[lig]={};
+    if(syl<0){ syl=0; TS[lig][0]=tCur; render(); return; } // 1er clic → jaune
+    TS[lig][1]=tCur;
     nxtLig(); return; // 2ème clic → avancer
   }
 
@@ -829,13 +829,24 @@ function startTimer(){
 function avancerAuto(){
   let li=lig, si=syl;
   while(li<PRL.length){
-    const ligTS=TS_FIGEE[li];
-    if(!ligTS){ break; }
     const p=PRL[li];
-    const nbSyl=(p.t==='solo'||p.t==='fin')?1:p.s.length;
+    const estSolo=(p.t==='solo');
+    const ligTS=TS_FIGEE[li];
+    if(!ligTS && !estSolo){ break; }
+    // Solo : 2 instants (0 = allumé, 1 = on passe à la ligne suivante). Ancien calage sans instants de Solo :
+    // allumé dès qu'on y arrive, il quitte quand la ligne suivante démarre.
+    const nbSyl=estSolo?2:(p.t==='fin'?1:p.s.length);
     let avance=false;
-    while(si+1<nbSyl && ligTS[si+1]!==undefined && ligTS[si+1]<=tCur){ si++; avance=true; }
-    if(si+1>=nbSyl && li+1<PRL.length && TS_FIGEE[li+1] && TS_FIGEE[li+1][0]!==undefined && TS_FIGEE[li+1][0]<=tCur){
+    if(ligTS){
+      while(si+1<nbSyl && ligTS[si+1]!==undefined && ligTS[si+1]<=tCur){ si++; avance=true; }
+    } else if(estSolo && si<0){ si=0; avance=true; }
+    const fini=(estSolo && !ligTS) ? (si>=0) : (si+1>=nbSyl);
+    const suiv=PRL[li+1], tsSuiv=TS_FIGEE[li+1];
+    const suivantArrive = li+1<PRL.length && fini && (
+      (tsSuiv && tsSuiv[0]!==undefined && tsSuiv[0]<=tCur) ||
+      (!tsSuiv && suiv && suiv.t==='solo')
+    );
+    if(suivantArrive){
       li++; si=-1; avance=true;
       if(PRL[li] && PRL[li].sec) badge(PRL[li].sec);
       if(PRL[li] && PRL[li].t==='fin'){ ph(3); return; }

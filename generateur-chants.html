@@ -1793,32 +1793,79 @@ function escaperHTML(s){
   return d.innerHTML;
 }
 
+// Nombre de passages réels de chaque étape de la structure : le champ « Structure accords » peut prévoir PLUS de lignes d'accords
+// (donc de passages) que la structure du chant. Starter suit déjà cette règle ; Immersion doit faire pareil pour rester synchronisée.
+function repetitionsReellesParEtape(){
+  var res = donneesStructure.map(function(e){ return e.repeat; });
+  var champ = document.getElementById('m-structure-accords');
+  var sa = champ ? parserStructureAccordsParEtape(champ.value, 4) : null;
+  if(!sa) return res;
+  var parLabel = {}, occ = {};
+  sa.forEach(function(a){ var c = _normaliserLabelStructure(a.label); (parLabel[c] = parLabel[c] || []).push(a); });
+  donneesStructure.forEach(function(etape, i){
+    var c = _normaliserLabelStructure(etape.label);
+    var blocs = parLabel[c], a;
+    if(blocs && blocs.length){ var o = occ[c] || 0; a = blocs[Math.min(o, blocs.length - 1)]; occ[c] = o + 1; }
+    else a = sa[i];
+    if(a) res[i] = Math.max(etape.repeat, a.repeats.length);
+  });
+  return res;
+}
+
 window._karaokeAvert = [];
 function construireParolesKaraoke(){
   window._karaokeAvert = [];
-  // Immersion : TOUT vient des paroles syllabées (section 2 : paroles + accords + syllabes). Chaque passage de la structure
-  // reprend la section du même nom (sinon la 1re section du même type) : un couplet/refrain qui se répète reprend donc
-  // exactement les mêmes syllabes, et toute correction faite dans la section s'affiche partout. Le champ « Paroles pour
-  // vidéo » n'est plus utilisé ici (il ne sert qu'à la vidéo Starter) : plus de comparaison mot à mot.
+  // Immersion : lignes et mots = champ « Paroles pour vidéo » (comme Starter) ; syllabes = section 2 (paroles + accords + syllabes). La structure du chant décide combien de fois et dans quel ordre chaque bloc est rejoué.
   var blocParLabel = {}, blocParType = {};
   donneesParoles.forEach(function(bloc){
     var cle = _normaliserLabelStructure(bloc.label || '');
     if(cle && !blocParLabel[cle]) blocParLabel[cle] = bloc;
     if(!blocParType[bloc.type]) blocParType[bloc.type] = bloc;
   });
+  // MOTS et LIGNES : champ « Paroles pour vidéo » (comme Starter, chaque bloc écrit UNE fois, la structure du chant le rejoue).
+  // SYLLABES uniquement : section 2 (paroles + accords + syllabes). Chaque ligne vidéo est associée à la ligne syllabée
+  // qui a exactement les mêmes lettres (tirets ignorés). Sans correspondance : ligne sans tirets + avertissement.
+  var parolesVideo = null;
+  var champVideo = document.getElementById('m-paroles-video');
+  if(champVideo) parolesVideo = parserParolesVideoParType(champVideo.value);
+  function _cleLettres(t){ return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\u0101\u0113\u012b\u014d\u016b]/g,''); }
+  var syllabesParLettres = {};
+  donneesParoles.forEach(function(bloc){
+    bloc.lignes.forEach(function(segs){
+      var t = texteLigneAvecTirets(segs).trim();
+      var k = _cleLettres(t);
+      if(k && !syllabesParLettres[k]) syllabesParLettres[k] = t;
+    });
+  });
   function lignesDuType(etape){
-    var bloc = blocParLabel[_normaliserLabelStructure(etape.label)] || blocParType[etape.refType];
+    var cle = _normaliserLabelStructure(etape.label);
+    if(parolesVideo){
+      var lv = (parolesVideo.parLabel[cle] && parolesVideo.parLabel[cle].length) ? parolesVideo.parLabel[cle] : (parolesVideo.parType[etape.refType] || []);
+      if(lv.length){
+        return lv.map(function(ligneVideo){
+          var k = _cleLettres(ligneVideo);
+          if(syllabesParLettres[k]) return syllabesParLettres[k];
+          var msg = 'Ligne « ' + ligneVideo + ' » (' + (etape.label || etape.refType) + ') : introuvable dans les paroles syllabées (section 2)';
+          if(window._karaokeAvert.indexOf(msg) < 0) window._karaokeAvert.push(msg);
+          return ligneVideo;
+        });
+      }
+    }
+    // Repli : pas de « Paroles pour vidéo » pour cette section → paroles syllabées de la section 2.
+    var bloc = blocParLabel[cle] || blocParType[etape.refType];
     var tous = [];
     if(bloc) bloc.lignes.forEach(function(segs){ var t = texteLigneAvecTirets(segs).trim(); if(t) tous.push(t); });
     return tous;
   }
 
   var sortie = [];
-  donneesStructure.forEach(function(etape){
+  var repsReelles = repetitionsReellesParEtape();
+  donneesStructure.forEach(function(etape, idxEtape){
     var lignesRef = lignesDuType(etape);
     if(lignesRef.length === 0 && !etape.sansParole) return;
-    for(var r=0; r<etape.repeat; r++){
-      sortie.push('['+(etape.label||etape.refType).toUpperCase()+(etape.repeat>1?' ('+(r+1)+'/'+etape.repeat+')':'')+']');
+    var nbPassages = repsReelles[idxEtape] || etape.repeat;
+    for(var r=0; r<nbPassages; r++){
+      sortie.push('['+(etape.label||etape.refType).toUpperCase()+(nbPassages>1?' ('+(r+1)+'/'+nbPassages+')':'')+']');
       if(!etape.sansParole){
         lignesRef.forEach(function(texte){
           if(texte) sortie.push(texte);
