@@ -2560,6 +2560,21 @@ function _consoleAudioAppliquerParams(st) {
       audioEl.playbackRate = st.vitesse;
       return;
     }
+    // 2c) iPhone/Safari avec transposition : pas de SoundTouch en direct (brancher/débrancher le
+    //     worklet pendant la lecture et le calcul temps réel déformaient tout le son sur iPhone dès
+    //     qu'on touchait au BPM puis à la transposition). Vitesse et hauteur combinées dans le réglage
+    //     natif, comme une platine : le BPM change alors aussi la hauteur quand une transposition est active.
+    if (mfEstApple()) {
+      _consoleAudioDesactiverTraitement(st, idx);
+      if (st.percu[idx]) {
+        preserver(true);
+        audioEl.playbackRate = st.vitesse;
+      } else {
+        preserver(false);
+        audioEl.playbackRate = st.vitesse * Math.pow(2, st.transpo / 12);
+      }
+      return;
+    }
     // 3) Fonctionnement classique (SoundTouch). L'élément joue à la vitesse du BPM (hauteur
     //    alors multipliée par cette vitesse, "varispeed") et le module SoundTouch corrige la
     //    hauteur : 2^(transpose/12) / vitesse. C'est la conception d'origine — ne pas forcer
