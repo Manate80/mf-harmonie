@@ -2244,7 +2244,10 @@ function _consoleAudioAppliquerNote(cid) {
    Hors Apple (chemin déjà validé, inchangé). Si le téléchargement échoue : retour automatique au flux. */
 var MFBLOB = { map: new Map(), prom: new Map(), total: 0, max: 150 * 1048576 };
 function mfPrechargeActif() {
-  try { return !mfEstApple() && mfDiagAutorise() && typeof fetch === 'function' && !!(window.URL && URL.createObjectURL); } catch (e) { return false; }
+  try { if (!(typeof fetch === 'function' && window.URL && URL.createObjectURL)) return false;
+    if (!mfEstApple()) return true; // tous les élèves hors Apple
+    return /^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim()); // Apple : seulement le compte test, le temps de valider
+  } catch (e) { return false; }
 }
 function _mfBlobEnUsage(obj) {
   try { return Object.keys(consoleAudioEtat || {}).some(cid => Object.values(consoleAudioEtat[cid].audios || {}).some(a => a.src === obj)); } catch (e) { return true; }
