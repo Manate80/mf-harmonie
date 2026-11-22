@@ -8707,8 +8707,22 @@ function renderBiblioAdmin() {
   // 📚 Bibliothèque (dossiers par rythme) ; la recherche ici reste disponible pour un accès direct.
   const cnt0 = document.getElementById('biblio-count');
   if (!q) {
-    if (cnt0) cnt0.textContent = '';
-    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:30px;font-style:italic;">Sélectionne une chanson depuis 📚 Bibliothèque, ou utilise la recherche ci-dessus.</p>';
+    // Sans recherche : on affiche d'abord les chansons en BROUILLON (non publiées, les plus récentes en premier),
+    // pour pouvoir les vérifier (son, vidéos) avant de les publier. Les chants publiés se trouvent par la recherche.
+    const brouillons = chansons.filter(c => c.statut !== 'valide').sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+    if (!brouillons.length) {
+      if (cnt0) cnt0.textContent = '';
+      container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:30px;font-style:italic;">Aucun brouillon à vérifier. Sélectionne une chanson depuis 📚 Bibliothèque, ou utilise la recherche ci-dessus.</p>';
+      return;
+    }
+    const affiches = brouillons.slice(0, 15);
+    if (cnt0) cnt0.textContent = brouillons.length + ' brouillon(s)';
+    container.innerHTML = '';
+    const titreBr = document.createElement('div');
+    titreBr.style.cssText = 'font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#e67e22;font-weight:700;padding:6px 4px 10px;';
+    titreBr.textContent = '📁 Brouillons à vérifier avant publication' + (brouillons.length > affiches.length ? ' (les ' + affiches.length + ' plus récents — les autres : par la recherche)' : '');
+    container.appendChild(titreBr);
+    affiches.forEach(c => container.appendChild(creerItemBiblioAdmin(c)));
     return;
   }
 
@@ -12184,6 +12198,15 @@ function _consoleAudioAppliquerParams(st) {
       audioEl.playbackRate = st.percu[idx] ? st.vitesse : st.vitesse * Math.pow(2, st.transpo / 12);
       return;
     }
+    // 2b) BPM seul (aucune transposition) : vitesse native avec hauteur préservée, sans SoundTouch.
+    //     Le calcul temps réel de SoundTouch sur 4 pistes faisait grésiller les téléphones dès qu'on
+    //     touchait au BPM ; ici le navigateur fait lui-même le changement de vitesse (léger).
+    if (st.transpo === 0) {
+      _consoleAudioDesactiverTraitement(st, idx);
+      preserver(true);
+      audioEl.playbackRate = st.vitesse;
+      return;
+    }
     // 3) Fonctionnement classique (SoundTouch). L'élément joue à la vitesse du BPM (hauteur
     //    alors multipliée par cette vitesse, "varispeed") et le module SoundTouch corrige la
     //    hauteur : 2^(transpose/12) / vitesse. C'est la conception d'origine — ne pas forcer
@@ -14721,6 +14744,11 @@ async function _chargerChantDepuisData(d, url, recharger, auto) {
     importerHTML(new File([f.starter], slug + '-starter.html', { type: 'text/html' }), 'starter');
     importerHTML(new File([f.immersion], slug + '-immersion.html', { type: 'text/html' }), 'immersion');
     const au = _genRemplirAudioAdmin(src);
+    // BPM du chant (JSON) : copié dans la fiche (champs BPM de l'onglet Audio), sinon le lecteur part de 90 par défaut.
+    try {
+      const _bpmJson = Math.round(parseFloat(String(d.champs['m-bpm'] || '').replace(',', '.')));
+      if (_bpmJson > 0) ['audio-bpm', 'gen-bpm-chanson'].forEach(id => { const el = document.getElementById(id); if (el) el.value = _bpmJson; });
+    } catch (e) {}
     // Liens Firebase des prompts (champs du Générateur) : s'ils sont remplis, l'admin lit les fichiers ; sinon il utilise ceux qu'il vient de fabriquer.
     const lienPS = String(d.champs['m-lien-prompt-starter'] || '').trim(), lienPI = String(d.champs['m-lien-prompt-immersion'] || '').trim();
     let promptS = f.promptStarter, promptI = f.promptImmersion, luS = false, luI = false, avertLiens = '';
@@ -14801,7 +14829,10 @@ async function _mfEnregistrerToutAuto(f, titre, msg) {
     if (!ok) { msg('<span style="color:#e74c3c;">⚠ Enregistrement arrêté à l\'étape « ' + nom + ' » — rien n\'est perdu : corrige puis clique sur le bouton « Enregistrer » de cet onglet.</span>'); toast('⚠ Enregistrement automatique arrêté (' + nom + ')'); return false; }
   }
   try { reinitialiserGenerateurParoles(); } catch (e) {}
-  msg('<span style="color:#2ecc71;">✅ « ' + String(titre).replace(/</g, '&lt;') + ' » : paroles, audio et vidéos enregistrés et synchronisés. Les élèves ont la mise à jour.</span>');
+  const _chEnr = (S.get('chansons') || []).find(c => (c.titre || '').toLowerCase() === String(titre).trim().toLowerCase());
+  const _publie = !!(_chEnr && _chEnr.statut === 'valide');
+  msg('<span style="color:#2ecc71;">✅ « ' + String(titre).replace(/</g, '&lt;') + ' » : paroles, audio et vidéos enregistrés et synchronisés. '
+    + (_publie ? 'Les élèves ont la mise à jour.' : '📁 Le chant est en <b>brouillon</b> (invisible des élèves) : vérifie-le dans Studio musique › « Chanson à finaliser » (il s\'affiche tout seul), puis clique sur « ✅ Publier » dans Outils rapides.') + '</span>');
   toast('✅ Tout enregistré pour ' + titre);
   return true;
 }
