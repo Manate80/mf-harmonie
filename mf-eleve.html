@@ -2311,7 +2311,7 @@ async function consoleAudioInit(uid, suffix, c) {
 
   pistesData.forEach((p, idx) => {
     if (!p.url) return;
-    st.percu[idx] = !!p.exclure;
+    st.percu[idx] = !!p.exclure || /percu/i.test(String(p.nom || '')); // une percussion n'a pas de hauteur : jamais transposée (allège le téléphone)
     const gain = ctx.createGain();
     // Volume de départ réduit (au lieu du maximum) : 4 pistes à volume max additionnées
     // dépassaient largement le seuil de saturation numérique, obligeant le limiteur à écraser
@@ -2512,6 +2512,7 @@ function consoleAudioPlay(cid) {
   if (!st) return;
   mfIosAudioPlayback();
   if (st.ctx.state === 'suspended') st.ctx.resume();
+  if (st._enChangementNote) { try { toast('⏳ Changement de tonalité en cours… patiente quelques secondes'); } catch (e) {} return; }
   const idxPrets = Object.keys(st.audios).filter(idx => st.prets[idx]);
   if (!idxPrets.length) return; // rien de chargé pour l'instant
   document.querySelectorAll('.ca-play[data-cid="' + cid + '"]').forEach(btn => btn.textContent = '⏸');
@@ -2519,8 +2520,15 @@ function consoleAudioPlay(cid) {
     try { st.videoEl.currentTime = clampVideoTime(st.videoEl, (st.videoOffset || 0)); st.videoEl.play().catch(()=>{}); } catch(e) {}
   }
   st._demarrageEnAttente = true;
-  st._timeoutDemarrage = setTimeout(() => {
+  st._tAttenteChargement = performance.now();
+  const _demarrer = () => {
     if (!st._demarrageEnAttente) return; // annulé entre-temps par une pause
+    // Hors Apple : on ne démarre que quand TOUTES les pistes sont chargées (sinon des pistes calent, se décalent et le son devient mauvais).
+    // Au plus 15 s d'attente, puis on démarre avec ce qui est prêt.
+    if (!mfEstApple() && performance.now() - st._tAttenteChargement < 15000) {
+      const _manque = Object.keys(st.audios).filter(idx => !st.prets[idx] && !(st.echecs && st.echecs[idx]));
+      if (_manque.length) { st._timeoutDemarrage = setTimeout(_demarrer, 300); return; }
+    }
     st._demarrageEnAttente = false;
     _consoleAudioAppliquerParams(st);
     st.posMusicaleBase = consoleAudioPositionActuelle(cid);
@@ -2536,20 +2544,55 @@ function consoleAudioPlay(cid) {
     // (chargement réseau différent par piste) — sans ça, le décalage du tout début persiste ensuite.
     [80, 200, 400, 700].forEach(delai => setTimeout(() => { if (st.run) consoleAudioResynchroniser(cid); }, delai));
     st.timer = setInterval(() => { consoleAudioResynchroniser(cid); consoleAudioMajUI(cid); }, 350);
-  }, DELAI_DEMARRAGE_AUDIO_MS);
+  };
+  st._timeoutDemarrage = setTimeout(_demarrer, DELAI_DEMARRAGE_AUDIO_MS);
 }
 
 // Recale toutes les pistes (et la vidéo si présente) sur la première piste prête, pour éviter toute dérive.
+// Garde-fou : si l'horloge audio du téléphone s'emballe (le son joue 1,3× plus vite que la réalité pendant 2 s),
+// on arrête, on remet les pistes à la vraie position et on relance proprement. Au plus 3 fois par minute.
+function _consoleAudioGardeFouHorloge(cid, st) {
+  try {
+    const nw = performance.now(), cw = st.ctx.currentTime, w = st._wd;
+    if (!w || nw - w.t > 3000) { st._wd = { t: nw, c: cw }; return; }
+    if (nw - w.t < 1000) return;
+    const ratio = (cw - w.c) / ((nw - w.t) / 1000);
+    st._wd = { t: nw, c: cw };
+    const idxRef = Object.keys(st.audios).find(idx => st.prets[idx]);
+    const posRef = idxRef !== undefined ? st.audios[idxRef].currentTime : null;
+    if (ratio > 0.9 && ratio < 1.15 && posRef !== null) { st._posBonne = { p: posRef, a: nw }; st._wdBad = 0; return; }
+    if (ratio <= 1.3) return;
+    st._wdBad = (st._wdBad || 0) + 1;
+    if (st._wdBad < 2) return;
+    st._wdBad = 0;
+    st._wdHist = (st._wdHist || []).filter(t => nw - t < 60000);
+    if (st._wdHist.length >= 3 || !st._posBonne) return;
+    st._wdHist.push(nw);
+    const vraie = Math.min(st.dureeRef || 1e9, st._posBonne.p + (nw - st._posBonne.a) / 1000 * (st.vitesse || 1));
+    try { if (window.MFREC && mfDiagAutorise()) MFREC.log('ALERTE', '🔄 HORLOGE EMBALLÉE (×' + ratio.toFixed(1) + ') : arrêt, retour à ' + vraie.toFixed(1) + ' s et relance automatique'); } catch (e) {}
+    consoleAudioPause(cid);
+    Object.keys(st.audios).forEach(idx => { try { if (st.prets[idx]) st.audios[idx].currentTime = vraie; } catch (e) {} });
+    st.posMusicaleBase = vraie; st.posMusicaleBaseTime = nw; st._dernierRefAudio = vraie; st._wd = null;
+    try { toast('🔄 Son resynchronisé'); } catch (e) {}
+    const _relance = () => { try { consoleAudioPlay(cid); } catch (e) {} };
+    try { st.ctx.suspend().then(() => st.ctx.resume()).then(_relance, _relance); } catch (e) { _relance(); }
+  } catch (e) {}
+}
 function consoleAudioResynchroniser(cid) {
   const st = consoleAudioEtat[cid];
   if (!st || !st.run || st._enChangementNote) return;
+  _consoleAudioGardeFouHorloge(cid, st);
+  if (!st.run) return;
+  // Hors Apple : tant qu'une piste en lecture est à court de données (réseau lent), on ne force aucun saut :
+  // chaque saut sur un flux qui charge le fait re-décoder (grésillement) et aggrave le décalage. Elle sera recalée dès qu'elle repart.
+  if (!mfEstApple() && Object.keys(st.audios).some(idx => st.prets[idx] && !st.audios[idx].paused && st.audios[idx].readyState < 3)) return;
   // Référence = première piste prête ET stable (pas en train de charger un saut de lecture)
   let idxRef = Object.keys(st.audios).find(idx => st.prets[idx] && !st.audios[idx].seeking && st.audios[idx].readyState >= 3);
   if (idxRef === undefined) return;
   // Apple : la référence est choisie UNE FOIS (la piste la plus avancée) puis gardée tant qu'elle joue normalement.
   // Une piste bloquée au départ est ainsi rattrapée, et la référence ne change pas à chaque recalage
   // (sinon chaque piste repositionnée en avance devient la nouvelle référence et les autres la poursuivent sans fin).
-  if (mfEstApple()) {
+  {
     const _t = performance.now();
     const _r = (st._idxRef !== undefined) ? st.audios[st._idxRef] : null;
     let _ok = !!(_r && st.prets[st._idxRef] && !_r.paused);
@@ -2621,6 +2664,14 @@ function consoleAudioResynchroniser(cid) {
           a._mfLag = st._lag[idx];
         }
         cible = refTime + (st._lag[idx] || 0);
+      }
+      if (!_apple) {
+        // Frein anti-boucle (comme sur Apple) : plus de 5 recalages de la même piste en 20 s = on la laisse tranquille 10 s
+        st._pauseRs = st._pauseRs || {}; st._rsHist = st._rsHist || {};
+        if ((st._pauseRs[idx] || 0) > _maintenant) return;
+        const _h2 = (st._rsHist[idx] = (st._rsHist[idx] || []).filter(t => _maintenant - t < 20000));
+        if (_h2.length >= 5) { st._pauseRs[idx] = _maintenant + 10000; st._rsHist[idx] = []; return; }
+        _h2.push(_maintenant);
       }
       st._tResync[idx] = _maintenant; a.currentTime = cible;
     }
@@ -2703,6 +2754,7 @@ function _sauvegarderReglagesConsole(cid) {
 function consoleAudioBpm(cid, delta) {
   const st = consoleAudioEtat[cid];
   if (!st) return;
+  if (st._enChangementNote) return; // pas de changement de BPM pendant le chargement d'une tonalité (les pistes se décaleraient)
   const bpmBase = st._bpmBase || 90;
   const bpmActuel = Math.round(bpmBase * st.vitesse);
   const nouveauBpm = Math.max(Math.round(bpmBase*0.5), Math.min(Math.round(bpmBase*1.5), bpmActuel + delta));
@@ -2716,6 +2768,7 @@ function consoleAudioBpm(cid, delta) {
 function consoleAudioBpmReset(cid) {
   const st = consoleAudioEtat[cid];
   if (!st) return;
+  if (st._enChangementNote) return;
   consoleAudioRecalerPositionMusicale(cid);
   st.vitesse = 1;
   _consoleAudioAppliquerParams(st);
@@ -3851,8 +3904,13 @@ document.addEventListener('input', (e) => {
     if (!st) return;
     const pos = (t.value / 100) * st.dureeRef;
     try { if (window.MFREC && mfDiagAutorise()) MFREC.glisse(cid, pos); } catch (e) {}
-    Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) st.audios[idx].currentTime = pos; });
-    if (st.videoEl) { try { st.videoEl.currentTime = clampVideoTime(st.videoEl, pos + (st.videoOffset || 0)); } catch(e) {} }
+    // Un seul saut de lecture est envoyé aux pistes, quand le doigt s'arrête (au lieu d'un par pixel glissé)
+    st._seekPos = pos; clearTimeout(st._seekTm);
+    st._seekTm = setTimeout(() => {
+      const _p = st._seekPos;
+      Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) st.audios[idx].currentTime = _p; });
+      if (st.videoEl) { try { st.videoEl.currentTime = clampVideoTime(st.videoEl, _p + (st.videoOffset || 0)); } catch(e) {} }
+    }, 150);
     document.querySelectorAll('.ca-seek[data-cid="' + cid + '"]').forEach(s => { if (s !== t) s.value = t.value; });
     document.querySelectorAll('.ca-tps[data-cid="' + cid + '"]').forEach(el => el.textContent = consoleAudioFmt(pos) + ' / ' + consoleAudioFmt(st.dureeRef));
   }
