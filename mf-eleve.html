@@ -2165,6 +2165,7 @@ function _consoleAudioAppliquerNote(cid) {
   st._enChangementNote = true;
   const jeton = (st._jetonNote = (st._jetonNote || 0) + 1);
   if (etaitEnLecture) Object.values(st.audios).forEach(a => { try { a.pause(); } catch (e) {} });
+  if (!enCours) { try { toast('⏳ Chargement de la tonalité ' + noteNom + '…'); } catch (e) {} }
   let restants = idxChange.length, termine = false;
   const finir = () => {
     if (termine || jeton !== st._jetonNote) return;
@@ -2193,7 +2194,7 @@ function _consoleAudioAppliquerNote(cid) {
       ['canplay', 'canplaythrough', 'seeked', 'loadeddata'].forEach(ev => a.addEventListener(ev, verifier));
     });
     verifier();
-    setTimeout(repartir, 8000); // filet de sécurité : ne jamais rester bloqué
+    setTimeout(repartir, 30000); // filet de sécurité (réseau lent : jusqu'à ~25 s de chargement observés) : ne jamais rester bloqué
   };
   idxChange.forEach(i => {
     const a = st.audios[i];
@@ -2228,7 +2229,7 @@ function _consoleAudioAppliquerNote(cid) {
     a.load();
   });
   // Filet de sécurité : si un fichier tarde trop, on relance quand même avec ce qui est prêt.
-  setTimeout(() => { if (!termine && jeton === st._jetonNote) finir(); }, 12000);
+  setTimeout(() => { if (!termine && jeton === st._jetonNote) finir(); }, 40000);
 }
 
 async function consoleAudioInit(uid, suffix, c) {
@@ -2526,7 +2527,7 @@ function consoleAudioPlay(cid) {
     // Hors Apple : on ne démarre que quand TOUTES les pistes sont chargées (sinon des pistes calent, se décalent et le son devient mauvais).
     // Au plus 15 s d'attente, puis on démarre avec ce qui est prêt.
     if (!mfEstApple() && performance.now() - st._tAttenteChargement < 15000) {
-      const _manque = Object.keys(st.audios).filter(idx => !st.prets[idx] && !(st.echecs && st.echecs[idx]));
+      const _manque = Object.keys(st.audios).filter(idx => !(st.echecs && st.echecs[idx]) && (!st.prets[idx] || st.audios[idx].readyState < 3 || st.audios[idx].seeking));
       if (_manque.length) { st._timeoutDemarrage = setTimeout(_demarrer, 300); return; }
     }
     st._demarrageEnAttente = false;
@@ -7562,7 +7563,7 @@ MFREC.glisse = function (cid, pos) {
     g.n++; g.tLast = now; g.vers = pos;
     clearTimeout(g.tm);
     g.tm = setTimeout(function () {
-      MFREC.log('ACTION', '↔ DÉPLACEMENT dans la chanson (glissière) : de ' + g.de.toFixed(1) + ' s à ' + g.vers.toFixed(1) + ' s · ' + g.n + ' sauts de lecture envoyés en ' + ((g.tLast - g.t0) / 1000).toFixed(1) + ' s');
+      MFREC.log('ACTION', '↔ DÉPLACEMENT dans la chanson (glissière) : de ' + g.de.toFixed(1) + ' s à ' + g.vers.toFixed(1) + ' s · ' + g.n + ' mouvements du doigt (1 seul saut envoyé) en ' + ((g.tLast - g.t0) / 1000).toFixed(1) + ' s');
       if (g.n > MFREC.glisMax) MFREC.glisMax = g.n;
       MFREC.glis = null;
     }, 700);
@@ -7582,7 +7583,7 @@ MFREC.analyse = function () {
   }
   var _ret = A.filter(function (r) { return r.a && r.a._mfLag; }).map(function (r) { return MFPERF.lib(r) + ' ≈ ' + Math.round(r.a._mfLag * 1000) + ' ms'; });
   if (_ret.length) P.push('⏱ RETARD MESURÉ APRÈS CHAQUE REPOSITIONNEMENT (compensé sur Apple) : ' + _ret.join(', ') + '.');
-  if (MFREC.glisMax >= 8) P.push('↔ GLISSIÈRE : un seul déplacement dans la chanson a envoyé jusqu\'à ' + MFREC.glisMax + ' demandes de repositionnement aux pistes (une par pixel glissé). → À CORRIGER : appliquer le saut à la fin du geste.');
+  if (MFREC.glisMax >= 8) P.push('ℹ Curseur : jusqu\'à ' + MFREC.glisMax + ' mouvements du doigt regroupés en UN seul saut de lecture (déjà corrigé).');
   var lentes = MFREC.tonsHist.filter(function (t) { return t.d > 10; });
   var incompl = MFREC.tonsHist.filter(function (t) { return t.prets < t.tot; });
   if (MFREC.alertes.tonLente || lentes.length) P.push('🎼 TONALITÉ TROP LENTE : ' + (MFREC.tonsHist.length ? MFREC.tonsHist.map(function (t) { return t.note + ' en ' + sec(t.d); }).join(', ') : 'jamais terminée') + '. → À CORRIGER : chargement des fichiers de tonalité.');
