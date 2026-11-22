@@ -2216,7 +2216,7 @@ function _consoleAudioAppliquerNote(cid) {
         secours = true;
         a.addEventListener('loadedmetadata', surMeta);
         a.addEventListener('error', surErreur);
-        a.src = st.urlsBase[i]; a.load();
+        _mfAssignerSrc(st, a, st.urlsBase[i]);
         if (typeof toast === 'function') toast('⚠ Tonalité indisponible pour une piste — fichier d\'origine utilisé');
         return;
       }
@@ -2225,11 +2225,77 @@ function _consoleAudioAppliquerNote(cid) {
     };
     a.addEventListener('loadedmetadata', surMeta);
     a.addEventListener('error', surErreur);
-    a.src = _tonUrlPourNote(st, i, noteNom);
-    a.load();
+    _mfAssignerSrc(st, a, _tonUrlPourNote(st, i, noteNom));
   });
   // Filet de sécurité : si un fichier tarde trop, on relance quand même avec ce qui est prêt.
-  setTimeout(() => { if (!termine && jeton === st._jetonNote) finir(); }, 40000);
+  const _t0Note = performance.now();
+  const _filetNote = () => {
+    if (termine || jeton !== st._jetonNote) return;
+    if (st._dlEnCours > 0 && performance.now() - _t0Note < 120000) { setTimeout(_filetNote, 3000); return; } // téléchargement en cours : on patiente
+    finir();
+  };
+  setTimeout(_filetNote, 40000);
+}
+
+/* ══ TÉLÉCHARGEMENT COMPLET DES PISTES (comptes test d'abord) ══
+   Au lieu de lire les pistes en flux (chaque saut du curseur ou changement de tonalité relance un téléchargement
+   et cale sur un réseau lent), on télécharge chaque fichier en entier dans la mémoire du navigateur (jamais enregistré
+   sur l'appareil, aucun bouton de téléchargement) puis on le lit : sauts instantanés, plus de pistes qui calent.
+   Hors Apple (chemin déjà validé, inchangé). Si le téléchargement échoue : retour automatique au flux. */
+var MFBLOB = { map: new Map(), prom: new Map(), total: 0, max: 150 * 1048576 };
+function mfPrechargeActif() {
+  try { return !mfEstApple() && mfDiagAutorise() && typeof fetch === 'function' && !!(window.URL && URL.createObjectURL); } catch (e) { return false; }
+}
+function _mfBlobEnUsage(obj) {
+  try { return Object.keys(consoleAudioEtat || {}).some(cid => Object.values(consoleAudioEtat[cid].audios || {}).some(a => a.src === obj)); } catch (e) { return true; }
+}
+function _mfBlobNettoyer() {
+  for (const [u, e] of MFBLOB.map) {
+    if (MFBLOB.total <= MFBLOB.max) break;
+    if (_mfBlobEnUsage(e.obj)) continue;
+    MFBLOB.map.delete(u); MFBLOB.total -= e.taille;
+    try { URL.revokeObjectURL(e.obj); } catch (x) {}
+  }
+}
+function _mfBlobUrl(url, surProgres) {
+  if (MFBLOB.map.has(url)) { const e = MFBLOB.map.get(url); MFBLOB.map.delete(url); MFBLOB.map.set(url, e); return Promise.resolve(e.obj); }
+  if (MFBLOB.prom.has(url)) return MFBLOB.prom.get(url).then(o => { if (surProgres) surProgres(100); return o; });
+  const p = (async () => {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const tot = +r.headers.get('content-length') || 0;
+    const morceaux = []; let recu = 0;
+    if (r.body && r.body.getReader) {
+      const lec = r.body.getReader();
+      for (;;) {
+        const { done, value } = await lec.read();
+        if (done) break;
+        morceaux.push(value); recu += value.length;
+        if (surProgres && tot) surProgres(Math.min(99, Math.round(recu * 100 / tot)));
+      }
+    } else { const b = await r.blob(); morceaux.push(b); recu = b.size; }
+    const blob = new Blob(morceaux, { type: r.headers.get('content-type') || 'audio/mpeg' });
+    const obj = URL.createObjectURL(blob);
+    MFBLOB.map.set(url, { obj, taille: blob.size }); MFBLOB.total += blob.size;
+    _mfBlobNettoyer();
+    if (surProgres) surProgres(100);
+    return obj;
+  })();
+  MFBLOB.prom.set(url, p);
+  const fin = () => MFBLOB.prom.delete(url);
+  p.then(fin, fin);
+  return p;
+}
+// Affecte la source d'une piste : téléchargement complet puis lecture depuis la mémoire (sinon flux comme avant)
+function _mfAssignerSrc(st, a, url, surProgres) {
+  if (!mfPrechargeActif()) { a.src = url; a.load(); return; }
+  const jeton = (a._mfJ = (a._mfJ || 0) + 1);
+  st._dlEnCours = (st._dlEnCours || 0) + 1;
+  _mfBlobUrl(url, surProgres).then(o => o, () => null).then(obj => {
+    st._dlEnCours = Math.max(0, (st._dlEnCours || 1) - 1);
+    if (jeton !== a._mfJ) return;
+    a.src = obj || url; a.load();
+  });
 }
 
 async function consoleAudioInit(uid, suffix, c) {
@@ -2339,7 +2405,13 @@ async function consoleAudioInit(uid, suffix, c) {
     st.audios[idx] = audioEl;
 
     let resolu = false;
-    setTimeout(() => { if (!resolu) { st.echecs[idx] = true; majBadge('❌', '#e74c3c'); } }, 12000);
+    const _t0Init = performance.now();
+    const _verifierEchec = () => {
+      if (resolu) return;
+      if (st._dlEnCours > 0 && performance.now() - _t0Init < 120000) { setTimeout(_verifierEchec, 3000); return; } // téléchargement complet en cours : on patiente
+      st.echecs[idx] = true; majBadge('❌', '#e74c3c');
+    };
+    setTimeout(_verifierEchec, 12000);
 
     audioEl.addEventListener('loadedmetadata', () => {
       if (resolu) return;
@@ -2388,8 +2460,8 @@ async function consoleAudioInit(uid, suffix, c) {
       urlInitiale = _tonUrlPourNote(st, idx, nc);
       st.noteCourante[idx] = nc;
     }
-    audioEl.src = urlInitiale;
-    audioEl.load();
+    if (mfPrechargeActif()) majBadge('⏳ 0%', '#f0b429');
+    _mfAssignerSrc(st, audioEl, urlInitiale, pct => majBadge(pct >= 100 ? '⏳' : '⏳ ' + pct + '%', '#f0b429'));
   });
   if (st.modeNotes) {
     _consoleAudioAppliquerParams(st);
@@ -2515,7 +2587,7 @@ function consoleAudioPlay(cid) {
   if (st.ctx.state === 'suspended') st.ctx.resume();
   if (st._enChangementNote) { try { toast('⏳ Changement de tonalité en cours… patiente quelques secondes'); } catch (e) {} return; }
   const idxPrets = Object.keys(st.audios).filter(idx => st.prets[idx]);
-  if (!idxPrets.length) return; // rien de chargé pour l'instant
+  if (!idxPrets.length) { if (st._dlEnCours > 0) { try { toast('⏳ Téléchargement des pistes en cours… patiente'); } catch (e) {} } return; } // rien de chargé pour l'instant
   document.querySelectorAll('.ca-play[data-cid="' + cid + '"]').forEach(btn => btn.textContent = '⏸');
   if (st.videoEl) {
     try { st.videoEl.currentTime = clampVideoTime(st.videoEl, (st.videoOffset || 0)); st.videoEl.play().catch(()=>{}); } catch(e) {}
@@ -2526,7 +2598,7 @@ function consoleAudioPlay(cid) {
     if (!st._demarrageEnAttente) return; // annulé entre-temps par une pause
     // Hors Apple : on ne démarre que quand TOUTES les pistes sont chargées (sinon des pistes calent, se décalent et le son devient mauvais).
     // Au plus 15 s d'attente, puis on démarre avec ce qui est prêt.
-    if (!mfEstApple() && performance.now() - st._tAttenteChargement < 15000) {
+    if (!mfEstApple() && performance.now() - st._tAttenteChargement < (st._dlEnCours > 0 ? 120000 : 15000)) {
       const _manque = Object.keys(st.audios).filter(idx => !(st.echecs && st.echecs[idx]) && (!st.prets[idx] || st.audios[idx].readyState < 3 || st.audios[idx].seeking));
       if (_manque.length) { st._timeoutDemarrage = setTimeout(_demarrer, 300); return; }
     }
