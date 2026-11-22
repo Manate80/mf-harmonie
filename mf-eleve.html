@@ -2245,6 +2245,7 @@ function _consoleAudioAppliquerNote(cid) {
 var MFBLOB = { map: new Map(), prom: new Map(), total: 0, max: 150 * 1048576 };
 function mfPrechargeActif() {
   try { if (!(typeof fetch === 'function' && window.URL && URL.createObjectURL)) return false;
+    if (navigator.deviceMemory && navigator.deviceMemory <= 2) return false; // vieux téléphone peu de mémoire : on garde la lecture en direct
     if (!mfEstApple()) return true; // tous les élèves hors Apple
     return /^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim()); // Apple : seulement le compte test, le temps de valider
   } catch (e) { return false; }
