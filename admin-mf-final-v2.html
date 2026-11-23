@@ -9614,7 +9614,7 @@ function mfChoisirLangue(id, lg, on, cfCid) {
 // et on garde celle qui donne les paroles les plus grosses. Si l'écart est faible (< 3 %), on garde l'ancien choix (en bas).
 function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raison) {
   const nb = opts.nbParoles || (trad ? trad.length : 0);
-  if (opts.aligneLigne && (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3) opts = Object.assign({}, opts, { place: 'cote' });
+  if (opts.aligneLigne && mfLignesImprPermis(c) && (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3) opts = Object.assign({}, opts, { place: 'cote' });
   const auto = (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3 && nb <= 30;
   if (!auto) { _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, opts); return; }
   toast('ℹ Calcul de la meilleure mise en page…');
@@ -9663,8 +9663,8 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
   const cb3 = document.getElementById(cid + '-pdfcols3');
   const cols3 = !!(ch && langue === 'tah' && (cb3 ? cb3.checked : _mfCols3(c)));
   const opts = { langue, cols3, place, json: !!ch, tradEn: null, nbParoles: ch ? _mfLignesParoles(ch).length : 0 };
-  // Chants à lignes réglables (Au Manava) : chaque ligne tahitienne est traduite en face d'elle, les couplets français restent sans traduction
-  opts.aligneLigne = !!(ch && mfLignesImprPermis(c));
+  // Tous les chants avec JSON : chaque ligne tahitienne est traduite en face d'elle (traduction sur le côté), les couplets français restent sans traduction
+  opts.aligneLigne = !!ch;
   // Chanson en français ou en anglais : pas de traduction, les paroles prennent toute la page
   // Mais si le JSON contient des lignes de traduction, elles sont TOUJOURS imprimées (chants mixtes tahitien/français comme Au Manava)
   let langueManuelle = ''; try { langueManuelle = localStorage.getItem('mfLangue_' + c.id) || ''; } catch (e) {}
