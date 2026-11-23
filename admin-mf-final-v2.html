@@ -9620,9 +9620,8 @@ function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raiso
   toast('ℹ Calcul de la meilleure mise en page…');
   // Mêmes règles pour tous les chants : on essaie chaque mise en page et on garde celle qui donne les paroles les plus grandes.
   // Si l'écart est faible (< 3 %), on garde la première de la liste (traduction sur le côté, ligne par ligne).
-  const essais = [{ place: 'cote', mode: mode }];
-  if (mode === 'auto' || mode === '1') essais.push({ place: 'cote', mode: '2' });
-  essais.push({ place: 'dessous', mode: (mode === 'auto' ? '2' : mode) });
+  // Sur le côté : une seule colonne de paroles (chaque traduction en face de sa ligne) ; sous la chanson : paroles sur 2 lignes côte à côte.
+  const essais = [{ place: 'cote', mode: (mode === 'auto' ? '1' : mode) }, { place: 'dessous', mode: (mode === 'auto' ? '2' : mode) }];
   let fini = false, meilleur = null;
   const imprimer = e => {
     if (fini) return; fini = true; clearTimeout(garde);
@@ -9661,7 +9660,7 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
   let place = selPl ? selPl.value : 'auto'; if (!selPl) { try { place = localStorage.getItem('mfPdfPlace_' + c.id) || 'auto'; } catch(e) {} }
   const cb3 = document.getElementById(cid + '-pdfcols3');
   const cols3 = !!(ch && langue === 'tah' && (cb3 ? cb3.checked : _mfCols3(c)));
-  const opts = { langue, cols3, place, json: !!ch, tradEn: null, nbParoles: ch ? _mfLignesParoles(ch).length : 0 };
+  const opts = { langue, cols3, place, json: !!ch, tradEn: null, nbParoles: ch ? _mfLignesParoles(ch).length : 0, lignesTexte: ch ? _mfLignesParoles(ch).map(l => l.txt) : [] };
   // Tous les chants avec JSON : chaque ligne tahitienne est traduite en face d'elle (traduction sur le côté), les couplets français restent sans traduction
   opts.aligneLigne = !!ch;
   // Chanson en français ou en anglais : pas de traduction, les paroles prennent toute la page
@@ -9689,6 +9688,8 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   if (opts.place === 'dessous2') opts = Object.assign({}, opts, { place: 'dessous' });
   // « Sous la chanson » = paroles toujours en 2 lignes côte à côte, traduction sous chaque colonne (2 colonnes automatiques si la chanson est longue)
   if (opts.place === 'dessous' && mode === 'auto') mode = '2';
+  // « Sur le côté » : une seule colonne de paroles, pour que chaque traduction reste en face de sa ligne
+  if (opts.place === 'cote' && opts.aligneLigne && mode === 'auto') mode = '1';
   const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const demi = cfTransposeDemi[cid] || 0;
   const htmlTr = transposerHTMLAccords(((!opts.basique && c.svgImpression) ? c.svgImpression : c.svg).trim(), demi);
@@ -10129,6 +10130,25 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         if (m <= 0.5) { unites.forEach(l => l.style.removeProperty('margin-bottom')); alignerCols(); }
       }
     }
+    // Association ligne chantée → ligne de traduction, par le TEXTE (un refrain répété reprend la même traduction ; une ligne sans traduction reste vide)
+    const _normT = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+    const assocLignes = (lignesChantees, n) => {
+      const src = (opts.lignesTexte || []).map(_normT), res = lignesChantees.map(() => -1);
+      const sequentiel = () => { lignesChantees.forEach((_, i) => { res[i] = i < n ? i : -1; }); return res; };
+      if (!src.length) return sequentiel();
+      const texte = l => { const cl = l.cloneNode(true); cl.querySelectorAll('.ch,.chb,.accord').forEach(x => x.remove()); return _normT(cl.textContent); };
+      const lim = Math.min(n, src.length); let p = 0, trouve = 0;
+      lignesChantees.forEach((l, i) => {
+        const t = texte(l); let j = -1;
+        if (t) { for (let k = p; k < lim; k++) if (src[k] === t) { j = k; break; } if (j < 0) for (let k = 0; k < lim; k++) if (src[k] === t) { j = k; break; } }
+        // Annotation collée à la fin de la ligne (ex. « couplet refrain ») : on accepte si la ligne COMMENCE par le texte du JSON
+        if (j < 0 && t) { for (let k = 0; k < lim; k++) if (src[k].length >= 8 && t.indexOf(src[k]) === 0) { j = k; break; } }
+        if (j >= 0) { res[i] = j; if (j >= p) p = j + 1; trouve++; }
+      });
+      if (trouve < Math.min(lim, lignesChantees.length) / 2) return sequentiel();
+      lignesChantees.forEach((l, i) => { if (res[i] < 0 && p < lim) res[i] = p++; });
+      return res;
+    };
     // Traduction : chaque ligne traduite en face de sa ligne de paroles, même mise en page
     if (left) {
       Array.from(d.querySelectorAll('.mfp-trad')).forEach(trad => {
@@ -10147,35 +10167,46 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
           return b > -1e8 ? b : l.getBoundingClientRect().bottom;
         };
         let alignOk = false;
+        const clones = [];
         if (opts.aligneLigne && tls.length && lignes.length >= tls.length && !left.querySelector('.paire')) {
-          // Seules les premières lignes (tahitien) ont une traduction ; les lignes suivantes (couplets français) n'en ont pas
-          lignes.length = tls.length;
-          const r0 = lignes[0].getBoundingClientRect(), rN = lignes[lignes.length - 1].getBoundingClientRect();
-          trad.classList.add('mfp-al');
-          trad.style.marginTop = Math.max(0, r0.top - lr.top) + 'px';
-          trad.style.height = (Math.max(rN.bottom, basTexte(lignes[lignes.length - 1])) - r0.top + 6) + 'px';
-          const haut = trad.getBoundingClientRect().top;
-          // D'abord chaque traduction sur UNE seule ligne (taille la plus grande possible), sinon 2 lignes au maximum
-          for (const maxL of [1, 2]) {
-            for (let fs = 17; fs >= 7.5 && !alignOk; fs -= 0.5) {
-              let bon = true, prevBas = -1e9;
-              tls.forEach((el, i) => {
-                el.style.fontSize = fs + 'px';
-                const h = el.offsetHeight, bas = basTexte(lignes[i]) - haut - 1, top = bas - h;
-                el.style.top = top + 'px';
-                if (h > fs * 1.2 * maxL + 2 || top < prevBas - 1 || top < -1) bon = false;
-                prevBas = bas;
-              });
-              if (bon) alignOk = true;
+          // Chaque ligne chantée reçoit SA traduction (reliée par le texte) ; un refrain répété reprend la même traduction ; les lignes sans traduction (couplets français…) restent vides
+          const res = assocLignes(lignes, tls.length), L = [], E = [], vus = new Set();
+          lignes.forEach((l, i) => {
+            const j = res[i]; if (j < 0 || j >= tls.length) return;
+            let el = tls[j];
+            if (vus.has(j)) { el = tls[j].cloneNode(true); tls[j].parentNode.appendChild(el); clones.push(el); }
+            vus.add(j); L.push(l); E.push(el);
+          });
+          tls.forEach((el, j) => { if (!vus.has(j)) el.style.display = 'none'; });
+          if (L.length) {
+            const r0 = L[0].getBoundingClientRect(), rN = L[L.length - 1].getBoundingClientRect();
+            trad.classList.add('mfp-al');
+            trad.style.marginTop = Math.max(0, r0.top - lr.top) + 'px';
+            trad.style.height = (Math.max(rN.bottom, basTexte(L[L.length - 1])) - r0.top + 6) + 'px';
+            const haut = trad.getBoundingClientRect().top;
+            // D'abord chaque traduction sur UNE seule ligne (taille la plus grande possible), sinon 2 lignes au maximum
+            for (const maxL of [1, 2]) {
+              for (let fs = 17; fs >= 7.5 && !alignOk; fs -= 0.5) {
+                let bon = true, prevBas = -1e9;
+                E.forEach((el, i) => {
+                  el.style.fontSize = fs + 'px';
+                  const h = el.offsetHeight, bas = basTexte(L[i]) - haut - 1, top = bas - h;
+                  el.style.top = top + 'px';
+                  if (h > fs * 1.2 * maxL + 2 || top < prevBas - 1 || top < -1) bon = false;
+                  prevBas = bas;
+                });
+                if (bon) alignOk = true;
+              }
+              if (alignOk) break;
             }
-            if (alignOk) break;
+            // Chaque traduction prend la couleur de sa ligne de paroles (couplet noir, refrain rouge…) : même code couleur pour l'élève
+            if (alignOk) E.forEach((el, i) => { const col = w.getComputedStyle(L[i]).color; if (col) el.style.setProperty('color', col, 'important'); });
           }
-          // Chaque traduction prend la couleur de sa ligne de paroles (couplet noir, refrain rouge…) : même code couleur pour l'élève
-          if (alignOk) tls.forEach((el, i) => { const col = w.getComputedStyle(lignes[i]).color; if (col) el.style.setProperty('color', col, 'important'); });
           if (!alignOk) {
             // Alignement impossible (encadré trop étroit pour ces lignes) : retour à l'encadré compact
+            clones.forEach(el => el.remove());
             trad.classList.remove('mfp-al'); trad.style.height = '';
-            tls.forEach(el => { el.style.top = ''; el.style.fontSize = ''; });
+            tls.forEach(el => { el.style.top = ''; el.style.fontSize = ''; el.style.display = ''; });
           }
         }
         if (!alignOk) {
@@ -10198,7 +10229,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         const toutes = Array.from(left.querySelectorAll('.ligne')).filter(l => !l.querySelector('.ligne') && w.getComputedStyle(l).display !== 'none' && !soloA(l));
         const txtGauche = l => { let m = 1e9; const tw = d.createTreeWalker(l, 4); let n; while ((n = tw.nextNode())) { if (!n.textContent.trim() || (n.parentElement && n.parentElement.closest('.ch,.chb,.accord'))) continue; const r = d.createRange(); r.selectNodeContents(n); Array.from(r.getClientRects()).forEach(q => { if (q.width > 0) m = Math.min(m, q.left); }); } return m < 1e8 ? m : l.getBoundingClientRect().left; };
         if (bls.length && toutes.length >= bls.length) {
-          const idx = new Map(); toutes.forEach((l, i) => { if (i < bls.length) idx.set(l, i); });
+          const idx = new Map(), resB = assocLignes(toutes, bls.length), dejaB = new Set(); toutes.forEach((l, i) => { if (resB[i] >= 0 && resB[i] < bls.length) idx.set(l, resB[i]); });
           const unites = Array.from(left.querySelectorAll('.paire,.ligne')).filter(u => !u.parentElement.closest('.paire') && (u.classList.contains('paire') || !u.querySelector('.ligne')));
           const wrap = d.createElement('div'); wrap.style.cssText = 'position:relative;';
           const rows = []; let precBloc = null;
@@ -10207,7 +10238,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
             if (!lg.length) return;
             const row = d.createElement('div'); row.style.cssText = 'position:relative;';
             const bloc = u.closest('.bloc'); if (precBloc !== null && bloc !== precBloc) row.style.marginTop = '8px'; precBloc = bloc;
-            const items = lg.map(l => { const el = bls[idx.get(l)]; el.style.setProperty('color', w.getComputedStyle(l).color, 'important'); el.style.cssText += ';position:absolute;white-space:nowrap;margin:0;line-height:1.25;'; row.appendChild(el); return { el, x: txtGauche(l) }; });
+            const items = lg.map(l => { const jb = idx.get(l); let el = bls[jb]; if (dejaB.has(jb)) el = bls[jb].cloneNode(true); dejaB.add(jb); el.style.setProperty('color', w.getComputedStyle(l).color, 'important'); el.style.cssText += ';position:absolute;white-space:nowrap;margin:0;line-height:1.25;'; row.appendChild(el); return { el, x: txtGauche(l) }; });
             wrap.appendChild(row); rows.push(items);
           });
           if (rows.length) {
