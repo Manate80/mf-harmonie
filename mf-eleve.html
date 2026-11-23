@@ -2630,7 +2630,15 @@ function _mfBVideo(st) { // la vidéo suit la même vitesse que le son et reste 
     if (st.run && st.videoEl.paused) st.videoEl.play().catch(() => {});
   } catch (e) {}
 }
-function _mfBTaux(st) { return st.vitesse * Math.pow(2, st.transpo / 12); }
+// Vitesse de lecture des sources. Normal : seulement la vitesse (BPM) — la hauteur est corrigée par SoundTouch,
+// donc BPM et transposition sont indépendants. Secours (SoundTouch indisponible) : « platine » vitesse × hauteur.
+function _mfBTaux(st) { return st._bPlatine ? st.vitesse * Math.pow(2, st.transpo / 12) : st.vitesse; }
+function _mfBParamsNoeud(st, idx, noeud) {
+  try {
+    noeud.parameters.get('playbackRate').value = st.vitesse;
+    noeud.parameters.get('pitchSemitones').value = st.percu && st.percu[idx] ? 0 : st.transpo;
+  } catch (e) {}
+}
 function _mfBPreparer(st) {
   if (st._bBuf) return Promise.resolve(true);
   if (st._bPrep) return st._bPrep;
@@ -2647,6 +2655,8 @@ function _mfBPreparer(st) {
     }
     if (!Object.keys(bufs).length) throw new Error('aucune piste');
     st._bBuf = bufs;
+    try { await consoleAudioAssurerWorklet(st.ctx); st._bPlatine = false; }
+    catch (e) { st._bPlatine = true; _mfBLog('⚠ SoundTouch indisponible pour le moteur synchronisé (' + (e && e.message ? e.message : e) + ') : mode platine'); }
     _mfBLog('🎚 moteur synchronisé : préparation terminée en ' + Math.round(performance.now() - _t0) + ' ms (' + Object.keys(bufs).length + ' pistes)');
     return true;
   })().catch(e => { st._moteurBInterdit = true; st._bPrep = null; console.warn('Moteur synchronisé indisponible :', e); _mfBLog('⚠ moteur synchronisé indisponible (' + (e && e.message ? e.message : e) + ') : lecteur habituel conservé'); return false; });
@@ -2654,7 +2664,8 @@ function _mfBPreparer(st) {
 }
 function _mfBArreterSources(st) {
   Object.values(st._bSrc || {}).forEach(src => { try { src.stop(); } catch (e) {} try { src.disconnect(); } catch (e) {} });
-  st._bSrc = {};
+  Object.values(st._bNoeuds || {}).forEach(n => { try { n.disconnect(); } catch (e) {} });
+  st._bSrc = {}; st._bNoeuds = {};
 }
 function _mfBPosition(st) {
   const dt = st.ctx.currentTime - st._bT0;
@@ -2670,7 +2681,16 @@ function _mfBDemarrer(st, pos) {
     const src = st.ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
-    src.connect(st.gains[idx]);
+    let noeud = null;
+    if (!st._bPlatine) {
+      try {
+        noeud = new AudioWorkletNode(st.ctx, 'soundtouch-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+        _mfBParamsNoeud(st, idx, noeud);
+        src.connect(noeud); noeud.connect(st.gains[idx]);
+        st._bNoeuds[idx] = noeud;
+      } catch (e) { noeud = null; st._bPlatine = true; _mfBLog('⚠ SoundTouch : création impossible (' + (e && e.message ? e.message : e) + ') : mode platine'); }
+    }
+    if (!noeud) { src.playbackRate.value = _mfBTaux(st); src.connect(st.gains[idx]); }
     src.start(t0, Math.max(0, Math.min(pos, buf.duration - 0.02)));
     st._bSrc[idx] = src;
   });
@@ -2681,6 +2701,7 @@ function _mfBChangerVitesse(st) {
   const pos = _mfBPosition(st);
   const rate = _mfBTaux(st);
   Object.values(st._bSrc || {}).forEach(src => { try { src.playbackRate.setValueAtTime(rate, now); } catch (e) {} });
+  Object.keys(st._bNoeuds || {}).forEach(idx => _mfBParamsNoeud(st, idx, st._bNoeuds[idx]));
   st._bPos0 = pos; st._bT0 = now; st._bRate = rate;
   _mfBVideo(st);
 }
@@ -2694,7 +2715,7 @@ function _mfBEntrer(st) {
   if (enLecture) _mfBDemarrer(st, pos);
   st._dernierRefAudio = pos;
   _mfBVideo(st);
-  _mfBLog('🎚 MOTEUR SYNCHRONISÉ activé à ' + pos.toFixed(1) + ' s · vitesse ×' + _mfBTaux(st).toFixed(3));
+  _mfBLog('🎚 MOTEUR SYNCHRONISÉ activé à ' + pos.toFixed(1) + ' s · vitesse ×' + _mfBTaux(st).toFixed(3) + (st._bPlatine ? ' · mode platine (hauteur liée à la vitesse)' : ' · SoundTouch : vitesse et hauteur indépendantes'));
 }
 function _mfBSortir(st) {
   const cid = st._cid;
@@ -2714,18 +2735,18 @@ function _mfBSortir(st) {
 // Appelé par _consoleAudioAppliquerParams. Renvoie true si le moteur synchronisé gère le réglage.
 function _mfBGerer(st) {
   if (!_mfMoteurBPossible(st)) {
-    if (st.transpo !== 0 && !st._bRaisonLogue) {
+    if ((st.transpo !== 0 || st.vitesse !== 1) && !st._bRaisonLogue) {
       st._bRaisonLogue = true;
       try { _mfBLog('🎚 moteur synchronisé NON utilisé · apple=' + mfEstApple() + ' · compte=' + String((eleveActif && eleveActif.identifiant) || '?') + ' · suffixe=' + st._suffix + ' · modeNotes=' + !!st.modeNotes + ' · interdit=' + !!st._moteurBInterdit + ' · WebAudioSource=' + !!window.AudioBufferSourceNode); } catch (e) {}
     }
     return false;
   }
-  const veut = st.transpo !== 0;
+  const veut = st.transpo !== 0 || st.vitesse !== 1;
   if (veut && !st._bActif) {
     if (st._bBuf) { _mfBEntrer(st); return true; }
     if (!st._bPrep) {
       try { toast('⏳ Préparation du son synchronisé…'); } catch (e) {}
-      _mfBPreparer(st).then(ok => { if (ok && st.transpo !== 0 && !st._bActif) { _mfBEntrer(st); } });
+      _mfBPreparer(st).then(ok => { if (ok && (st.transpo !== 0 || st.vitesse !== 1) && !st._bActif) { _mfBEntrer(st); } });
     }
     return false; // en attendant, lecteur habituel
   }
