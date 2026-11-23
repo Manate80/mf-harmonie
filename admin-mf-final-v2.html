@@ -9685,6 +9685,9 @@ function imprimerStarterParolesAdmin(chansonId, cid) {
 function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, decalAccords, avecTrad, raisonTrad, opts) {
   opts = opts || {};
   mode = mode || 'auto'; facteurTaille = facteurTaille || 1; decalAccords = decalAccords || 0;
+  // « 2 lignes » range déjà les paroles en 2 colonnes alignées : le découpage « 2 colonnes par couleur » en plus donnerait 4 colonnes minuscules.
+  // On applique donc la même mise en page (traduction sous la chanson, qui suit exactement l'affichage des paroles).
+  if (opts.place === 'dessous2') opts = Object.assign({}, opts, { place: 'dessous' });
   const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const demi = cfTransposeDemi[cid] || 0;
   const htmlTr = transposerHTMLAccords(((!opts.basique && c.svgImpression) ? c.svgImpression : c.svg).trim(), demi);
