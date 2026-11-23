@@ -113,6 +113,12 @@ Pāhōhō o te miti, te Avarua
 Pré-refrain
 I te tiare 'Apetahi, tiare 'una'una"></textarea>
           <div class="aide-syntaxe">Optionnel. <b>Une entrée par type</b> (Couplet, Refrain...) — pas besoin de la répéter à chaque occurrence, elle est réutilisée automatiquement. Texte propre, sans tirets de syllabe ni [Accord]. Corrige l'affichage abîmé des paroles dans les vidéos.</div>
+        <div class="champ">
+          <label>Lignes → mesures (optionnel)</label>
+          <textarea id="m-lignes-mesures" style="min-height:90px;" placeholder="Couplet: 9,11,13,15,18,20,22,25
+Refrain: 26,28,30,31,33,35,37,39"></textarea>
+          <div class="aide-syntaxe">Optionnel, seulement quand la voix ne tombe pas à intervalle régulier. <b>Une ligne par passage chanté, dans l'ordre de la structure</b> (le nom avant « : » est juste pour s'y retrouver). Chaque nombre = numéro de la mesure (depuis le début du chant) où la ligne de paroles correspondante démarre. Vide = répartition régulière.</div>
+        </div>
         </div>
         <div class="champ"><label>Signature</label><select id="m-signature">
           <option value="4">4 temps (4/4)</option>
@@ -751,8 +757,21 @@ function parserParolesVideoParType(texte){
 
 // Construit les mesures vidéo à partir des champs dédiés (structure accords + paroles vidéo),
 // en répartissant les lignes de paroles uniformément sur les mesures de chaque répétition.
-function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVideoTxt, tempsParMesure){
+// Champ optionnel « Lignes → mesures » : une ligne par passage chanté (dans l'ordre de la structure), les nombres = mesure de départ de chaque ligne de paroles.
+function _parserLignesMesures(txt){
+  var res = [];
+  String(txt || '').split('\n').forEach(function(l){
+    l = l.trim(); if(!l) return;
+    var i = l.indexOf(':'); var corps = i >= 0 ? l.slice(i + 1) : l;
+    var nums = (corps.match(/\d+/g) || []).map(function(x){ return parseInt(x, 10); });
+    if(nums.length) res.push(nums);
+  });
+  return res;
+}
+function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVideoTxt, tempsParMesure, lignesMesuresTxt){
   tempsParMesure = tempsParMesure || 4;
+  var posPassages = _parserLignesMesures(lignesMesuresTxt);
+  var idxPassage = 0, placements = [];
   var structureAccords = parserStructureAccordsParEtape(structureAccordsTxt, tempsParMesure);
   if(!structureAccords) return null;
   var parolesParsees = parserParolesVideoParType(parolesVideoTxt) || {parLabel:{}, parType:{}};
@@ -801,12 +820,24 @@ function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVi
       var nbLignes = etape.sansParole ? 0 : lignesType.length;
       var mesuresParLigne = nbLignes ? Math.max(1, Math.floor(nbMesures / nbLignes)) : nbMesures;
 
+      // Ce passage a-t-il des positions imposées ? (uniquement si leur nombre = nombre de lignes)
+      var passagePos = null;
+      if(nbLignes){
+        var cand = posPassages[idxPassage];
+        idxPassage++;
+        if(cand && cand.length === nbLignes) passagePos = cand;
+      }
+      if(passagePos){
+        passagePos.forEach(function(num, li){ placements.push({ mesure: num, texte: lignesType[li] }); });
+      }
       for(var m=0; m<nbMesures; m++){
         compteurGlobal++;
         var temps = groupeAccords[m] || new Array(tempsParMesure).fill('');
         if(etape.decalage) temps = temps.map(function(a){ return _transposerAccord(a, etape.decalage); });
         var paroleLigne = '';
-        if(nbLignes && nbLignes > nbMesures){
+        if(passagePos){
+          // positions imposées (champ « Lignes → mesures ») : placées après la boucle
+        } else if(nbLignes && nbLignes > nbMesures){
           // Plus de lignes que de mesures : on répartit plusieurs lignes dans une même mesure (séparées par un retour à la ligne),
           // au lieu de perdre les dernières lignes.
           var deb = Math.floor(m * nbLignes / nbMesures), fin = Math.floor((m + 1) * nbLignes / nbMesures);
@@ -820,6 +851,12 @@ function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVi
     }
   });
 
+  // Positions imposées : la ligne est posée sur la mesure indiquée (plusieurs lignes dans une même mesure = séparées par un retour à la ligne)
+  placements.forEach(function(p){
+    var mm = mesures[p.mesure - 1];
+    if(!mm) return;
+    mm.paroles = mm.paroles ? (mm.paroles + '\n' + p.texte) : p.texte;
+  });
   return _recalerMesuresPleines(mesures, tempsParMesure);
 }
 
@@ -942,7 +979,7 @@ function construireMesuresVideo(){
   // les rythmes en 3 temps (Valse) ou 6 temps (Slow rock) ne soient plus forcés dans des mesures à 4.
   var tempsParMesure = parseInt(document.getElementById('m-signature').value, 10) || 4;
   if(txtAccords && txtAccords.trim()){
-    var mesuresDediees = construireMesuresVideoDepuisChampsDedies(txtAccords, txtParoles, tempsParMesure);
+    var mesuresDediees = construireMesuresVideoDepuisChampsDedies(txtAccords, txtParoles, tempsParMesure, (document.getElementById('m-lignes-mesures') || {}).value);
     if(mesuresDediees) return mesuresDediees;
   }
   return construireMesuresVideoAncienne(tempsParMesure);
@@ -955,7 +992,7 @@ var compteurPiste = 0;
 var compteurImage = 0;
 
 // ══ SAUVEGARDE GÉNÉRALE (brouillon local, tous les champs + pistes + images) ══
-var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','m-audio-original','m-lien-prompt-starter','m-lien-prompt-immersion','parolesInput','structureInput'];
+var CHAMPS_BROUILLON = ['m-titre','m-auteur','m-compositeur','m-interprete','m-cle','m-rythme','m-pattern','m-bpm','m-structure-accords','m-paroles-video','m-lignes-mesures','m-decalage-accords','m-decalage-parole','m-calage-debut-video','m-signature','m-origine','m-origine-texte','m-accords','m-resume','m-traduction-lignes','m-anglais','m-affichage','m-lexique','m-audio-original','m-lien-prompt-starter','m-lien-prompt-immersion','parolesInput','structureInput'];
 var CLE_BROUILLON = 'mf_generateur_brouillon';
 
 function sauvegarderBrouillon(){
