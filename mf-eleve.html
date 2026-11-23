@@ -2633,11 +2633,40 @@ function _mfBVideo(st) { // la vidéo suit la même vitesse que le son et reste 
 // Vitesse de lecture des sources. Normal : seulement la vitesse (BPM) — la hauteur est corrigée par SoundTouch,
 // donc BPM et transposition sont indépendants. Secours (SoundTouch indisponible) : « platine » vitesse × hauteur.
 function _mfBTaux(st) { return st._bPlatine ? st.vitesse * Math.pow(2, st.transpo / 12) : st.vitesse; }
-function _mfBParamsNoeud(st, idx, noeud) {
+// 2 traitements SoundTouch seulement (au lieu d'un par piste = 4) : un pour les pistes à transposer, un pour les percussions
+// (qui gardent leur hauteur). Moins de calcul sur l'iPhone = moins de grésillements. Les volumes de pistes restent individuels.
+function _mfBParamsBus(st) {
   try {
-    noeud.parameters.get('playbackRate').value = st.vitesse;
-    noeud.parameters.get('pitchSemitones').value = st.percu && st.percu[idx] ? 0 : st.transpo;
+    const bus = st._bBus; if (!bus) return;
+    bus.nH.parameters.get('playbackRate').value = st.vitesse; bus.nH.parameters.get('pitchSemitones').value = st.transpo;
+    bus.nP.parameters.get('playbackRate').value = st.vitesse; bus.nP.parameters.get('pitchSemitones').value = 0;
   } catch (e) {}
+}
+function _mfBBrancherBus(st) {
+  if (st._bPlatine || st._bBus) return;
+  const ctx = st.ctx, gains = [];
+  try {
+    const H = ctx.createGain(), P = ctx.createGain();
+    const mk = () => new AudioWorkletNode(ctx, 'soundtouch-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+    const nH = mk(), nP = mk();
+    H.connect(nH); P.connect(nP); nH.connect(st.limiteur); nP.connect(st.limiteur);
+    st._bBus = { H: H, P: P, nH: nH, nP: nP };
+    Object.keys(st.gains).forEach(idx => {
+      try { st.gains[idx].disconnect(st.limiteur); } catch (e) {}
+      st.gains[idx].connect(st.percu && st.percu[idx] ? P : H);
+    });
+    _mfBParamsBus(st);
+  } catch (e) {
+    st._bPlatine = true; st._bBus = null;
+    Object.keys(st.gains).forEach(idx => { try { st.gains[idx].disconnect(); } catch (e2) {} try { st.gains[idx].connect(st.limiteur); } catch (e2) {} });
+    _mfBLog('⚠ SoundTouch : branchement impossible (' + (e && e.message ? e.message : e) + ') : mode platine');
+  }
+}
+function _mfBDebrancherBus(st) {
+  const bus = st._bBus; if (!bus) return;
+  Object.keys(st.gains).forEach(idx => { try { st.gains[idx].disconnect(); } catch (e) {} try { st.gains[idx].connect(st.limiteur); } catch (e) {} });
+  [bus.H, bus.P, bus.nH, bus.nP].forEach(n => { try { n.disconnect(); } catch (e) {} });
+  st._bBus = null;
 }
 function _mfBPreparer(st) {
   if (st._bBuf) return Promise.resolve(true);
@@ -2664,8 +2693,7 @@ function _mfBPreparer(st) {
 }
 function _mfBArreterSources(st) {
   Object.values(st._bSrc || {}).forEach(src => { try { src.stop(); } catch (e) {} try { src.disconnect(); } catch (e) {} });
-  Object.values(st._bNoeuds || {}).forEach(n => { try { n.disconnect(); } catch (e) {} });
-  st._bSrc = {}; st._bNoeuds = {};
+  st._bSrc = {};
 }
 function _mfBPosition(st) {
   const dt = st.ctx.currentTime - st._bT0;
@@ -2681,16 +2709,7 @@ function _mfBDemarrer(st, pos) {
     const src = st.ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
-    let noeud = null;
-    if (!st._bPlatine) {
-      try {
-        noeud = new AudioWorkletNode(st.ctx, 'soundtouch-processor', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
-        _mfBParamsNoeud(st, idx, noeud);
-        src.connect(noeud); noeud.connect(st.gains[idx]);
-        st._bNoeuds[idx] = noeud;
-      } catch (e) { noeud = null; st._bPlatine = true; _mfBLog('⚠ SoundTouch : création impossible (' + (e && e.message ? e.message : e) + ') : mode platine'); }
-    }
-    if (!noeud) { src.playbackRate.value = _mfBTaux(st); src.connect(st.gains[idx]); }
+    src.connect(st.gains[idx]);
     src.start(t0, Math.max(0, Math.min(pos, buf.duration - 0.02)));
     st._bSrc[idx] = src;
   });
@@ -2701,7 +2720,7 @@ function _mfBChangerVitesse(st) {
   const pos = _mfBPosition(st);
   const rate = _mfBTaux(st);
   Object.values(st._bSrc || {}).forEach(src => { try { src.playbackRate.setValueAtTime(rate, now); } catch (e) {} });
-  Object.keys(st._bNoeuds || {}).forEach(idx => _mfBParamsNoeud(st, idx, st._bNoeuds[idx]));
+  _mfBParamsBus(st);
   st._bPos0 = pos; st._bT0 = now; st._bRate = rate;
   _mfBVideo(st);
 }
@@ -2709,6 +2728,7 @@ function _mfBEntrer(st) {
   const cid = st._cid;
   const pos = consoleAudioPositionActuelle(cid);
   const enLecture = !!st.run;
+  _mfBBrancherBus(st);
   st._bActif = true;
   Object.values(st.audios).forEach(a => { try { a.pause(); } catch (e) {} });
   st._bPos = pos;
@@ -2722,6 +2742,7 @@ function _mfBSortir(st) {
   const pos = consoleAudioPositionActuelle(cid);
   const enLecture = !!st.run;
   if (enLecture) _mfBArreterSources(st);
+  _mfBDebrancherBus(st);
   st._bActif = false;
   Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) { try { st.audios[idx].currentTime = pos; } catch (e) {} } });
   st._dernierRefAudio = pos;
@@ -7805,21 +7826,35 @@ MFREC.marque = function (cause, now, val) {
   o.n++; if (val != null && Math.abs(val) > Math.abs(o.max)) o.max = val;
 };
 // Écoute de la sortie (sans changer le son) : cherche les claquements/grésillements et la saturation, 4 fois par seconde
+MFREC._scan = function (st, now) {
+  if (!st || !st.run || !st.ctx || !st._mfAn || document.hidden) return;
+  st._mfAn.getFloatTimeDomainData(st._mfBuf);
+  var b = st._mfBuf, n = b.length, sd = 0, clip = 0, i, d;
+  for (i = 1; i < n; i++) { d = b[i] - b[i - 1]; sd += d * d; if (b[i] > 0.98 || b[i] < -0.98) clip++; }
+  var rd = Math.sqrt(sd / (n - 1)), clics = 0, trous = 0, run = 0;
+  // claquements : saut brusque d'un échantillon à l'autre, bien au-dessus du niveau normal (seuils abaissés : grésillement léger)
+  if (rd > 0.0003) for (i = 1; i < n; i++) { d = Math.abs(b[i] - b[i - 1]); if (d > 0.12 && d > 8 * rd) clics++; }
+  // micro-coupures : suite d'échantillons à zéro au milieu du son (le calcul ne suit pas = trou)
+  for (i = 0; i < n; i++) { if (b[i] === 0) { run++; } else { if (run >= 24 && rd > 0.0005) trous++; run = 0; } }
+  var etat = st._bActif ? 'moteur synchronisé' : 'lecteur habituel';
+  var rg = 'vitesse ×' + (st.vitesse || 1).toFixed(2) + ' · transpo ' + (st.transpo || 0) + ' · ' + etat;
+  if (clics >= 2) MFREC.marque('grésillement', now, clics);
+  if (trous >= 1) MFREC.marque('grésillement', now, trous);
+  if (clics >= 2 || trous >= 1) { st._mfGres = (st._mfGres || 0) + 1; if (st._mfGres <= 40) MFREC.log('ALERTE', '🔊 PARASITE entendu dans la sortie (' + clics + ' claquement(s), ' + trous + ' micro-coupure(s)) · ' + rg); }
+  if (clip >= 8) MFREC.marque('saturation', now, clip);
+};
+// Écoute de la sortie (sans changer le son) : cherche les claquements/grésillements/micro-coupures et la saturation, environ 10 fois par seconde
 MFREC.ecoute = function (now) {
   Object.keys(consoleAudioEtat || {}).forEach(function (cid) {
     var st = consoleAudioEtat[cid];
     if (!st || !st.run || !st.ctx || !st.limiteur || document.hidden) return;
     if (!st._mfAn) {
-      try { st._mfAn = st.ctx.createAnalyser(); st._mfAn.fftSize = 2048; st.limiteur.connect(st._mfAn); st._mfBuf = new Float32Array(2048); } catch (e) { st._mfAn = false; }
+      try {
+        st._mfAn = st.ctx.createAnalyser(); st._mfAn.fftSize = 2048; st.limiteur.connect(st._mfAn); st._mfBuf = new Float32Array(2048);
+        st._mfTimer = setInterval(function () { try { MFREC._scan(st, performance.now()); } catch (e) {} }, 90);
+      } catch (e) { st._mfAn = false; }
     }
     if (!st._mfAn) return;
-    st._mfAn.getFloatTimeDomainData(st._mfBuf);
-    var b = st._mfBuf, n = b.length, sd = 0, clip = 0, i, d;
-    for (i = 1; i < n; i++) { d = b[i] - b[i - 1]; sd += d * d; if (b[i] > 0.98 || b[i] < -0.98) clip++; }
-    var rd = Math.sqrt(sd / (n - 1)), clics = 0;
-    if (rd > 0.0005) for (i = 1; i < n; i++) { d = Math.abs(b[i] - b[i - 1]); if (d > 0.5 && d > 12 * rd) clics++; }
-    if (clics >= 2) MFREC.marque('grésillement', now, clics);
-    if (clip >= 8) MFREC.marque('saturation', now, clip);
     try { MFREC.hauteur(st, now); } catch (e) {}
   });
 };
