@@ -2607,7 +2607,7 @@ function _consoleAudioAppliquerParamsElements(st) {
 
 const DELAI_DEMARRAGE_AUDIO_MS = 3000; // délai avant le vrai démarrage du son après un clic Play
 
-/* ══ MOTEUR SYNCHRONISÉ — iPhone, compte test ELE_APPLE seulement ══
+/* ══ MOTEUR SYNCHRONISÉ — tous les iPhone/iPad/Safari (ouvert à tous le 22 nov. 2026 sur demande de Manate) ══
    Quand une transposition est active, les pistes ne sont plus 4 balises <audio> séparées (Safari les décale de
    0,3 à 0,7 s dès que la vitesse change) mais 4 sources Web Audio démarrées au même instant et réglées à la même
    vitesse au même instant : elles ne peuvent plus se décaler. Vitesse et hauteur sont combinées (comme une platine),
@@ -2615,7 +2615,7 @@ const DELAI_DEMARRAGE_AUDIO_MS = 3000; // délai avant le vrai démarrage du son
    Si la préparation échoue (mémoire, décodage) : retour automatique au lecteur habituel. */
 function _mfMoteurBPossible(st) {
   try {
-    return mfEstApple() && /^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim())
+    return mfEstApple()
       && !st.modeNotes && !st._moteurBInterdit && !!window.AudioBufferSourceNode;
   } catch (e) { return false; }
 }
@@ -2674,6 +2674,9 @@ function _mfBPreparer(st) {
   st._bPrep = (async () => {
     const bufs = {};
     const _t0 = performance.now();
+    // Garde-fou mémoire : pistes décodées = durée × 48 kHz × 2 voies × 4 octets. Au-delà de ~520 Mo, anciens iPhone en danger : lecteur habituel.
+    const _estim = Object.keys(st.audios).reduce((a, idx) => a + (st.prets[idx] ? (st.audios[idx].duration || 0) : 0), 0) * 48000 * 8;
+    if (_estim > 520e6) throw new Error('chanson trop longue pour la mémoire (' + Math.round(_estim / 1e6) + ' Mo)');
     _mfBLog('🎚 moteur synchronisé : préparation lancée (décodage des pistes en mémoire)');
     for (const idx of Object.keys(st.audios)) { // une piste après l'autre : limite la mémoire utilisée en même temps
       if (!st.prets[idx]) continue;
