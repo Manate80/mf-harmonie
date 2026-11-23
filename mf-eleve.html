@@ -4131,8 +4131,11 @@ function seDeconnecter(viaAutreSupport) {
   stopMetro();
   if (microStream) { microStream.getTracks().forEach(t => t.stop()); microOn = false; }
   // Nettoyer la session active (sauf si déjà retirée par un autre support)
+  // On ATTEND la libération (2,5 s maximum) avant de quitter la page : sinon Safari annule la demande
+  // et le compte reste "ouvert" 3 minutes (message "déjà ouvert ailleurs" à la reconnexion).
+  let _liberation = Promise.resolve();
   if (!viaAutreSupport && eleveActif && window.retirerSessionFirestore && _sessionId) {
-    window.retirerSessionFirestore(eleveActif.identifiant, _sessionId);
+    _liberation = Promise.resolve(window.retirerSessionFirestore(eleveActif.identifiant, _sessionId)).catch(function(){});
   }
   if (_sessionUnsubscribe) { _sessionUnsubscribe(); _sessionUnsubscribe = null; }
   if (_sessionBeat) { clearInterval(_sessionBeat); _sessionBeat = null; }
@@ -4140,7 +4143,9 @@ function seDeconnecter(viaAutreSupport) {
   try { localStorage.removeItem('mfhi5_sessid'); } catch(e) {}
   localStorage.removeItem(SESSION_KEY);
   eleveActif = null;
-  window.location.href = 'index.html';
+  Promise.race([_liberation, new Promise(function(r){ setTimeout(r, 2500); })]).then(function() {
+    window.location.href = 'index.html';
+  });
 }
 
 // ══ MODE APERÇU ADMIN — bandeau identification + ouverture directe chanson ══
