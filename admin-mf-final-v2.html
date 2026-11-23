@@ -10086,14 +10086,13 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
     // Réglage de taille : % de la taille automatique, limité à ce qui tient dans la page
     if (left && facteurTaille !== 1) {
       const base = parseFloat(w.getComputedStyle(left).zoom) || 1;
-      const fitte = () => {
+      const tropLarge = () => {
         const lim = left.getBoundingClientRect().right + 1;
-        const large = colsOk ? !colsOk() : Array.from(left.querySelectorAll('.ligne,.ch,.chb,.accord,.seg')).some(x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.right > lim; });
-        return page.offsetHeight <= dispo && !large;
+        return colsOk ? !colsOk() : Array.from(left.querySelectorAll('.ligne,.ch,.chb,.accord,.seg')).some(x => { const r = x.getBoundingClientRect(); return r.width > 0 && r.right > lim; });
       };
       let t = base * facteurTaille;
-      // « Taille + / − » FORCE la taille demandée (même si ça dépasse : la page est ensuite réduite pour tenir en hauteur)
-      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; majGap(t); alignerCols(); rogner(); if (facteurTaille !== 1 || fitte()) break; }
+      // « Taille + / − » : taille demandée ; en « + », on s'arrête dès que le texte toucherait le bord de la page (rien n'est jamais coupé à droite). La hauteur est ajustée ensuite.
+      for (; t > 0.3; t -= 0.02) { left.style.zoom = t; majGap(t); alignerCols(); rogner(); if (facteurTaille < 1 || !tropLarge()) break; }
       alignerCols();
       rogner();
     }
@@ -10176,6 +10175,42 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
           if (tls.length && lignes.length !== tls.length) toast('ℹ Traduction : ' + tls.length + ' lignes pour ' + lignes.length + ' lignes de paroles — alignement ligne par ligne impossible');
         }
       });
+    }
+    // Traduction SOUS la chanson : même affichage que les paroles (lignes 1 et 2 côte à côte → leurs traductions côte à côte, chacune à l'aplomb de sa ligne)
+    if (left) {
+      const bel = d.querySelector('.mfp-below:not(.mfp-below2)');
+      if (bel && left.querySelector('.paire')) {
+        const soloA = l => { const cl = l.cloneNode(true); cl.querySelectorAll('.ch,.chb,.accord').forEach(x => x.remove()); return !cl.textContent.replace(/[\s .]+/g, ''); };
+        const bls = Array.from(bel.querySelectorAll('.mfp-bl')).filter(x => x.textContent.trim());
+        const toutes = Array.from(left.querySelectorAll('.ligne')).filter(l => !l.querySelector('.ligne') && w.getComputedStyle(l).display !== 'none' && !soloA(l));
+        const txtGauche = l => { let m = 1e9; const tw = d.createTreeWalker(l, 4); let n; while ((n = tw.nextNode())) { if (!n.textContent.trim() || (n.parentElement && n.parentElement.closest('.ch,.chb,.accord'))) continue; const r = d.createRange(); r.selectNodeContents(n); Array.from(r.getClientRects()).forEach(q => { if (q.width > 0) m = Math.min(m, q.left); }); } return m < 1e8 ? m : l.getBoundingClientRect().left; };
+        if (bls.length && toutes.length >= bls.length) {
+          const idx = new Map(); toutes.forEach((l, i) => { if (i < bls.length) idx.set(l, i); });
+          const unites = Array.from(left.querySelectorAll('.paire,.ligne')).filter(u => !u.parentElement.closest('.paire') && (u.classList.contains('paire') || !u.querySelector('.ligne')));
+          const wrap = d.createElement('div'); wrap.style.cssText = 'position:relative;';
+          const rows = []; let precBloc = null;
+          unites.forEach(u => {
+            const lg = u.classList.contains('paire') ? Array.from(u.querySelectorAll('.ligne')).filter(l => idx.has(l)) : (idx.has(u) ? [u] : []);
+            if (!lg.length) return;
+            const row = d.createElement('div'); row.style.cssText = 'position:relative;';
+            const bloc = u.closest('.bloc'); if (precBloc !== null && bloc !== precBloc) row.style.marginTop = '8px'; precBloc = bloc;
+            const items = lg.map(l => { const el = bls[idx.get(l)]; el.style.setProperty('color', w.getComputedStyle(l).color, 'important'); el.style.cssText += ';position:absolute;white-space:nowrap;margin:0;line-height:1.25;'; row.appendChild(el); return { el, x: txtGauche(l) }; });
+            wrap.appendChild(row); rows.push(items);
+          });
+          if (rows.length) {
+            bel.innerHTML = ''; bel.appendChild(wrap);
+            const x0 = wrap.getBoundingClientRect().left, larg = wrap.getBoundingClientRect().width;
+            rows.forEach(items => items.forEach(it => { it.el.style.left = (it.x - x0) + 'px'; }));
+            const fs0 = Math.max(parseFloat(bel.style.fontSize) || 14, 13);
+            for (let fs = fs0; fs >= 7; fs -= 0.5) {
+              let bon = true;
+              rows.forEach(items => items.forEach((it, k) => { it.el.style.fontSize = fs + 'px'; const dispoL = (items[k + 1] ? items[k + 1].x - it.x : x0 + larg - it.x) - 8; if (it.el.offsetWidth > dispoL) bon = false; }));
+              if (bon) break;
+            }
+            rows.forEach(items => { items[0].el.parentElement.style.height = Math.ceil(Math.max.apply(null, items.map(it => it.el.offsetHeight))) + 2 + 'px'; });
+          }
+        }
+      }
     }
     // Tout sur une page A4 : réduction progressive jusqu'à tenir (hauteur utile 277 mm ≈ 1044 px)
     let z = 1;
