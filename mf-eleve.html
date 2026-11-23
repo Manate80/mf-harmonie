@@ -7777,7 +7777,53 @@ MFREC.ecoute = function (now) {
     if (rd > 0.0005) for (i = 1; i < n; i++) { d = Math.abs(b[i] - b[i - 1]); if (d > 0.5 && d > 12 * rd) clics++; }
     if (clics >= 2) MFREC.marque('grésillement', now, clics);
     if (clip >= 8) MFREC.marque('saturation', now, clip);
+    try { MFREC.hauteur(st, now); } catch (e) {}
   });
+};
+/* ══ HAUTEUR DU SON — mesure la note réellement entendue (centre du spectre) avant/après chaque réglage ══
+   Sur une transposition, tout le spectre se décale du même rapport : le centre du spectre (en échelle log)
+   bouge donc du même nombre de demi-tons. Mesure approximative (±1 demi-ton) car la musique change aussi. */
+MFREC.hauts = [];
+(function () { var r = MFREC.reset; MFREC.reset = function () { r.apply(this, arguments); MFREC.hauts = []; }; })();
+MFREC.hauteur = function (st, now) {
+  if (!st._mfAn2) {
+    st._mfAn2 = st.ctx.createAnalyser(); st._mfAn2.fftSize = 8192; st._mfAn2.smoothingTimeConstant = 0;
+    st.limiteur.connect(st._mfAn2); st._mfSp = new Float32Array(st._mfAn2.frequencyBinCount);
+  }
+  var h = st._mfH = st._mfH || { ep: 0, buf: [], tLast: 0, pending: false, tChg: 0, avant: null, epAvant: 0 };
+  // hauteur attendue (demi-tons par rapport à l'original) : vitesse et hauteur combinées dès qu'il y a une transposition
+  var ep = (st.transpo === 0) ? 0 : 12 * Math.log(st.vitesse) / Math.LN2 + st.transpo;
+  if (Math.abs(ep - h.ep) > 0.01) {
+    if (!h.pending) {
+      var rec = h.buf.filter(function (x) { return x.t > now - 2500; });
+      if (rec.length >= 3) { h.avant = rec.reduce(function (a, x) { return a + x.c; }, 0) / rec.length; h.epAvant = h.ep; h.pending = true; }
+    }
+    h.ep = ep; h.tChg = now; h.buf = [];
+  }
+  if (now - h.tLast < 500) return;
+  h.tLast = now;
+  var an = st._mfAn2, sp = st._mfSp; an.getFloatFrequencyData(sp);
+  var bw = st.ctx.sampleRate / an.fftSize, i0 = Math.max(2, Math.floor(100 / bw)), i1 = Math.min(sp.length - 1, Math.floor(3000 / bw)), num = 0, den = 0, i, m;
+  for (i = i0; i <= i1; i++) { m = Math.pow(10, sp[i] / 20); if (!isFinite(m)) continue; num += m * Math.log(i * bw) / Math.LN2; den += m; }
+  if (!(den > 1e-5)) return; // silence
+  h.buf.push({ t: now, c: num / den }); if (h.buf.length > 40) h.buf.shift();
+  if (h.pending && now - h.tChg > 1800) {
+    var ap = h.buf.filter(function (x) { return x.t > h.tChg + 1500; });
+    if (ap.length >= 4) {
+      var apres = ap.reduce(function (a, x) { return a + x.c; }, 0) / ap.length;
+      var mes = 12 * (apres - h.avant), att = h.ep - h.epAvant, verdict;
+      if (Math.abs(att) >= 0.8 && Math.abs(mes) < 0.4 * Math.abs(att)) verdict = '❌ LA NOTE N\'A PAS CHANGÉ';
+      else if (Math.abs(mes - att) <= 1.2) verdict = '✅ la note a bien changé';
+      else verdict = '⚠ écart avec ce qui était attendu';
+      var a0 = st.audios && st.audios[Object.keys(st.audios)[0]], moteur, rate, pres;
+      if (st._bActif) { moteur = 'moteur synchronisé'; rate = st._bRate; pres = 'sans objet'; }
+      else { moteur = 'lecteur habituel'; rate = a0 ? a0.playbackRate : '?'; pres = a0 ? String(a0.webkitPreservesPitch !== undefined ? a0.webkitPreservesPitch : a0.preservesPitch) : '?'; }
+      var txt = '🎵 HAUTEUR : réglage transpo ' + st.transpo + ' · vitesse ×' + st.vitesse.toFixed(3) + ' → note attendue ' + (att >= 0 ? '+' : '') + att.toFixed(1) + ' demi-ton(s), note mesurée ' + (mes >= 0 ? '+' : '') + mes.toFixed(1) + ' · ' + verdict + ' · ' + moteur + ' · vitesse de lecture ×' + (typeof rate === 'number' ? rate.toFixed(3) : rate) + ' · Safari garde la note : ' + pres;
+      MFREC.hauts.push({ t: now, txt: txt, att: att, mes: mes, v: verdict });
+      MFREC.log('ACTION', txt);
+      h.pending = false;
+    }
+  }
 };
 MFREC.verdict = function () {
   var L = [], ks = Object.keys(MFREC.v.sec).map(Number).sort(function (a, b) { return a - b; });
@@ -7883,6 +7929,12 @@ MFREC.rapport = async function () {
   L.push('\n██ CHIFFRES CLÉS');
   L.push(' Actions faites : ' + MFREC.nAct + ' · repositionnements automatiques : ' + MFPERF.nResync + ' (rafales ' + MFPERF.rafales + ') · arrêts du son : ' + MFPERF.glitches.length + ' · sauts de position : ' + MFPERF.sauts);
   L.push(' Écart max entre pistes : ' + Math.round(MFREC.driftMax) + ' ms · horloge audio min ×' + (MFREC.ratioMin === 9 ? '?' : MFREC.ratioMin.toFixed(2)) + ' · tampon min ' + (MFREC.bufMin === 999 ? '?' : MFREC.bufMin.toFixed(1) + ' s') + ' · traitement en direct max ' + MFREC.maxTr + ' piste(s)');
+  if (MFREC.hauts && MFREC.hauts.length) {
+    L.push('\n██ HAUTEUR DU SON (note réellement entendue, mesure approximative ±1 demi-ton)');
+    MFREC.hauts.slice(-20).forEach(function (x, i) { L.push(' ' + (i + 1) + ') ' + sec(x.t) + ' · ' + x.txt.replace('🎵 HAUTEUR : ', '')); });
+    var _mauvais = MFREC.hauts.filter(function (x) { return /N.A PAS CHANGÉ/.test(x.v); }).length;
+    L.push(_mauvais ? ' → ' + _mauvais + ' réglage(s) où la note n\'a PAS changé malgré la transposition.' : ' → la note a suivi les réglages.');
+  }
   L.push(' Page gelée : ' + MFPERF.lag.n + ' (max ' + Math.round(MFPERF.lag.max) + ' ms) · tâches longues : ' + MFPERF.lt.n + ' (max ' + Math.round(MFPERF.lt.max) + ' ms)');
   L.push(' Pistes : ' + MFPERF.audios.slice(-12).map(function (r) { return MFPERF.lib(r) + ' attentes ' + r.wait + (r.stall ? ' blocages ' + r.stall : '') + (r.err ? ' ERREURS ' + r.err : '') + (/^blob:/.test(r.a.currentSrc || '') ? ' [mémoire]' : ' [flux]'); }).join(' | '));
   if (MFPERF.snaps.length) {
