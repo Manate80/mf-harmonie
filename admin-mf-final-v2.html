@@ -15076,55 +15076,79 @@ async function mfOuvrirLignesImpression(cid) {
   m._cid = c.id; m._src = src; m._original = original;
   m.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#111;flex-shrink:0;flex-wrap:wrap;">'
-    + '<div style="min-width:0;"><div style="color:var(--orL);font-weight:700;font-size:14px;">✏️ Lignes pour l\'impression — ' + esc(c.titre || '') + '</div>'
-    + '<div style="color:var(--muted);font-size:11px;">Change seulement où les lignes se coupent (touche Entrée). Garde les titres et les mots. Pas d\'accords ici : ils se remettent tout seuls. Ça ne change que l\'impression.</div></div>'
+    + '<div style="min-width:0;"><div style="color:#ffd966;font-weight:700;font-size:16px;">✏️ Lignes pour l\'impression — ' + esc(c.titre || '') + '</div>'
+    + '<div style="color:#f0f0f0;font-size:13px;line-height:1.4;">Change seulement où les lignes se coupent (touche Entrée). Garde les titres et les mots. Pas d\'accords ici : ils se remettent tout seuls. Ça ne change que l\'impression.</div></div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
     + '<button id="lignes-impr-save" onclick="mfEnregistrerLignesImpression()" style="padding:8px 14px;background:linear-gradient(135deg,var(--or),#a07f1a);border:none;color:var(--noir);font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;">💾 Enregistrer</button>'
-    + '<button onclick="mfRemettreLignesImpressionAuto()" style="padding:8px 14px;background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.4);color:#3498db;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;">↩ Remettre en automatique</button>'
+    + '<button id="lignes-impr-fix" onclick="mfEnregistrerLignesImpression(true)" style="padding:8px 14px;background:rgba(39,174,96,.18);border:1px solid rgba(39,174,96,.55);color:#4cd98a;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;">📌 Fixer</button>'
+    + '<button id="lignes-impr-orig" onclick="mfOriginalLignesImpression()" style="padding:8px 14px;background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.4);color:#5dade2;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;">⟲ Original</button>'
     + '<button onclick="document.getElementById(\'modal-lignes-impr\').remove()" style="padding:8px 14px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.4);color:#e74c3c;font-size:13px;font-weight:700;border-radius:4px;cursor:pointer;">✖ Fermer</button>'
     + '</div></div>'
-    + '<textarea id="lignes-impr-txt" spellcheck="false" style="flex:1;width:100%;box-sizing:border-box;border:none;outline:none;resize:none;background:#fff;color:#000;font-family:\'Courier New\',monospace;font-size:15px;line-height:1.6;padding:12px;white-space:pre;overflow:auto;"></textarea>';
+    + '<textarea id="lignes-impr-txt" spellcheck="false" style="flex:1;width:100%;box-sizing:border-box;border:none;outline:none;resize:none;background:#fff;color:#000;font-family:\'Courier New\',monospace;font-size:18px;font-weight:700;line-height:1.7;padding:14px;white-space:pre;overflow:auto;"></textarea>';
   document.body.appendChild(m);
   m.querySelector('#lignes-impr-txt').value = _mfTexteImprInitial(c, src.champs);
 }
-async function mfEnregistrerLignesImpression() {
+async function mfEnregistrerLignesImpression(fixer) {
   const m = document.getElementById('modal-lignes-impr'); if (!m) return;
-  const btn = document.getElementById('lignes-impr-save');
+  const bS = document.getElementById('lignes-impr-save'), bF = document.getElementById('lignes-impr-fix'), bO = document.getElementById('lignes-impr-orig');
   const txt = m.querySelector('#lignes-impr-txt').value;
   const list = S.get('chansons') || [];
   const c = list.find(x => String(x.id) === String(m._cid));
   if (!c || !c.svg) { toast('⚠ Chanson introuvable'); return; }
   if (!txt.trim()) { toast('⚠ Le champ est vide'); return; }
+  const rendre = function () { if (bS) { bS.disabled = false; bS.textContent = '💾 Enregistrer'; } if (bF) { bF.disabled = false; bF.textContent = '📌 Fixer'; } if (bO) bO.disabled = false; };
   try {
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement…'; }
+    [bS, bF, bO].forEach(b => { if (b) b.disabled = true; });
+    const bAct = fixer ? bF : bS; if (bAct) bAct.textContent = '⏳ Enregistrement…';
     const gen = await _mfGenererStarterDepuisTextes(m._src.champs, function (w) { return [m._original, _mfRefluxParoles(w, m._original, txt)]; });
     const zoneTxt = h => { const z = new DOMParser().parseFromString(h, 'text/html').getElementById('zone-paroles'); return z ? z.textContent.replace(/\s+/g, '') : ''; };
     // Contrôle : le Générateur doit redonner la même fiche que celle enregistrée (sinon l'impression changerait autre chose que les lignes)
-    if (zoneTxt(gen[0]) !== zoneTxt(c.svg) && !confirm('La fiche Starter enregistrée n\'est pas identique à ce que produit le Générateur avec les paroles du JSON.\n\nEnregistrer quand même les lignes pour l\'impression ?')) { if (btn) { btn.disabled = false; btn.textContent = '💾 Enregistrer'; } return; }
+    if (zoneTxt(gen[0]) !== zoneTxt(c.svg) && !confirm('La fiche Starter enregistrée n\'est pas identique à ce que produit le Générateur avec les paroles du JSON.\n\nEnregistrer quand même les lignes pour l\'impression ?')) { rendre(); return; }
     c.svgImpression = _remplacerZoneParoles(c.svg, gen[1]);
     c.parolesImpression = txt;
+    if (fixer) c.parolesImpressionFixe = txt;
     S.set('chansons', list);
     await window.saveChansonFirestore(c);
     m.remove();
     try { renderBiblioAdmin(); } catch (e) {}
-    toast('✅ Lignes enregistrées : l\'impression de « ' + c.titre + ' » les utilise maintenant');
+    toast(fixer ? '📌 Version fixée : « Original » reviendra ici. L\'impression de « ' + c.titre + ' » l\'utilise.' : '✅ Lignes enregistrées : l\'impression de « ' + c.titre + ' » les utilise maintenant');
   } catch (e) {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Enregistrer'; }
+    rendre();
     toast('❌ ' + (e && e.message ? e.message : e), 9000);
   }
 }
-async function mfRemettreLignesImpressionAuto() {
+// ⟲ Original : revient à la dernière version fixée ; si rien n'a été fixé, aux paroles d'origine du chant (impression comme avant)
+async function mfOriginalLignesImpression() {
   const m = document.getElementById('modal-lignes-impr'); if (!m) return;
-  if (!confirm('Remettre l\'impression en automatique (comme avant) ?')) return;
   const list = S.get('chansons') || [];
   const c = list.find(x => String(x.id) === String(m._cid));
   if (!c) return;
-  c.svgImpression = ''; c.parolesImpression = '';
-  S.set('chansons', list);
-  try { await window.saveChansonFirestore(c); } catch (e) {}
-  m.remove();
-  try { renderBiblioAdmin(); } catch (e) {}
-  toast('↩ Impression remise en automatique');
+  const fixe = String(c.parolesImpressionFixe || '');
+  if (!confirm(fixe ? 'Revenir à la dernière version fixée ?' : 'Revenir aux paroles d\'origine (impression comme avant) ?')) return;
+  const bS = document.getElementById('lignes-impr-save'), bF = document.getElementById('lignes-impr-fix'), bO = document.getElementById('lignes-impr-orig');
+  const ta = m.querySelector('#lignes-impr-txt');
+  try {
+    [bS, bF, bO].forEach(b => { if (b) b.disabled = true; });
+    if (bO) bO.textContent = '⏳ …';
+    if (fixe) {
+      const gen = await _mfGenererStarterDepuisTextes(m._src.champs, function (w) { return [_mfRefluxParoles(w, m._original, fixe)]; });
+      c.svgImpression = _remplacerZoneParoles(c.svg, gen[0]);
+      c.parolesImpression = fixe;
+      ta.value = fixe;
+    } else {
+      c.svgImpression = ''; c.parolesImpression = '';
+      ta.value = _mfTexteImprInitial(c, m._src.champs);
+    }
+    S.set('chansons', list);
+    await window.saveChansonFirestore(c);
+    try { renderBiblioAdmin(); } catch (e) {}
+    toast(fixe ? '⟲ Retour à la dernière version fixée' : '⟲ Retour à l\'original : l\'impression est comme avant');
+  } catch (e) {
+    toast('❌ ' + (e && e.message ? e.message : e), 9000);
+  } finally {
+    if (bS) bS.disabled = false; if (bF) bF.disabled = false;
+    if (bO) { bO.disabled = false; bO.textContent = '⟲ Original'; }
+  }
 }
 // Ouvre le Générateur de chants dans l'admin, rempli avec les paroles sources du chant
 // ── Générateur externe (generateur-chants.html, celui des champs) ouvert par-dessus l'admin avec la chanson déjà chargée ──
