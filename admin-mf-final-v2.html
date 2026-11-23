@@ -10064,9 +10064,18 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
             faites.add(l); faites.add(suiv); paires++;
           } else { faites.add(l); seules++; }
         });
+        // Colonne de droite alignée : toutes les lignes de gauche prennent la largeur de la plus longue (la colonne de droite démarre donc au même endroit partout)
+        const prem = Array.from(left.querySelectorAll('.paire > .ligne:first-child'));
+        if (prem.length) {
+          const z0 = left.style.zoom; left.style.zoom = 1;
+          prem.forEach(l => l.style.removeProperty('width'));
+          const lmax = Math.max.apply(null, prem.map(l => l.getBoundingClientRect().width));
+          prem.forEach(l => l.style.setProperty('width', lmax + 'px', 'important'));
+          left.style.zoom = z0;
+        }
         return { paires, seules };
       };
-      const depairer = () => left.querySelectorAll('.paire').forEach(p => { while (p.firstChild) p.parentElement.insertBefore(p.firstChild, p); p.remove(); });
+      const depairer = () => left.querySelectorAll('.paire').forEach(p => { p.querySelectorAll('.ligne').forEach(l => l.style.removeProperty('width')); while (p.firstChild) p.parentElement.insertBefore(p.firstChild, p); p.remove(); });
       // « Auto » garde les lignes de la fiche telles quelles (pas de paires) ; seul le mode « 2 lignes » les range par deux
       if (mode === '1' || mode === 'auto') {
         ajusterZoom();
