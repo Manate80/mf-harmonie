@@ -2566,9 +2566,11 @@ function _consoleAudioAppliquerParams(st) {
     //     natif, comme une platine : le BPM change alors aussi la hauteur quand une transposition est active.
     if (mfEstApple()) {
       _consoleAudioDesactiverTraitement(st, idx);
+      // Les percussions suivent la même vitesse que les autres pistes (sinon elles se décalent
+      // pendant la transposition) mais gardent leur hauteur d'origine.
       if (st.percu[idx]) {
         preserver(true);
-        audioEl.playbackRate = st.vitesse;
+        audioEl.playbackRate = st.vitesse * Math.pow(2, st.transpo / 12);
       } else {
         preserver(false);
         audioEl.playbackRate = st.vitesse * Math.pow(2, st.transpo / 12);
