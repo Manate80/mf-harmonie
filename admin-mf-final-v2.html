@@ -9615,13 +9615,20 @@ function mfChoisirLangue(id, lg, on, cfCid) {
 function _imprimerAvecChoixPlace(c, cid, trad, mode, facteur, align, opts, raison) {
   const nb = opts.nbParoles || (trad ? trad.length : 0);
   if (opts.place === 'dessous2') opts = Object.assign({}, opts, { place: 'dessous' });
-  const auto = (opts.place || 'auto') === 'auto' && trad && trad.length && !opts.cols3 && nb <= 60;
-  if (!auto) { _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteur, align, true, raison, opts); return; }
+  const mesurable = trad && trad.length && !opts.cols3 && nb <= 60;
+  // Sur le côté : une seule colonne de paroles (chaque traduction en face de sa ligne) ; sous la chanson : paroles sur 2 ou 3 lignes côte à côte.
+  // Même règles pour tous les chants : on essaie chaque mise en page et on garde celle qui donne les paroles les plus grandes.
+  // Si l'écart est faible (< 3 %), on garde la première de la liste.
+  const libre = (mode === 'auto' || mode === '1'), pl = opts.place || 'auto';
+  const eCote = { place: 'cote', mode: libre ? '1' : mode };
+  const eDessous = libre ? [{ place: 'dessous', mode: '2' }, { place: 'dessous', mode: '3' }] : [{ place: 'dessous', mode: mode }];
+  const essais = !mesurable ? [] : pl === 'cote' ? [eCote] : pl === 'dessous' ? eDessous : pl === 'auto' ? [eCote].concat(eDessous) : [];
+  if (essais.length < 2) {
+    const e = essais[0];
+    _imprimerStarterParolesAvecTrad(c, cid, trad, e ? e.mode : mode, facteur, align, true, raison, e ? Object.assign({}, opts, { place: e.place }) : opts);
+    return;
+  }
   toast('ℹ Calcul de la meilleure mise en page…');
-  // Mêmes règles pour tous les chants : on essaie chaque mise en page et on garde celle qui donne les paroles les plus grandes.
-  // Si l'écart est faible (< 3 %), on garde la première de la liste (traduction sur le côté, ligne par ligne).
-  // Sur le côté : une seule colonne de paroles (chaque traduction en face de sa ligne) ; sous la chanson : paroles sur 2 lignes côte à côte.
-  const essais = [{ place: 'cote', mode: (mode === 'auto' ? '1' : mode) }, { place: 'dessous', mode: (mode === 'auto' ? '2' : mode) }];
   let fini = false, meilleur = null;
   const imprimer = e => {
     if (fini) return; fini = true; clearTimeout(garde);
@@ -9687,7 +9694,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
   // On applique donc la même mise en page (traduction sous la chanson, qui suit exactement l'affichage des paroles).
   if (opts.place === 'dessous2') opts = Object.assign({}, opts, { place: 'dessous' });
   // « Sous la chanson » = paroles toujours en 2 lignes côte à côte, traduction sous chaque colonne (2 colonnes automatiques si la chanson est longue)
-  if (opts.place === 'dessous' && mode === 'auto') mode = '2';
+  if (opts.place === 'dessous' && (mode === 'auto' || mode === '1')) mode = '2';
   // « Sur le côté » : une seule colonne de paroles, pour que chaque traduction reste en face de sa ligne
   if (opts.place === 'cote' && opts.aligneLigne && mode === 'auto') mode = '1';
   const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -10055,29 +10062,42 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
         const sh = e.mn - lr.left - 3;
         if (sh > 1) left.style.marginLeft = (-sh / zf2) + 'px';
       };
-      // Mise en page : 2 lignes de paroles sur 1 ligne (section par section, jamais à cheval sur deux sections)
-      const pairer = () => {
+      // Mise en page : 2 ou 3 lignes de paroles côte à côte (section par section, jamais à cheval sur deux sections ; les groupes sont équilibrés : 4 lignes en 3 colonnes = 2 + 2)
+      const pairer = (N) => {
+        N = N || 2;
         const faites = new Set(); let paires = 0, seules = 0;
+        const eligible = l => l && l.classList && l.classList.contains('ligne') && !faites.has(l) && !l.querySelector('.ligne') && l.parentElement && w.getComputedStyle(l).display !== 'none' && !soloAccords(l);
         Array.from(left.querySelectorAll('.ligne')).forEach(l => {
-          if (faites.has(l) || l.querySelector('.ligne') || !l.parentElement || w.getComputedStyle(l).display === 'none' || soloAccords(l)) return;
-          let suiv = l.nextElementSibling;
-          while (suiv && suiv.tagName === 'BR') suiv = suiv.nextElementSibling;
-          if (suiv && suiv.classList.contains('ligne') && !faites.has(suiv) && w.getComputedStyle(suiv).display !== 'none' && !soloAccords(suiv)) {
-            const p = d.createElement('div'); p.className = 'paire';
-            l.parentElement.insertBefore(p, l);
-            p.appendChild(l); p.appendChild(suiv);
-            faites.add(l); faites.add(suiv); paires++;
-          } else { faites.add(l); seules++; }
+          if (!eligible(l)) return;
+          // suite de lignes consécutives de la même section
+          const run = [l]; let suiv = l.nextElementSibling;
+          for (;;) {
+            while (suiv && suiv.tagName === 'BR') suiv = suiv.nextElementSibling;
+            if (!eligible(suiv)) break;
+            run.push(suiv); suiv = suiv.nextElementSibling;
+          }
+          const g = Math.ceil(run.length / N), base = Math.floor(run.length / g), extra = run.length % g;
+          let k = 0;
+          for (let i = 0; i < g; i++) {
+            const taille = base + (i < extra ? 1 : 0), grp = run.slice(k, k + taille); k += taille;
+            grp.forEach(x => faites.add(x));
+            if (grp.length > 1) {
+              const p = d.createElement('div'); p.className = 'paire';
+              grp[0].parentElement.insertBefore(p, grp[0]);
+              grp.forEach(x => p.appendChild(x)); paires++;
+            } else seules++;
+          }
         });
-        // Colonne de droite alignée : toutes les lignes de gauche prennent la largeur de la plus longue (la colonne de droite démarre donc au même endroit partout)
-        const prem = Array.from(left.querySelectorAll('.paire > .ligne:first-child'));
-        if (prem.length) {
-          const z0 = left.style.zoom; left.style.zoom = 1;
-          prem.forEach(l => l.style.removeProperty('width'));
-          const lmax = Math.max.apply(null, prem.map(l => l.getBoundingClientRect().width));
-          prem.forEach(l => l.style.setProperty('width', lmax + 'px', 'important'));
-          left.style.zoom = z0;
+        // Colonnes alignées : la 1re colonne prend la largeur de la plus longue, la 2e aussi (en 3 colonnes), pour que chaque colonne démarre au même endroit partout
+        const z0 = left.style.zoom; left.style.zoom = 1;
+        for (let col = 1; col < N; col++) {
+          const cl = Array.from(left.querySelectorAll('.paire')).filter(pp => pp.children.length > col).map(pp => pp.children[col - 1]);
+          if (!cl.length) continue;
+          cl.forEach(l => l.style.removeProperty('width'));
+          const lmax = Math.max.apply(null, cl.map(l => l.getBoundingClientRect().width));
+          cl.forEach(l => l.style.setProperty('width', lmax + 'px', 'important'));
         }
+        left.style.zoom = z0;
         return { paires, seules };
       };
       const depairer = () => left.querySelectorAll('.paire').forEach(p => { p.querySelectorAll('.ligne').forEach(l => l.style.removeProperty('width')); while (p.firstChild) p.parentElement.insertBefore(p.firstChild, p); p.remove(); });
@@ -10085,7 +10105,7 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
       if (mode === '1' || mode === 'auto') {
         ajusterZoom();
       } else {
-        const st = pairer();
+        const st = pairer(mode === '3' ? 3 : 2);
         const zP = ajusterZoom();
         if (mode === 'auto') {
           // Auto : on garde les paires si presque toutes les lignes se rangent par deux ET que le texte reste assez grand
@@ -10334,7 +10354,7 @@ function buildPanneauBiblioAdmin(c) {
       + (function() {
           let m = 'auto'; try { m = localStorage.getItem('mfPdfLignes_' + c.id) || 'auto'; } catch(e) {}
           return '<select id="' + cfCid + '-pdfmode" onchange="try{localStorage.setItem(\'mfPdfLignes_' + c.id + '\',this.value)}catch(e){}" title="Mise en page des paroles dans le PDF" style="padding:6px 8px;background:var(--card2);border:1px solid var(--border);color:var(--blanc);border-radius:4px;">'
-            + [['auto','📄 PDF : Auto'],['1','📄 PDF : 1 ligne'],['2','📄 PDF : 2 lignes']].map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === m ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+            + [['auto','📄 PDF : Auto'],['1','📄 PDF : 1 ligne'],['2','📄 PDF : 2 lignes'],['3','📄 PDF : 3 lignes']].map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === m ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
         })()
       + (function() {
           let t = '100', al = '0'; try { t = localStorage.getItem('mfPdfTaille_' + c.id) || '100'; al = localStorage.getItem('mfPdfAlign_' + c.id) || '0'; } catch(e) {}
@@ -12811,7 +12831,7 @@ function mfBiblioInjecter() {
     const d = doc.createElement('div');
     d.className = 'mf-admin-print-starter';
     d.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;';
-    d.innerHTML = '<select class="md" title="Mise en page des paroles dans le PDF" style="' + st + '">' + opt([['auto','📄 PDF : Auto'],['1','📄 PDF : 1 ligne'],['2','📄 PDF : 2 lignes']], m) + '</select>'
+    d.innerHTML = '<select class="md" title="Mise en page des paroles dans le PDF" style="' + st + '">' + opt([['auto','📄 PDF : Auto'],['1','📄 PDF : 1 ligne'],['2','📄 PDF : 2 lignes'],['3','📄 PDF : 3 lignes']], m) + '</select>'
       + '<select class="tl" title="Taille du texte dans le PDF" style="' + st + '">' + opt([['70','Taille −−'],['85','Taille −'],['100','Taille : Auto'],['115','Taille +'],['130','Taille ++'],['150','Taille +++'],['175','Taille ++++']], t) + '</select>'
       + '<label title="Décale tous les accords vers la gauche (−) ou la droite (+) dans le PDF" style="' + lb + '">Accords <input class="al" type="range" min="-12" max="12" step="1" value="' + al + '" style="width:90px;"></label>'
       + '<label title="Mettre l\'encadré de traduction (fiche Immersion) dans le PDF" style="' + lb + '"><input class="tr" type="checkbox"' + (on ? ' checked' : '') + '> 🌐 Traduction</label>'
