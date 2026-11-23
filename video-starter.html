@@ -653,7 +653,7 @@ function _construireLignesPrompteur() {
       const texte = m.paroles && !m.paroles.startsWith('(') ? m.paroles : '';
       // Plusieurs lignes dans une même mesure (séparées par un retour à la ligne) : réparties régulièrement dans la mesure.
       const parts = texte ? texte.split('\n').map(x => x.trim()).filter(Boolean) : [];
-      parts.forEach((pt, j) => lignes.push({ t: i + j / parts.length, texte: pt }));
+      parts.forEach((pt, j) => lignes.push({ t: i + ((m.decalagesLignes && typeof m.decalagesLignes[j] === 'number') ? m.decalagesLignes[j] : j / parts.length), texte: pt }));
     });
     lignes.sort((a, b) => a.t - b.t);
     return lignes;

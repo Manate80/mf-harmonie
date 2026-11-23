@@ -117,7 +117,7 @@ I te tiare 'Apetahi, tiare 'una'una"></textarea>
           <label>Lignes → mesures (optionnel)</label>
           <textarea id="m-lignes-mesures" style="min-height:90px;" placeholder="Couplet: 9,11,13,15,18,20,22,25
 Refrain: 26,28,30,31,33,35,37,39"></textarea>
-          <div class="aide-syntaxe">Optionnel, seulement quand la voix ne tombe pas à intervalle régulier. <b>Une ligne par passage chanté, dans l'ordre de la structure</b> (le nom avant « : » est juste pour s'y retrouver). Chaque nombre = numéro de la mesure (depuis le début du chant) où la ligne de paroles correspondante démarre. Vide = répartition régulière.</div>
+          <div class="aide-syntaxe">Optionnel, seulement quand la voix ne tombe pas à intervalle régulier. <b>Une ligne par passage chanté, dans l'ordre de la structure</b> (le nom avant « : » est juste pour s'y retrouver). Chaque nombre = numéro de la mesure (depuis le début du chant) où la ligne de paroles correspondante démarre ; une décimale précise le moment dans la mesure (18.5 = à la moitié de la mesure 18). Vide = répartition régulière.</div>
         </div>
         </div>
         <div class="champ"><label>Signature</label><select id="m-signature">
@@ -763,7 +763,7 @@ function _parserLignesMesures(txt){
   String(txt || '').split('\n').forEach(function(l){
     l = l.trim(); if(!l) return;
     var i = l.indexOf(':'); var corps = i >= 0 ? l.slice(i + 1) : l;
-    var nums = (corps.match(/\d+/g) || []).map(function(x){ return parseInt(x, 10); });
+    var nums = (corps.match(/\d+(?:\.\d+)?/g) || []).map(function(x){ return parseFloat(x); });
     if(nums.length) res.push(nums);
   });
   return res;
@@ -853,9 +853,13 @@ function construireMesuresVideoDepuisChampsDedies(structureAccordsTxt, parolesVi
 
   // Positions imposées : la ligne est posée sur la mesure indiquée (plusieurs lignes dans une même mesure = séparées par un retour à la ligne)
   placements.forEach(function(p){
-    var mm = mesures[p.mesure - 1];
+    var entier = Math.floor(p.mesure + 1e-9);
+    var mm = mesures[entier - 1];
     if(!mm) return;
     mm.paroles = mm.paroles ? (mm.paroles + '\n' + p.texte) : p.texte;
+    // Décimale = position dans la mesure (18.25 = un quart de mesure après le début, 18.5 = à la moitié) : lue par le Starter
+    if(!mm.decalagesLignes) mm.decalagesLignes = [];
+    mm.decalagesLignes.push(Math.max(0, Math.round((p.mesure - entier) * 1000) / 1000));
   });
   return _recalerMesuresPleines(mesures, tempsParMesure);
 }
