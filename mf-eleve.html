@@ -2341,7 +2341,7 @@ async function consoleAudioInit(uid, suffix, c) {
     vitesse: /-video$/.test(String(suffix)) ? (reglagesSauves.vitesse || 1) : 1, transpo: /-video$/.test(String(suffix)) ? (reglagesSauves.transpo || 0) : 0, run:false, dureeRef:10, timer:null, _signature: signature, _bpmBase: c.bpm || 90,
     videoOffset: (String(suffix).indexOf('immersion') !== -1 ? (c.video2_offset || 0) : (c.video_offset || 0)) / 1000,
     posMusicaleBase: 0, posMusicaleBaseTime: performance.now(),
-    _chansonId: c.id, _suffix: suffix
+    _chansonId: c.id, _suffix: suffix, _cid: cid
   };
   consoleAudioEtat[cid] = st;
   st.cleChanson = _tonCleDuChant(c);
@@ -2425,7 +2425,7 @@ async function consoleAudioInit(uid, suffix, c) {
       majBadge('✅', '#2ecc71');
       // Si la lecture est déjà en cours (démarrée avant que cette piste soit prête), on la fait
       // rejoindre immédiatement au bon endroit — sinon elle resterait chargée mais silencieuse.
-      if (st.run) {
+      if (st.run && !st._bActif) {
         try {
           audioEl.currentTime = consoleAudioPositionActuelle(cid);
           audioEl.play().catch(err => console.error('Lecture piste en échec:', err));
@@ -2502,6 +2502,7 @@ function _consoleAudioDesactiverTraitement(st, idx) {
 function consoleAudioArreterTout(cid) {
   const st = consoleAudioEtat[cid];
   if (!st) return;
+  if (st._bActif) { if (st.run && st._bSrc) { try { st._bPos = _mfBPosition(st); } catch (e) {} _mfBArreterSources(st); } }
   Object.values(st.audios).forEach(a => { try { a.pause(); } catch(e) {} });
   st.run = false;
 }
@@ -2532,6 +2533,10 @@ function consoleVideoAttacher(cid) {
 
 // Applique vitesse (BPM) et transposition en direct sur toutes les pistes, sans jamais redémarrer la lecture.
 function _consoleAudioAppliquerParams(st) {
+  if (_mfBGerer(st)) return;
+  _consoleAudioAppliquerParamsElements(st);
+}
+function _consoleAudioAppliquerParamsElements(st) {
   const neutre = (st.vitesse === 1 && st.transpo === 0);
   Object.keys(st.audios).forEach(idx => {
     const audioEl = st.audios[idx];
@@ -2601,6 +2606,113 @@ function _consoleAudioAppliquerParams(st) {
 }
 
 const DELAI_DEMARRAGE_AUDIO_MS = 3000; // délai avant le vrai démarrage du son après un clic Play
+
+/* ══ MOTEUR SYNCHRONISÉ — iPhone, compte test ELE_APPLE seulement ══
+   Quand une transposition est active, les pistes ne sont plus 4 balises <audio> séparées (Safari les décale de
+   0,3 à 0,7 s dès que la vitesse change) mais 4 sources Web Audio démarrées au même instant et réglées à la même
+   vitesse au même instant : elles ne peuvent plus se décaler. Vitesse et hauteur sont combinées (comme une platine),
+   exactement comme avant sur iPhone. BPM seul (sans transposition) : lecteur habituel, inchangé.
+   Si la préparation échoue (mémoire, décodage) : retour automatique au lecteur habituel. */
+function _mfMoteurBPossible(st) {
+  try {
+    return mfEstApple() && /^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim())
+      && !/-video$/.test(String(st._suffix)) && !st.modeNotes && !st._moteurBInterdit && !!window.AudioBufferSourceNode;
+  } catch (e) { return false; }
+}
+function _mfBLog(texte) { try { if (window.MFREC && mfDiagAutorise()) MFREC.log('ACTION', texte); } catch (e) {} }
+function _mfBTaux(st) { return st.vitesse * Math.pow(2, st.transpo / 12); }
+function _mfBPreparer(st) {
+  if (st._bBuf) return Promise.resolve(true);
+  if (st._bPrep) return st._bPrep;
+  st._bPrep = (async () => {
+    const bufs = {};
+    for (const idx of Object.keys(st.audios)) { // une piste après l'autre : limite la mémoire utilisée en même temps
+      if (!st.prets[idx]) continue;
+      const src = String(st.audios[idx].src || '');
+      if (src.indexOf('blob:') !== 0) throw new Error('piste ' + idx + ' pas en mémoire');
+      const ab = await (await fetch(src)).arrayBuffer();
+      bufs[idx] = await new Promise((ok, ko) => { try { const r = st.ctx.decodeAudioData(ab, ok, ko); if (r && r.then) r.then(ok, ko); } catch (e) { ko(e); } });
+    }
+    if (!Object.keys(bufs).length) throw new Error('aucune piste');
+    st._bBuf = bufs;
+    return true;
+  })().catch(e => { st._moteurBInterdit = true; st._bPrep = null; console.warn('Moteur synchronisé indisponible :', e); _mfBLog('⚠ moteur synchronisé indisponible (' + (e && e.message ? e.message : e) + ') : lecteur habituel conservé'); return false; });
+  return st._bPrep;
+}
+function _mfBArreterSources(st) {
+  Object.values(st._bSrc || {}).forEach(src => { try { src.stop(); } catch (e) {} try { src.disconnect(); } catch (e) {} });
+  st._bSrc = {};
+}
+function _mfBPosition(st) {
+  const dt = st.ctx.currentTime - st._bT0;
+  return Math.max(0, Math.min(st.dureeRef || 1e9, st._bPos0 + Math.max(0, dt) * st._bRate));
+}
+// Démarre toutes les pistes au même instant à la position pos
+function _mfBDemarrer(st, pos) {
+  _mfBArreterSources(st);
+  const rate = _mfBTaux(st);
+  const t0 = st.ctx.currentTime + 0.15;
+  Object.keys(st._bBuf).forEach(idx => {
+    const buf = st._bBuf[idx];
+    const src = st.ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    src.connect(st.gains[idx]);
+    src.start(t0, Math.max(0, Math.min(pos, buf.duration - 0.02)));
+    st._bSrc[idx] = src;
+  });
+  st._bPos0 = pos; st._bT0 = t0; st._bRate = rate;
+}
+function _mfBChangerVitesse(st) {
+  const now = st.ctx.currentTime;
+  const pos = _mfBPosition(st);
+  const rate = _mfBTaux(st);
+  Object.values(st._bSrc || {}).forEach(src => { try { src.playbackRate.setValueAtTime(rate, now); } catch (e) {} });
+  st._bPos0 = pos; st._bT0 = now; st._bRate = rate;
+}
+function _mfBEntrer(st) {
+  const cid = st._cid;
+  const pos = consoleAudioPositionActuelle(cid);
+  const enLecture = !!st.run;
+  st._bActif = true;
+  Object.values(st.audios).forEach(a => { try { a.pause(); } catch (e) {} });
+  st._bPos = pos;
+  if (enLecture) _mfBDemarrer(st, pos);
+  st._dernierRefAudio = pos;
+  _mfBLog('🎚 MOTEUR SYNCHRONISÉ activé à ' + pos.toFixed(1) + ' s · vitesse ×' + _mfBTaux(st).toFixed(3));
+}
+function _mfBSortir(st) {
+  const cid = st._cid;
+  const pos = consoleAudioPositionActuelle(cid);
+  const enLecture = !!st.run;
+  if (enLecture) _mfBArreterSources(st);
+  st._bActif = false;
+  Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) { try { st.audios[idx].currentTime = pos; } catch (e) {} } });
+  st._dernierRefAudio = pos;
+  st._nbRs = {}; st._tResync = {}; st._rsHist = {}; st._lag = {}; st._idxRef = undefined; st._refT = null; st._resyncAppels = 0; st._tDepart = performance.now();
+  _consoleAudioAppliquerParamsElements(st);
+  if (enLecture) {
+    Object.keys(st.audios).forEach(idx => { st.audios[idx].play().catch(() => {}); });
+  }
+  _mfBLog('🎚 MOTEUR SYNCHRONISÉ désactivé à ' + pos.toFixed(1) + ' s : lecteur habituel');
+}
+// Appelé par _consoleAudioAppliquerParams. Renvoie true si le moteur synchronisé gère le réglage.
+function _mfBGerer(st) {
+  if (!_mfMoteurBPossible(st)) return false;
+  const veut = st.transpo !== 0;
+  if (veut && !st._bActif) {
+    if (st._bBuf) { _mfBEntrer(st); return true; }
+    if (!st._bPrep) {
+      try { toast('⏳ Préparation du son synchronisé…'); } catch (e) {}
+      _mfBPreparer(st).then(ok => { if (ok && st.transpo !== 0 && !st._bActif) { _mfBEntrer(st); } });
+    }
+    return false; // en attendant, lecteur habituel
+  }
+  if (veut && st._bActif) { if (st.run && st._bSrc && Object.keys(st._bSrc).length) _mfBChangerVitesse(st); return true; }
+  if (!veut && st._bActif) { _mfBSortir(st); return true; }
+  return false;
+}
+
 function consoleAudioPlay(cid) {
   const st = consoleAudioEtat[cid];
   if (!st) return;
@@ -2628,9 +2740,13 @@ function consoleAudioPlay(cid) {
     st.posMusicaleBase = consoleAudioPositionActuelle(cid);
     st.posMusicaleBaseTime = performance.now();
     st._dernierRefAudio = consoleAudioPositionActuelle(cid);
-    Object.keys(st.audios).forEach(idx => {
-      st.audios[idx].play().catch(err => console.error('Lecture piste en échec:', err));
-    });
+    if (st._bActif) {
+      _mfBDemarrer(st, st._bPos || 0);
+    } else {
+      Object.keys(st.audios).forEach(idx => {
+        st.audios[idx].play().catch(err => console.error('Lecture piste en échec:', err));
+      });
+    }
     st.run = true;
     st._nbRs = {}; st._tDepart = performance.now(); st._idxRef = undefined; st._refT = null; st._resyncAppels = 0; // réinitialise la tolérance de recalage à chaque nouveau départ
     clearInterval(st.timer);
@@ -2675,6 +2791,14 @@ function _consoleAudioGardeFouHorloge(cid, st) {
 function consoleAudioResynchroniser(cid) {
   const st = consoleAudioEtat[cid];
   if (!st || !st.run || st._enChangementNote) return;
+  if (st._bActif) { // moteur synchronisé : rien à recaler, on met seulement à jour la position musicale
+    const _pb = _mfBPosition(st);
+    const _d = Math.max(0, _pb - ((st._dernierRefAudio !== undefined) ? st._dernierRefAudio : _pb));
+    st.posMusicaleBase = (st.posMusicaleBase || 0) + _d * st.vitesse;
+    st.posMusicaleBaseTime = performance.now();
+    st._dernierRefAudio = _pb;
+    return;
+  }
   _consoleAudioGardeFouHorloge(cid, st);
   if (!st.run) return;
   // Hors Apple : tant qu'une piste en lecture est à court de données (réseau lent), on ne force aucun saut :
@@ -2781,6 +2905,7 @@ function consoleAudioResynchroniser(cid) {
 function consoleAudioPositionActuelle(cid) {
   const st = consoleAudioEtat[cid];
   if (!st) return 0;
+  if (st._bActif) return (st.run && st._bSrc && Object.keys(st._bSrc).length) ? _mfBPosition(st) : (st._bPos || 0);
   const idxRef = Object.keys(st.audios).find(idx => st.prets[idx]);
   if (idxRef === undefined) return 0;
   return st.audios[idxRef].currentTime;
@@ -2821,6 +2946,7 @@ function consoleAudioSeekRel(cid, delta) {
   if (!st) return;
   const pos = Math.max(0, Math.min(st.dureeRef, consoleAudioPositionActuelle(cid) + delta));
   Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) st.audios[idx].currentTime = pos; });
+  if (st._bActif) { st._bPos = pos; if (st.run) _mfBDemarrer(st, pos); }
   st.posMusicaleBase = pos;
   st.posMusicaleBaseTime = performance.now();
   st._dernierRefAudio = pos;
@@ -4003,6 +4129,7 @@ document.addEventListener('input', (e) => {
     st._seekTm = setTimeout(() => {
       const _p = st._seekPos;
       Object.keys(st.audios).forEach(idx => { if (st.prets[idx]) st.audios[idx].currentTime = _p; });
+      if (st._bActif) { st._bPos = _p; if (st.run) _mfBDemarrer(st, _p); }
       if (st.videoEl) { try { st.videoEl.currentTime = clampVideoTime(st.videoEl, _p + (st.videoOffset || 0)); } catch(e) {} }
     }, 150);
     document.querySelectorAll('.ca-seek[data-cid="' + cid + '"]').forEach(s => { if (s !== t) s.value = t.value; });
