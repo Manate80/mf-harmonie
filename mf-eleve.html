@@ -2616,10 +2616,20 @@ const DELAI_DEMARRAGE_AUDIO_MS = 3000; // délai avant le vrai démarrage du son
 function _mfMoteurBPossible(st) {
   try {
     return mfEstApple() && /^ELE[_-]APPLE$/i.test(String((eleveActif && eleveActif.identifiant) || '').trim())
-      && !/-video$/.test(String(st._suffix)) && !st.modeNotes && !st._moteurBInterdit && !!window.AudioBufferSourceNode;
+      && !st.modeNotes && !st._moteurBInterdit && !!window.AudioBufferSourceNode;
   } catch (e) { return false; }
 }
 function _mfBLog(texte) { try { if (window.MFREC && mfDiagAutorise()) MFREC.log('ACTION', texte); } catch (e) {} }
+function _mfBVideo(st) { // la vidéo suit la même vitesse que le son et reste calée sur la position musicale
+  try {
+    if (!st.videoEl || !st._bActif) return;
+    st.videoEl.playbackRate = _mfBTaux(st);
+    const pos = (st.run && st._bSrc && Object.keys(st._bSrc).length) ? _mfBPosition(st) : (st._bPos || 0);
+    const cible = pos + (st.videoOffset || 0);
+    if (Math.abs(st.videoEl.currentTime - cible) > 0.25) st.videoEl.currentTime = clampVideoTime(st.videoEl, cible);
+    if (st.run && st.videoEl.paused) st.videoEl.play().catch(() => {});
+  } catch (e) {}
+}
 function _mfBTaux(st) { return st.vitesse * Math.pow(2, st.transpo / 12); }
 function _mfBPreparer(st) {
   if (st._bBuf) return Promise.resolve(true);
@@ -2672,6 +2682,7 @@ function _mfBChangerVitesse(st) {
   const rate = _mfBTaux(st);
   Object.values(st._bSrc || {}).forEach(src => { try { src.playbackRate.setValueAtTime(rate, now); } catch (e) {} });
   st._bPos0 = pos; st._bT0 = now; st._bRate = rate;
+  _mfBVideo(st);
 }
 function _mfBEntrer(st) {
   const cid = st._cid;
@@ -2682,6 +2693,7 @@ function _mfBEntrer(st) {
   st._bPos = pos;
   if (enLecture) _mfBDemarrer(st, pos);
   st._dernierRefAudio = pos;
+  _mfBVideo(st);
   _mfBLog('🎚 MOTEUR SYNCHRONISÉ activé à ' + pos.toFixed(1) + ' s · vitesse ×' + _mfBTaux(st).toFixed(3));
 }
 function _mfBSortir(st) {
@@ -2806,6 +2818,7 @@ function consoleAudioResynchroniser(cid) {
     st.posMusicaleBase = (st.posMusicaleBase || 0) + _d * st.vitesse;
     st.posMusicaleBaseTime = performance.now();
     st._dernierRefAudio = _pb;
+    _mfBVideo(st);
     return;
   }
   _consoleAudioGardeFouHorloge(cid, st);
