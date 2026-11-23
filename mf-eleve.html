@@ -2626,6 +2626,8 @@ function _mfBPreparer(st) {
   if (st._bPrep) return st._bPrep;
   st._bPrep = (async () => {
     const bufs = {};
+    const _t0 = performance.now();
+    _mfBLog('🎚 moteur synchronisé : préparation lancée (décodage des pistes en mémoire)');
     for (const idx of Object.keys(st.audios)) { // une piste après l'autre : limite la mémoire utilisée en même temps
       if (!st.prets[idx]) continue;
       const src = String(st.audios[idx].src || '');
@@ -2635,6 +2637,7 @@ function _mfBPreparer(st) {
     }
     if (!Object.keys(bufs).length) throw new Error('aucune piste');
     st._bBuf = bufs;
+    _mfBLog('🎚 moteur synchronisé : préparation terminée en ' + Math.round(performance.now() - _t0) + ' ms (' + Object.keys(bufs).length + ' pistes)');
     return true;
   })().catch(e => { st._moteurBInterdit = true; st._bPrep = null; console.warn('Moteur synchronisé indisponible :', e); _mfBLog('⚠ moteur synchronisé indisponible (' + (e && e.message ? e.message : e) + ') : lecteur habituel conservé'); return false; });
   return st._bPrep;
@@ -2698,7 +2701,13 @@ function _mfBSortir(st) {
 }
 // Appelé par _consoleAudioAppliquerParams. Renvoie true si le moteur synchronisé gère le réglage.
 function _mfBGerer(st) {
-  if (!_mfMoteurBPossible(st)) return false;
+  if (!_mfMoteurBPossible(st)) {
+    if (st.transpo !== 0 && !st._bRaisonLogue) {
+      st._bRaisonLogue = true;
+      try { _mfBLog('🎚 moteur synchronisé NON utilisé · apple=' + mfEstApple() + ' · compte=' + String((eleveActif && eleveActif.identifiant) || '?') + ' · suffixe=' + st._suffix + ' · modeNotes=' + !!st.modeNotes + ' · interdit=' + !!st._moteurBInterdit + ' · WebAudioSource=' + !!window.AudioBufferSourceNode); } catch (e) {}
+    }
+    return false;
+  }
   const veut = st.transpo !== 0;
   if (veut && !st._bActif) {
     if (st._bBuf) { _mfBEntrer(st); return true; }
