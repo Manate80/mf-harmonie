@@ -10158,6 +10158,8 @@ function _imprimerStarterParolesAvecTrad(c, cid, trad, mode, facteurTaille, deca
             }
             if (alignOk) break;
           }
+          // Chaque traduction prend la couleur de sa ligne de paroles (couplet noir, refrain rouge…) : même code couleur pour l'élève
+          if (alignOk) tls.forEach((el, i) => { const col = w.getComputedStyle(lignes[i]).color; if (col) el.style.setProperty('color', col, 'important'); });
           if (!alignOk) {
             // Alignement impossible (encadré trop étroit pour ces lignes) : retour à l'encadré compact
             trad.classList.remove('mfp-al'); trad.style.height = '';
