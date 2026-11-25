@@ -8539,16 +8539,6 @@ body{padding-top:34px;}
 .ap-retour{background:none;border:none;color:var(--orL);font-size:14px;cursor:pointer;padding:4px 0 10px;}
 .ap-vit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;}
 .ap-vit button{padding:9px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--blanc);font-weight:700;cursor:pointer;}
-.st-tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
-.st-tag{background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.4);color:var(--orL);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
-.st-pts{list-style:none;display:flex;flex-direction:column;gap:8px;margin:0 0 12px;padding:0;}
-.st-pts li{padding-left:22px;position:relative;font-size:14px;}
-.st-pts li::before{content:"♪";position:absolute;left:0;color:var(--or);}
-.st-note{background:rgba(0,188,212,.08);border:1px solid rgba(0,188,212,.35);color:var(--cyanL);font-size:13px;padding:10px 12px;border-radius:4px;margin-bottom:14px;}
-.st-sec{font-family:Georgia,serif;font-size:11px;color:var(--or);letter-spacing:2px;text-transform:uppercase;margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
-.st-chant{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:0 0 6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:600;}
-.st-chant .pl{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--orD));color:#000;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
-.st-chant .en{margin-left:auto;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-weight:400;}
 </style>
 <script>
 (function(){
@@ -8607,7 +8597,6 @@ body{padding-top:34px;}
         + bloc('🎼', 'Les différents accords', 'Tous les accords, avec le placement des doigts', 'mfApprVue(\'accords\')')
         + bloc('🥁', 'La frappe', 'Hula, Marche…', 'mfApprVue(\'frappes\')')
         + bloc('👣', 'Mes premiers pas', 'Les premières chansons', 'mfApprVue(\'pas\')')
-        + bloc('🎬', 'Vidéo Starter Ukulélé', 'Plaisir, oreille, bringue : rythmes et chants par niveau', 'mfApprVue(\'starter\')')
         + N.extra.map(function(x){ return '<div class="ap-bloc" style="opacity:.55;cursor:default;"><div class="ap-i">' + x[0] + '</div><div style="flex:1;"><div class="ap-t">' + x[1] + '</div><div class="ap-d">' + x[2] + '</div></div></div>'; }).join('');
     } else if (vue === 'accords') {
       var dict = {}; try { dict = getAccordsEleveDict(); } catch(e){}
@@ -8638,27 +8627,6 @@ body{padding-top:34px;}
         + bloc('🎸', 'Accorder son ukulélé', 'L\'accordeur', 'mfApprVue(\'accordeur\')')
         + bloc('📱', 'Les différentes applications', 'Métronome et autres outils (bientôt)', 'mfApprVue(\'accordeur\')')
         + bloc('🎬', 'Vidéo', 'La vidéo tutoriel de la chanson', 'mfApprChanson(\'' + String(c.id).replace(/'/g,"\\'") + '\')');
-    } else if (vue === 'starter') {
-      var S = ST[n], rouv = window._stOuv || {};
-      h = retour('menu', 'Apprentissage') + entete('🎬 Vidéo Starter Ukulélé')
-        + '<p style="font-size:14px;margin-bottom:10px;">Ici on apprend à la tahitienne, à l\'oreille. Le but : t\'asseoir dans une bringue, sans cahier, et prendre du plaisir.</p>'
-        + '<div class="st-tags"><span class="st-tag">Plaisir</span><span class="st-tag">Oreille</span><span class="st-tag">Bringue</span><span class="st-tag">Chants de chez nous</span></div>'
-        + '<div class="st-sec">🛠 Mes outils</div>'
-        + bloc('⏱', 'Métronome BPM', 'Trouve le bon tempo de chaque chant', 'mfApprVue(\'accordeur\')')
-        + bloc('↓↑', 'Flèches de frappe', 'Vois le rythme de la main droite', 'mfApprVue(\'frappes\')')
-        + '<div class="st-sec">🌱 Mon niveau</div>'
-        + '<div class="ap-niv">' + ORDRE.map(function(k){ return '<button class="' + (k === n ? 'on' : '') + '" onclick="mfApprNiveau(\'' + k + '\')">' + NIV[k].ico + '<br>' + NIV[k].nom + '</button>'; }).join('') + '</div>'
-        + '<ul class="st-pts">' + S.pts.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>'
-        + '<div class="st-note">' + esc(S.note) + '</div>'
-        + '<div class="st-sec">🎵 Rythmes et chants — ' + N.nom + '</div>'
-        + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Les chants déjà vus restent là : on les commence tôt, on les reprend souvent, et ils sont maîtrisés par cœur à la fin du Confirmé.</p>'
-        + S.ry.map(function(x, i){ var o = !!rouv[n + i]; return '<div class="ap-bloc" onclick="mfStToggle(\'' + n + i + '\')"><div class="ap-i">🎶</div><div style="flex:1;"><div class="ap-t">' + esc(x[0]) + '</div><div class="ap-d">' + esc(x[1]) + '</div></div><div style="color:var(--muted);font-size:20px;">' + (o ? '⌃' : '⌄') + '</div></div>'
-          + (o ? [1,2,3].map(function(k){ return '<div class="st-chant"><span class="pl">▶</span>Chant ' + k + ' (à ajouter)<span class="en">en cours</span></div>'; }).join('') : ''); }).join('')
-        + '<div class="st-sec">⭐ Espace bonus</div>'
-        + '<p style="font-size:14px;margin-bottom:8px;">Les accords et notions que je ne maîtrise pas assez pour te les expliquer vivent ici, avec de bonnes infos.</p>'
-        + '<p style="font-size:12px;color:var(--muted);">Avec l\'abonnement coaching, tu peux avoir un retour personnalisé d\'un professeur du groupe, quand l\'un d\'eux peut t\'accompagner sur le sujet.</p>'
-        + '<div class="st-sec">🔥 L\'esprit bringue</div>'
-        + '<p style="font-size:14px;">Jouer sans cahier, demander à te joindre aux autres, arranger à ton oreille. Reviens sur les chants autant de fois que tu veux.</p>';
     } else if (vue === 'pas') {
       var cs = chansons().filter(function(c){ return c && c.titre && permis('chansons', c.titre); });
       h = retour('menu', 'Apprentissage') + entete('👣 Mes premiers pas — ' + N.nom)
@@ -8667,19 +8635,6 @@ body{padding-top:34px;}
     pg.innerHTML = '<div class="card card-or">' + h + '</div>';
     appliquer();
   }
-  // ── Vidéo Starter (maquette) : contenu par niveau, aucune donnée existante modifiée ──
-  var ST = {
-    debutant: { pts:['Frappes simples vers le bas, avec le métronome et les flèches','Accords de base : C, G7, Am, F','Premiers essais de voix sur les premiers chants','Tenir l’ukulélé, doigts à l’arrière du manche','Sentir les mesures et le temps, changer d’accord en douceur'],
-      note:'La marche se découvre ici. Si elle n’est pas encore à 100 %, ça ne t’empêche pas de monter : on la verrouille en Intermédiaire.',
-      ry:[['Boléro','environ 10 chants, en cours'],['Hula','environ 10 chants, en cours'],['Valse','environ 10 chants, en cours'],['Marche (découverte)','on découvre, sans pression']] },
-    intermediaire: { pts:['Vraie entrée de la voix sur le morceau','Marche vraiment maîtrisée, maintien et doigts verrouillés','Tonalités : de C vers D, E, F, G, A, B','Accords majeurs, mineurs, septièmes, à l’oreille','Premiers pas : intros, petits solos et fins','Premiers essais du kaïna, sans pression'],
-      note:'Le swing est un mélange bossa et zouk love, plus posé et nuancé.',
-      ry:[['Slow','environ 10 chants, en cours'],['Slow rock','environ 10 chants, en cours'],['Reggae','environ 10 chants, en cours'],['Swing','environ 10 chants, en cours'],['Marche (maîtrisée)','on la verrouille'],['Kaïna (découverte)','premiers essais, sans exigence']] },
-    confirme: { pts:['Peu de nouveaux accords','Gros travail sur les solos, intros et fins de chaque chant','Arrangements personnels à l’oreille, pour te faire plaisir','Tous les rythmes précédents bien en main','Cap : les chants maîtrisés par cœur à la fin du niveau'],
-      note:'Tu arrives avec beaucoup de chants déjà commencés. Ici on se concentre sur le kaïna et quelques chants de tāmure, ʻūte et pātaʻutaʻu.',
-      ry:[['Kaïna et kaïna haki','cap : environ 10 chants'],['Tāmure','cap : 3 à 5 chants'],['ʻŪte','cap : 3 à 5 chants'],['Pātaʻutaʻu','cap : 3 à 5 chants']] }
-  };
-  window.mfStToggle = function(k){ window._stOuv = window._stOuv || {}; window._stOuv[k] = !window._stOuv[k]; render(); };
   function bloc(ico, t, d, act){ return '<div class="ap-bloc" onclick="' + act + '"><div class="ap-i">' + ico + '</div><div style="flex:1;"><div class="ap-t">' + t + '</div><div class="ap-d">' + d + '</div></div><div style="color:var(--muted);font-size:20px;">›</div></div>'; }
   window.mfApprOuvrir = function(){ vue = 'menu'; showPage('apprentissage'); render(); };
   window.mfApprNiveau = function(k){ setNiveau(k); render(); };
@@ -8705,6 +8660,150 @@ body{padding-top:34px;}
   var t = null;
   new MutationObserver(function(){ clearTimeout(t); t = setTimeout(function(){ appliquer(); tuile(); }, 150); }).observe(document.body, { childList:true, subtree:true });
   appliquer(); tuile();
+})();
+</script>
+<!-- ═══ VERSION TEST : Starter Ukulélé (nouvelle page) — ajout seulement, rien de l'existant n'est modifié ═══ -->
+<style>
+.sh-tabs{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--border);background:var(--card2);margin:-16px -16px 14px;position:sticky;top:0;z-index:5;}
+.sh-tabs button{flex-shrink:0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 14px;min-height:44px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.sh-tabs button.on{color:var(--orL);border-bottom-color:var(--or);}
+.sh-tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+.sh-tag{background:rgba(201,146,42,.15);border:1px solid rgba(201,146,42,.4);color:var(--orL);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.sh-pts{list-style:none;display:flex;flex-direction:column;gap:8px;margin:0 0 12px;padding:0;}
+.sh-pts li{padding-left:22px;position:relative;font-size:14px;}
+.sh-pts li::before{content:"♪";position:absolute;left:0;color:var(--or);}
+.sh-note{background:rgba(0,188,212,.08);border:1px solid rgba(0,188,212,.35);color:var(--cyanL);font-size:13px;padding:10px 12px;border-radius:4px;margin-bottom:14px;}
+.sh-sec{font-family:Georgia,serif;font-size:11px;color:var(--or);letter-spacing:2px;text-transform:uppercase;margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.sh-metro{display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;}
+.sh-arrow{font-size:56px;line-height:1;color:var(--orL);height:64px;display:flex;align-items:center;}
+.sh-bpm{display:flex;align-items:center;gap:10px;}
+.sh-bpm b{font-family:Georgia,serif;font-size:32px;color:var(--orL);min-width:84px;text-align:center;}
+.sh-btn{min-width:44px;min-height:44px;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--blanc);font-weight:700;cursor:pointer;font-family:inherit;}
+.sh-btn.on{background:var(--or);color:#111;border-color:var(--orL);}
+.sh-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.sh-acc{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--border);border-radius:8px;background:var(--card2);cursor:pointer;color:var(--blanc);width:100%;text-align:left;font-family:inherit;font-size:15px;min-height:44px;}
+.sh-acc .n{font-family:Georgia,serif;font-size:20px;color:var(--orL);min-width:44px;}
+.sh-diag{display:flex;justify-content:center;padding:6px 0 12px;}
+.sh-chant{display:flex;align-items:center;gap:10px;padding:10px 12px;margin:0 0 6px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:600;}
+.sh-chant .pl{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--orD));color:#000;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.sh-chant .en{margin-left:auto;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-weight:400;}
+</style>
+<script>
+(function(){
+  var S = { tab:'accueil', niv:'debutant', ouv:{}, bpm:80, mode:'bas', run:false };
+  var timer = null, tick = 0, actx = null;
+  var ACC = {
+    pas:[['C','Le plus simple pour commencer'],['Am','Presque pareil, un doigt'],['F','Un peu plus de doigts'],['G7','Pour bien tourner']],
+    debutant:[['C',''],['Am',''],['F',''],['G7','']],
+    intermediaire:[['Dm','Premier pas hors de la famille de C'],['D',''],['E',''],['G',''],['A',''],['B','']],
+    confirme:[]
+  };
+  var NIVD = {
+    pas:{ nom:'Les premiers pas', crit:['Posture : bien tenir l’ukulélé, doigts à l’arrière du manche, sans crispation','Repères : les mesures, les tempos et les explications de base','Premiers accords : commencer à placer et passer C, Am, F, G7','Métronome et flèches : tenir bas, bas, bas… puis bas, haut, bas, haut…'], note:'Quand ces bases sont posées, tu passes au Débutant.' },
+    debutant:{ nom:'Débutant', crit:['Perfectionner : le maintien, les doigts, les accords C, Am, F, G7, le temps et les mesures','Jouer et chanter simplement : une frappe simple, les premiers essais de voix, les premiers chants avec plaisir','Aborder les rythmes du niveau : boléro, marche, hula, valse à la tahitienne'], note:'Si la marche ou le placement des doigts n’est pas encore à 100 %, ce n’est pas bloquant : tu les verrouilles en début d’Intermédiaire.', ry:[['Boléro','environ 10 chants, en cours'],['Hula','environ 10 chants, en cours'],['Valse','environ 10 chants, en cours'],['Marche','on la découvre, sans pression']] },
+    intermediaire:{ nom:'Intermédiaire', crit:['Verrouiller la marche, le maintien et le placement des doigts','Vraie entrée de la voix sur le morceau','Tonalités : de C vers D, E, F, G, A, B, à l’oreille','Premiers pas : intros, petits solos et fins','Premiers essais du kaïna, sans pression'], note:'Le swing est un mélange bossa et zouk love, plus posé et nuancé.', ry:[['Slow','environ 10 chants, en cours'],['Slow rock','environ 10 chants, en cours'],['Reggae','environ 10 chants, en cours'],['Swing','environ 10 chants, en cours'],['Marche (maîtrisée)','on la verrouille'],['Kaïna (découverte)','premiers essais, sans exigence']] },
+    confirme:{ nom:'Confirmé', crit:['Peu de nouveaux accords','Gros travail sur les solos, intros et fins de chaque chant','Arrangements personnels à l’oreille, pour te faire plaisir','Tous les rythmes précédents bien en main','Cap : les chants maîtrisés par cœur à la fin du niveau'], note:'Tu arrives avec beaucoup de chants déjà commencés. Ici on se concentre sur le kaïna et quelques chants de tāmure, ʻūte et pātaʻutaʻu.', ry:[['Kaïna et kaïna haki','cap : environ 10 chants'],['Tāmure','cap : 3 à 5 chants'],['ʻŪte','cap : 3 à 5 chants'],['Pātaʻutaʻu','cap : 3 à 5 chants']] }
+  };
+  var ICO = { debutant:'🌱', intermediaire:'🌿', confirme:'🌴' };
+  function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  var host = document.querySelector('.app-content');
+  var pg = document.createElement('div'); pg.id = 'page-starterhub'; pg.className = 'page';
+  if (host) host.appendChild(pg);
+
+  // ── Métronome + flèches ──
+  function clic(fort){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); var o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = fort ? 1000 : 650; g.gain.value = fort ? 0.4 : 0.15; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.05); } catch(e){} }
+  function stopMetro(){ if (timer) { clearInterval(timer); timer = null; } S.run = false; var a = document.getElementById('sh-arrow'); if (a) a.textContent = '·'; var b = document.getElementById('sh-go'); if (b) { b.textContent = '▶ Démarrer'; b.classList.remove('on'); } }
+  function startMetro(){
+    stopMetro(); S.run = true; tick = 0;
+    var ms = 60000 / S.bpm / (S.mode === 'alt' ? 2 : 1);
+    function un(){ var bas = (S.mode === 'bas') || (tick % 2 === 0); var a = document.getElementById('sh-arrow'); if (a) a.textContent = bas ? '↓' : '↑'; clic(bas); tick++; }
+    un(); timer = setInterval(un, ms);
+    var b = document.getElementById('sh-go'); if (b) { b.textContent = '■ Arrêter'; b.classList.add('on'); }
+  }
+  window.mfShBpm = function(d){ S.bpm = Math.min(200, Math.max(40, S.bpm + d)); var e = document.getElementById('sh-bpmv'); if (e) e.textContent = S.bpm; if (S.run) startMetro(); };
+  window.mfShMode = function(m){ S.mode = m; ['bas','alt'].forEach(function(k){ var e = document.getElementById('sh-m-' + k); if (e) e.classList.toggle('on', k === m); }); if (S.run) startMetro(); };
+  window.mfShGo = function(){ if (S.run) stopMetro(); else startMetro(); };
+  function metroHtml(){
+    return '<div class="sh-metro"><div class="sh-arrow" id="sh-arrow">·</div>'
+      + '<div class="sh-bpm"><button class="sh-btn" onclick="mfShBpm(-5)" aria-label="Moins vite">−</button><b><span id="sh-bpmv">' + S.bpm + '</span></b><button class="sh-btn" onclick="mfShBpm(5)" aria-label="Plus vite">+</button></div>'
+      + '<div class="muted" style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">BPM</div>'
+      + '<div class="sh-row"><button class="sh-btn ' + (S.mode === 'bas' ? 'on' : '') + '" id="sh-m-bas" onclick="mfShMode(\'bas\')">↓ bas, bas, bas</button><button class="sh-btn ' + (S.mode === 'alt' ? 'on' : '') + '" id="sh-m-alt" onclick="mfShMode(\'alt\')">↓↑ bas, haut</button></div>'
+      + '<button class="sh-btn" id="sh-go" style="min-width:180px;" onclick="mfShGo()">▶ Démarrer</button></div>';
+  }
+  function bloc(ico, t, d, act){ return '<div class="ap-bloc" onclick="' + act + '"><div class="ap-i">' + ico + '</div><div style="flex:1;"><div class="ap-t">' + t + '</div><div class="ap-d">' + d + '</div></div><div style="color:var(--muted);font-size:20px;">›</div></div>'; }
+  function diag(nom){ try { var d = getAccordsEleveDict(); if (!d[nom]) return ''; return '<div class="sh-diag">' + genDiagEleve(nom) + '</div>'; } catch(e){ return ''; } }
+  function accords(cle){
+    return (ACC[cle] || []).map(function(a){
+      var k = cle + a[0], o = !!S.ouv[k];
+      return '<button class="sh-acc" onclick="mfShOuv(\'' + k + '\')"><span class="n">' + esc(a[0]) + '</span><span style="flex:1;font-size:13px;color:var(--muted);">' + esc(a[1]) + '</span><span style="color:var(--muted);font-size:20px;">' + (o ? '⌃' : '⌄') + '</span></button>' + (o ? diag(a[0]) : '');
+    }).join('');
+  }
+  function liste(arr){ return '<ul class="sh-pts">' + arr.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>'; }
+  function rythmes(N){
+    return (N.ry || []).map(function(x, i){
+      var k = 'r' + N.nom + i, o = !!S.ouv[k];
+      return '<div class="ap-bloc" onclick="mfShOuv(\'' + k + '\')"><div class="ap-i">🎶</div><div style="flex:1;"><div class="ap-t">' + esc(x[0]) + '</div><div class="ap-d">' + esc(x[1]) + '</div></div><div style="color:var(--muted);font-size:20px;">' + (o ? '⌃' : '⌄') + '</div></div>'
+        + (o ? [1,2,3].map(function(n){ return '<div class="sh-chant"><span class="pl">▶</span>Chant ' + n + ' (à ajouter)<span class="en">en cours</span></div>'; }).join('') : '');
+    }).join('');
+  }
+  function onglets(){
+    var T = [['accueil','Accueil'],['pas','Premiers pas'],['niveaux','Niveaux'],['outils','Outils'],['chants','Mes chants'],['bonus','Bonus']];
+    return '<div class="sh-tabs">' + T.map(function(t){ var on = S.tab === t[0] || (t[0] === 'niveaux' && /^niv:/.test(S.tab)); return '<button class="' + (on ? 'on' : '') + '" onclick="mfShTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
+  }
+  function render(){
+    var h = '';
+    if (S.tab === 'accueil') {
+      h = '<div class="card-title">🎸 Starter Ukulélé</div>'
+        + '<p style="font-size:14px;margin-bottom:10px;">Ici on apprend à la tahitienne, à l\'oreille. Le but : t\'asseoir dans une bringue, sans cahier, et prendre du plaisir.</p>'
+        + '<div class="sh-tags"><span class="sh-tag">Plaisir</span><span class="sh-tag">Oreille</span><span class="sh-tag">Bringue</span><span class="sh-tag">Chants de chez nous</span></div>'
+        + '<div class="sh-sec">⏱ Métronome et flèches</div>' + metroHtml()
+        + '<div class="sh-sec">Par où commencer ?</div>'
+        + bloc('👣', 'Les premiers pas', 'Posture, repères, C, Am, F, G7', 'mfShTab(\'pas\')')
+        + bloc('🌱', 'Les niveaux', 'Débutant, Intermédiaire, Confirmé', 'mfShTab(\'niveaux\')')
+        + bloc('🎵', 'Mes chants', 'Vidéos, accords et patterns de chaque chanson', 'mfShTab(\'chants\')');
+    } else if (S.tab === 'pas') {
+      var P = NIVD.pas;
+      h = '<div class="card-title">👣 ' + P.nom + '</div>' + '<div class="sh-sec">Ce qu\'on pose avant le Débutant</div>' + liste(P.crit)
+        + '<div class="sh-sec">Mes premiers accords, un par un</div>' + accords('pas')
+        + '<div class="sh-sec">Métronome</div>' + metroHtml() + '<div class="sh-note">' + esc(P.note) + '</div>';
+    } else if (S.tab === 'niveaux') {
+      h = '<div class="card-title">🌱 Les niveaux <span>on avance à son rythme</span></div>'
+        + ['debutant','intermediaire','confirme'].map(function(k){ return bloc(ICO[k], NIVD[k].nom, NIVD[k].crit[0], 'mfShNiv(\'' + k + '\')'); }).join('');
+    } else if (/^niv:/.test(S.tab)) {
+      var k2 = S.tab.slice(4), N = NIVD[k2];
+      h = '<button class="ap-retour" onclick="mfShTab(\'niveaux\')">‹ Les niveaux</button>' + '<div class="card-title">' + ICO[k2] + ' ' + N.nom + '</div>'
+        + '<div class="sh-sec">Ce que tu travailles</div>' + liste(N.crit)
+        + ((ACC[k2] || []).length ? '<div class="sh-sec">Les accords, un par un</div>' + accords(k2) : '')
+        + '<div class="sh-sec">Rythmes et chants</div>' + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Les chants déjà vus restent là : on les reprend souvent, et ils sont maîtrisés par cœur à la fin du Confirmé.</p>' + rythmes(N)
+        + '<div class="sh-note" style="margin-top:12px;">' + esc(N.note) + '</div>';
+    } else if (S.tab === 'outils') {
+      h = '<div class="card-title">🛠 Outils <span>tout à part</span></div>'
+        + bloc('⏱', 'Métronome et flèches', 'Sur l\'accueil de Starter', 'mfShTab(\'accueil\')')
+        + bloc('🥁', 'Tous les patterns', 'Les frappes de chaque rythme', 'mfApprOuvrir();mfApprVue(\'frappes\')')
+        + bloc('🎼', 'Tous les diagrammes d\'accords', 'Le placement des doigts', 'mfApprOuvrir();mfApprVue(\'accords\')')
+        + bloc('🎸', 'Accordeur', 'Accorder son ukulélé', 'mfApprVue(\'accordeur\')');
+    } else if (S.tab === 'chants') {
+      h = '<div class="card-title">🎵 Mes chants</div>'
+        + '<p style="font-size:14px;margin-bottom:12px;">Tes chansons Starter : vidéo tutoriel, console audio, accords, diagrammes et patterns.</p>'
+        + bloc('🎬', 'Ouvrir mes chants', 'La bibliothèque Starter, comme avant', 'mfShChants()');
+    } else if (S.tab === 'bonus') {
+      h = '<div class="card-title">⭐ Espace bonus</div>'
+        + '<p style="font-size:14px;margin-bottom:8px;">Les accords et notions que je ne maîtrise pas assez pour te les expliquer vivent ici, avec de bonnes infos.</p>'
+        + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Avec l\'abonnement coaching, tu peux avoir un retour personnalisé d\'un professeur du groupe, quand l\'un d\'eux peut t\'accompagner sur le sujet.</p>'
+        + '<div class="sh-sec">🔥 L\'esprit bringue</div><p style="font-size:14px;">Jouer sans cahier, demander à te joindre aux autres, arranger à ton oreille. Reviens sur les chants autant de fois que tu veux.</p>';
+    }
+    pg.innerHTML = onglets() + '<div class="card card-or">' + h + '</div>';
+  }
+  window.mfShTab = function(t){ stopMetro(); S.tab = t; render(); window.scrollTo(0, 0); };
+  window.mfShNiv = function(k){ stopMetro(); S.tab = 'niv:' + k; render(); window.scrollTo(0, 0); };
+  window.mfShOuv = function(k){ S.ouv[k] = !S.ouv[k]; var y = window.scrollY; render(); window.scrollTo(0, y); };
+  window.mfShChants = function(){ stopMetro(); window._shAncien = true; try { origOuvrir('starter'); } finally { window._shAncien = false; } };
+  // ── La tuile « Starter Ukulélé » de l'accueil ouvre cette page ; l'ancienne bibliothèque reste accessible via « Mes chants » ──
+  var origOuvrir = window.ouvrirFormule;
+  window.ouvrirFormule = function(mode){
+    if (mode === 'starter' && !window._shAncien) { S.tab = 'accueil'; showPage('starterhub'); render(); return; }
+    return origOuvrir.apply(this, arguments);
+  };
 })();
 </script>
 </body>
