@@ -8757,6 +8757,7 @@ body{padding-top:34px;}
         + '<p style="font-size:14px;margin-bottom:10px;">Ici on apprend à la tahitienne, à l\'oreille. Le but : t\'asseoir dans une bringue, sans cahier, et prendre du plaisir.</p>'
         + '<div class="sh-tags"><span class="sh-tag">Plaisir</span><span class="sh-tag">Oreille</span><span class="sh-tag">Bringue</span><span class="sh-tag">Chants de chez nous</span></div>'
         + '<div class="sh-sec">⏱ Métronome et flèches</div>' + metroHtml()
+        + '<div class="sh-sec">🛠 Tous les outils</div>' + outilsBlocs()
         + '<div class="sh-sec">Par où commencer ?</div>'
         + bloc('👣', 'Les premiers pas', 'Posture, repères, C, Am, F, G7', 'mfShTab(\'pas\')')
         + bloc('🌱', 'Les niveaux', 'Débutant, Intermédiaire, Confirmé', 'mfShTab(\'niveaux\')')
@@ -8777,11 +8778,7 @@ body{padding-top:34px;}
         + '<div class="sh-sec">Rythmes et chants</div>' + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Les chants déjà vus restent là : on les reprend souvent, et ils sont maîtrisés par cœur à la fin du Confirmé.</p>' + rythmes(N)
         + '<div class="sh-note" style="margin-top:12px;">' + esc(N.note) + '</div>';
     } else if (S.tab === 'outils') {
-      h = '<div class="card-title">🛠 Outils <span>tout à part</span></div>'
-        + bloc('⏱', 'Métronome et flèches', 'Sur l\'accueil de Starter', 'mfShTab(\'accueil\')')
-        + bloc('🥁', 'Tous les patterns', 'Les frappes de chaque rythme', 'mfApprOuvrir();mfApprVue(\'frappes\')')
-        + bloc('🎼', 'Tous les diagrammes d\'accords', 'Le placement des doigts', 'mfApprOuvrir();mfApprVue(\'accords\')')
-        + bloc('🎸', 'Accordeur', 'Accorder son ukulélé', 'mfApprVue(\'accordeur\')');
+      h = '<div class="card-title">🛠 Outils <span>tout à part</span></div>' + outilsBlocs();
     } else if (S.tab === 'chants') {
       h = '<div class="card-title">🎵 Mes chants</div>'
         + '<p style="font-size:14px;margin-bottom:12px;">Tes chansons Starter : vidéo tutoriel, console audio, accords, diagrammes et patterns.</p>'
@@ -8793,6 +8790,14 @@ body{padding-top:34px;}
         + '<div class="sh-sec">🔥 L\'esprit bringue</div><p style="font-size:14px;">Jouer sans cahier, demander à te joindre aux autres, arranger à ton oreille. Reviens sur les chants autant de fois que tu veux.</p>';
     }
     pg.innerHTML = onglets() + '<div class="card card-or">' + h + '</div>';
+  }
+  window.mfShOutil = function(id){ stopMetro(); showPage('outils'); setTimeout(function(){ try { showTool(id, document.querySelector('#tool-tabs-all .tool-tab[data-outil="' + id + '"]')); } catch(e){} }, 50); };
+  function outilsBlocs(){
+    return bloc('🎸', 'Accordeur', 'Accorder son ukulélé, réglages', 'mfShOutil(\'accordeur\')')
+      + bloc('🎼', 'Tous les diagrammes', 'Le placement des doigts de tous les accords', 'mfShOutil(\'dictionnaire\')')
+      + bloc('🥁', 'Tous les patterns', 'Les frappes de chaque rythme', 'mfShOutil(\'frappes\')')
+      + bloc('🎵', 'Métronome complet', 'Le métronome de l\u2019espace élève', 'mfShOutil(\'metronome\')')
+      + bloc('📖', 'Lexique', 'Les mots utiles', 'mfShOutil(\'lexique-global\')');
   }
   window.mfShTab = function(t){ stopMetro(); S.tab = t; render(); window.scrollTo(0, 0); };
   window.mfShNiv = function(k){ stopMetro(); S.tab = 'niv:' + k; render(); window.scrollTo(0, 0); };
