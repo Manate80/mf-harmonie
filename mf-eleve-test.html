@@ -8747,8 +8747,8 @@ body{padding-top:34px;}
     }).join('');
   }
   function onglets(){
-    var T = [['accueil','Accueil'],['pas','Premiers pas'],['niveaux','Niveaux'],['outils','Outils'],['chants','Mes chants'],['bonus','Bonus']];
-    return '<div class="sh-tabs">' + T.map(function(t){ var on = S.tab === t[0] || (t[0] === 'niveaux' && /^niv:/.test(S.tab)); return '<button class="' + (on ? 'on' : '') + '" onclick="mfShTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
+    var T = [['accueil','Accueil'],['pas','Premiers pas'],['niv:debutant','Débutant'],['niv:intermediaire','Intermédiaire'],['niv:confirme','Confirmé'],['biblio','Bibliothèque'],['suivi','Suivi']];
+    return '<div class="sh-tabs">' + T.map(function(t){ return '<button class="' + (S.tab === t[0] ? 'on' : '') + '" onclick="mfShTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
   }
   function render(){
     var h = '';
@@ -8758,36 +8758,22 @@ body{padding-top:34px;}
         + '<div class="sh-tags"><span class="sh-tag">Plaisir</span><span class="sh-tag">Oreille</span><span class="sh-tag">Bringue</span><span class="sh-tag">Chants de chez nous</span></div>'
         + '<div class="sh-sec">⏱ Métronome et flèches</div>' + metroHtml()
         + '<div class="sh-sec">🛠 Tous les outils</div>' + outilsBlocs()
-        + '<div class="sh-sec">Par où commencer ?</div>'
-        + bloc('👣', 'Les premiers pas', 'Posture, repères, C, Am, F, G7', 'mfShTab(\'pas\')')
-        + bloc('🌱', 'Les niveaux', 'Débutant, Intermédiaire, Confirmé', 'mfShTab(\'niveaux\')')
-        + bloc('🎵', 'Mes chants', 'Vidéos, accords et patterns de chaque chanson', 'mfShTab(\'chants\')');
+        + '<div class="sh-sec">⭐ Espace bonus</div>'
+        + '<p style="font-size:14px;margin-bottom:8px;">Les accords et notions que je ne maîtrise pas assez pour te les expliquer vivent ici, avec de bonnes infos.</p>'
+        + '<p style="font-size:12px;color:var(--muted);">Avec l\'abonnement coaching, tu peux avoir un retour personnalisé d\'un professeur du groupe, quand l\'un d\'eux peut t\'accompagner sur le sujet.</p>'
+        + '<div class="sh-sec">🔥 L\'esprit bringue</div><p style="font-size:14px;">Jouer sans cahier, demander à te joindre aux autres, arranger à ton oreille. Reviens sur les chants autant de fois que tu veux.</p>';
     } else if (S.tab === 'pas') {
       var P = NIVD.pas;
       h = '<div class="card-title">👣 ' + P.nom + '</div>' + '<div class="sh-sec">Ce qu\'on pose avant le Débutant</div>' + liste(P.crit)
         + '<div class="sh-sec">Mes premiers accords, un par un</div>' + accords('pas')
         + '<div class="sh-sec">Métronome</div>' + metroHtml() + '<div class="sh-note">' + esc(P.note) + '</div>';
-    } else if (S.tab === 'niveaux') {
-      h = '<div class="card-title">🌱 Les niveaux <span>on avance à son rythme</span></div>'
-        + ['debutant','intermediaire','confirme'].map(function(k){ return bloc(ICO[k], NIVD[k].nom, NIVD[k].crit[0], 'mfShNiv(\'' + k + '\')'); }).join('');
     } else if (/^niv:/.test(S.tab)) {
       var k2 = S.tab.slice(4), N = NIVD[k2];
-      h = '<button class="ap-retour" onclick="mfShTab(\'niveaux\')">‹ Les niveaux</button>' + '<div class="card-title">' + ICO[k2] + ' ' + N.nom + '</div>'
+      h = '<div class="card-title">' + ICO[k2] + ' ' + N.nom + '</div>'
         + '<div class="sh-sec">Ce que tu travailles</div>' + liste(N.crit)
         + ((ACC[k2] || []).length ? '<div class="sh-sec">Les accords, un par un</div>' + accords(k2) : '')
         + '<div class="sh-sec">Rythmes et chants</div>' + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Les chants déjà vus restent là : on les reprend souvent, et ils sont maîtrisés par cœur à la fin du Confirmé.</p>' + rythmes(N)
         + '<div class="sh-note" style="margin-top:12px;">' + esc(N.note) + '</div>';
-    } else if (S.tab === 'outils') {
-      h = '<div class="card-title">🛠 Outils <span>tout à part</span></div>' + outilsBlocs();
-    } else if (S.tab === 'chants') {
-      h = '<div class="card-title">🎵 Mes chants</div>'
-        + '<p style="font-size:14px;margin-bottom:12px;">Tes chansons Starter : vidéo tutoriel, console audio, accords, diagrammes et patterns.</p>'
-        + bloc('🎬', 'Ouvrir mes chants', 'La bibliothèque Starter, comme avant', 'mfShChants()');
-    } else if (S.tab === 'bonus') {
-      h = '<div class="card-title">⭐ Espace bonus</div>'
-        + '<p style="font-size:14px;margin-bottom:8px;">Les accords et notions que je ne maîtrise pas assez pour te les expliquer vivent ici, avec de bonnes infos.</p>'
-        + '<p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Avec l\'abonnement coaching, tu peux avoir un retour personnalisé d\'un professeur du groupe, quand l\'un d\'eux peut t\'accompagner sur le sujet.</p>'
-        + '<div class="sh-sec">🔥 L\'esprit bringue</div><p style="font-size:14px;">Jouer sans cahier, demander à te joindre aux autres, arranger à ton oreille. Reviens sur les chants autant de fois que tu veux.</p>';
     }
     pg.innerHTML = onglets() + '<div class="card card-or">' + h + '</div>';
   }
@@ -8799,7 +8785,7 @@ body{padding-top:34px;}
       + bloc('🎵', 'Métronome complet', 'Le métronome de l\u2019espace élève', 'mfShOutil(\'metronome\')')
       + bloc('📖', 'Lexique', 'Les mots utiles', 'mfShOutil(\'lexique-global\')');
   }
-  window.mfShTab = function(t){ stopMetro(); S.tab = t; render(); window.scrollTo(0, 0); };
+  window.mfShTab = function(t){ stopMetro(); if (t === 'biblio') { mfShChants(); return; } if (t === 'suivi') { showPage('suivi'); return; } S.tab = t; render(); window.scrollTo(0, 0); };
   window.mfShNiv = function(k){ stopMetro(); S.tab = 'niv:' + k; render(); window.scrollTo(0, 0); };
   window.mfShOuv = function(k){ S.ouv[k] = !S.ouv[k]; var y = window.scrollY; render(); window.scrollTo(0, y); };
   window.mfShChants = function(){ stopMetro(); window._shAncien = true; try { origOuvrir('starter'); } finally { window._shAncien = false; } };
