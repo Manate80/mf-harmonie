@@ -8545,13 +8545,18 @@ body{padding-top:34px;}
   // ── Réglages des niveaux : à ajuster ensemble. Cumulatifs (Intermédiaire = Débutant + ses ajouts). ──
   var ORDRE = ['debutant','intermediaire','confirme'];
   var NIV = {
-    debutant:      { nom:'Débutant',      ico:'🌱', diag:['C','Am','F','G','G7','C7','Dm','Em'], frappes:['hula','marche'], chansons:['ia orana','papa'] },
-    intermediaire: { nom:'Intermédiaire', ico:'🎶', diag:['A','A7','D','D7','Bm','Gm','Bb','A#','Fm','E','E7'], frappes:[], chansons:[] },
-    confirme:      { nom:'Confirmé',      ico:'🎸', diag:null, frappes:null, chansons:null /* tout */ }
+    debutant:      { nom:'Débutant',      ico:'🌱', intro:'Je découvre mon ukulélé : accorder, premiers accords, première frappe, premières chansons.',
+                     diag:['C','Am','F','G','G7','C7','Dm','Em'], frappes:['hula','marche'], chansons:['ia orana','papa'], extra:[] },
+    intermediaire: { nom:'Intermédiaire', ico:'🎶', intro:'Je change d\'accords sans m\'arrêter, je varie les frappes et je chante en jouant.',
+                     diag:['A','A7','D','D7','Bm','Gm','Bb','A#','Fm','E','E7'], frappes:['reggae','tamure','ote a'], chansons:['te tiare tahiti','apepe'],
+                     extra:[['🔁','Changer de tonalité','Transposer un chant (bientôt)'],['🎤','Chanter en jouant','Paroles + accords en même temps (bientôt)']] },
+    confirme:      { nom:'Confirmé',      ico:'🎸', intro:'Je joue toutes les chansons, je mène la bringue.',
+                     diag:null, frappes:null, chansons:null,
+                     extra:[['🎵','Intros et solos','Les petits motifs qui font la différence (bientôt)'],['🥳','Mener la bringue','Lancer le tempo, annoncer les relances (bientôt)']] }
   };
   var vue = 'menu';
   function norm(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9#]+/g,' ').trim(); }
-  function niveau(){ try { var n = localStorage.getItem('mfTestNiveau'); if (n === 'avance') n = 'confirme'; return ORDRE.indexOf(n) >= 0 ? n : 'debutant'; } catch(e){ return 'debutant'; } }
+  function niveau(){ try { var n = localStorage.getItem('mfTestNiveau'); if (!n) { try { n = eleveActif && eleveActif.niveauMF; } catch(e2){} } if (n === 'avance') n = 'confirme'; return ORDRE.indexOf(n) >= 0 ? n : 'debutant'; } catch(e){ return 'debutant'; } }
   function setNiveau(n){ try { localStorage.setItem('mfTestNiveau', n); } catch(e){} var sel = document.getElementById('mf-test-niv'); if (sel) sel.value = n; }
   function permis(cle, nom){
     var n = ORDRE.indexOf(niveau()); if (n === 2) return true;
@@ -8587,10 +8592,12 @@ body{padding-top:34px;}
     if (vue === 'menu') {
       h = entete('🌱 Apprentissage')
         + '<div class="ap-niv">' + ORDRE.map(function(k){ return '<button class="' + (k === n ? 'on' : '') + '" onclick="mfApprNiveau(\'' + k + '\')">' + NIV[k].ico + '<br>' + NIV[k].nom + '</button>'; }).join('') + '</div>'
+        + '<p style="font-size:12px;color:var(--muted);margin:-4px 0 12px;">' + N.intro + '</p>'
         + bloc('🎸', 'Accorder son ukulélé', 'L\'accordeur', 'mfApprVue(\'accordeur\')')
         + bloc('🎼', 'Les différents accords', 'Tous les accords, avec le placement des doigts', 'mfApprVue(\'accords\')')
         + bloc('🥁', 'La frappe', 'Hula, Marche…', 'mfApprVue(\'frappes\')')
-        + bloc('👣', 'Mes premiers pas', 'Les premières chansons', 'mfApprVue(\'pas\')');
+        + bloc('👣', 'Mes premiers pas', 'Les premières chansons', 'mfApprVue(\'pas\')')
+        + N.extra.map(function(x){ return '<div class="ap-bloc" style="opacity:.55;cursor:default;"><div class="ap-i">' + x[0] + '</div><div style="flex:1;"><div class="ap-t">' + x[1] + '</div><div class="ap-d">' + x[2] + '</div></div></div>'; }).join('');
     } else if (vue === 'accords') {
       var dict = {}; try { dict = getAccordsEleveDict(); } catch(e){}
       var noms = Object.keys(dict).filter(function(x){ var m = x.match(/^([A-G]b)(.*)$/); return !m; });
@@ -8606,13 +8613,24 @@ body{padding-top:34px;}
       var ps2 = patterns(), p = ps2[window._apprI];
       h = retour('frappes', 'La frappe') + entete('🥁 ' + (p ? esc(p.rythme) : ''))
         + (p ? genPatternCardEleve(p, 'apprpat', null, true) : '')
+        + '<div class="ap-vit"><b>Vitesse :</b><button onclick="mfApprVit(0.7)">Lent</button><button onclick="mfApprVit(1)">Normal</button><button onclick="mfApprVit(1.3)">Bringue</button></div>'
+        + '<div class="ap-vit"><button onclick="mfApprVitPas(-5)">−</button><button style="flex:1;" onclick="document.getElementById(\'ep-bpm-apprpat\').focus()">Manuel</button><button onclick="mfApprVitPas(5)">+</button></div>';
+    } else if (vue === 'chanson') {
+      var c = chansons().find(function(x){ return String(x.id) === String(window._apprC); }) || {};
+      var fr = c.rythme || c.type || '';
+      h = retour('pas', 'Mes premiers pas') + entete('🎵 ' + esc(c.titre || ''))
+        + bloc('✋', 'Frappe : ' + esc(fr || '—'), 'Voir et jouer la frappe de la chanson', 'mfApprFrappeNom(\'' + String(fr).replace(/'/g,"\\'") + '\')')
+        + bloc('📝', 'Partition avec paroles', 'Paroles, accords, chant, ukulélé et tempo à écouter', 'mfApprChanson(\'' + String(c.id).replace(/'/g,"\\'") + '\')')
+        + '<div class="ap-vit"><b>Écouter :</b><label><input type="checkbox" checked> Chant</label><label><input type="checkbox" checked> Ukulélé</label><label><input type="checkbox" checked> Tempo</label></div>'
         + '<div class="ap-vit"><b>Vitesse :</b><button>Lent</button><button>Normal</button><button>Bringue</button></div>'
-        + '<div class="ap-vit"><button>−</button><button style="flex:1;">Manuel</button><button>+</button></div>'
-        + '<p style="font-size:11px;color:var(--muted);">(Les boutons de vitesse ne sont pas encore branchés — on les règle ensemble.)</p>';
+        + '<p style="font-size:11px;color:var(--muted);margin-bottom:12px;">(Cases et vitesse : dans la partition pour l\'instant ; à relier à cette page ensemble.)</p>'
+        + bloc('🎸', 'Accorder son ukulélé', 'L\'accordeur', 'mfApprVue(\'accordeur\')')
+        + bloc('📱', 'Les différentes applications', 'Métronome et autres outils (bientôt)', 'mfApprVue(\'accordeur\')')
+        + bloc('🎬', 'Vidéo', 'La vidéo tutoriel de la chanson', 'mfApprChanson(\'' + String(c.id).replace(/'/g,"\\'") + '\')');
     } else if (vue === 'pas') {
       var cs = chansons().filter(function(c){ return c && c.titre && permis('chansons', c.titre); });
       h = retour('menu', 'Apprentissage') + entete('👣 Mes premiers pas — ' + N.nom)
-        + (cs.length ? cs.map(function(c){ return '<div class="ap-bloc" onclick="mfApprChanson(\'' + String(c.id).replace(/'/g,"\\'") + '\')"><div class="ap-i">🎵</div><div><div class="ap-t">' + esc(c.titre) + '</div></div></div>'; }).join('') : '<p style="color:var(--muted);">Aucune chanson choisie pour ce niveau : à définir ensemble.</p>');
+        + (cs.length ? cs.map(function(c){ return '<div class="ap-bloc" onclick="mfApprSong(\'' + String(c.id).replace(/'/g,"\\'") + '\')"><div class="ap-i">🎵</div><div><div class="ap-t">' + esc(c.titre) + '</div></div></div>'; }).join('') : '<p style="color:var(--muted);">Aucune chanson choisie pour ce niveau : à définir ensemble.</p>');
     }
     pg.innerHTML = '<div class="card card-or">' + h + '</div>';
     appliquer();
@@ -8622,6 +8640,10 @@ body{padding-top:34px;}
   window.mfApprNiveau = function(k){ setNiveau(k); render(); };
   window.mfApprFrappe = function(i){ window._apprI = i; vue = 'frappe'; render(); window.scrollTo(0, 0); };
   window.mfApprChanson = function(id){ window._biblioMode = 'starter'; try { ouvrirChansonDepuisApercu(id); } catch(e){ ouvrirFormule('starter'); } };
+  window.mfApprSong = function(id){ window._apprC = id; vue = 'chanson'; render(); window.scrollTo(0, 0); };
+  window.mfApprFrappeNom = function(nom){ var ps = patterns(), i = ps.findIndex(function(p){ return norm(p.rythme) === norm(nom); }); if (i >= 0) mfApprFrappe(i); else if (typeof toast === 'function') toast('Frappe non trouvée'); };
+  window.mfApprVit = function(m){ var ps = patterns(), p = ps[window._apprI], inp = document.getElementById('ep-bpm-apprpat'); if (!p || !inp) return; inp.value = Math.min(240, Math.max(40, Math.round((p.bpm || 80) * m))); };
+  window.mfApprVitPas = function(d){ var inp = document.getElementById('ep-bpm-apprpat'); if (inp) inp.value = Math.min(240, Math.max(40, (parseInt(inp.value) || 80) + d)); };
   window.mfApprVue = function(v){
     if (v === 'accordeur') { showPage('outils'); setTimeout(function(){ showTool('accordeur', document.querySelector('#tool-tabs-all .tool-tab[data-outil="accordeur"]')); }, 50); return; }
     vue = v; render(); window.scrollTo(0, 0);
