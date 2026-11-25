@@ -8524,46 +8524,120 @@ function mfArreterLectures(){
 })();
 </script>
 
-<!-- ═══ VERSION TEST : niveaux Débutant / Intermédiaire / Avancé (aucune donnée écrite, réglage local à cet appareil) ═══ -->
+<!-- ═══ VERSION TEST : parcours Apprentissage (Débutant / Intermédiaire / Confirmé) — aucune donnée écrite, réglage local à cet appareil ═══ -->
 <style>
 #mf-test-bandeau{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#7a1f1f;color:#fff;font:600 12px Arial,sans-serif;padding:5px 8px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;}
 #mf-test-bandeau select{font:600 12px Arial;padding:3px 6px;border-radius:4px;}
 body{padding-top:34px;}
 .mf-verrou{opacity:.28!important;pointer-events:none!important;position:relative;filter:grayscale(1);}
 .mf-verrou::after{content:"🔒";position:absolute;top:3px;right:5px;font-size:13px;}
+.ap-niv{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px;}
+.ap-niv button{flex:1 1 30%;padding:12px 6px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--blanc);font-size:14px;font-weight:700;cursor:pointer;}
+.ap-niv button.on{background:var(--or);color:#111;border-color:var(--orL);}
+.ap-bloc{display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:10px;border:1px solid var(--border);border-radius:8px;background:var(--card);cursor:pointer;color:var(--blanc);}
+.ap-bloc .ap-i{font-size:24px;}.ap-bloc .ap-t{font-weight:700;font-size:15px;}.ap-bloc .ap-d{font-size:12px;color:var(--muted);}
+.ap-retour{background:none;border:none;color:var(--orL);font-size:14px;cursor:pointer;padding:4px 0 10px;}
+.ap-vit{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0;}
+.ap-vit button{padding:9px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--blanc);font-weight:700;cursor:pointer;}
 </style>
 <script>
 (function(){
-  // Réglages des niveaux : à ajuster ensemble. Les niveaux sont cumulatifs (Intermédiaire = Débutant + ses ajouts).
-  var NIVEAUX = {
-    debutant:      { nom:'Débutant',      diag:['C','Am','F','G','G7','C7','Dm','Em'] },
-    intermediaire: { nom:'Intermédiaire', diag:['A','A7','D','D7','Bm','Gm','Bb','A#','Fm','E','E7'] },
-    avance:        { nom:'Avancé',        diag:null /* tout le reste */ }
+  // ── Réglages des niveaux : à ajuster ensemble. Cumulatifs (Intermédiaire = Débutant + ses ajouts). ──
+  var ORDRE = ['debutant','intermediaire','confirme'];
+  var NIV = {
+    debutant:      { nom:'Débutant',      ico:'🌱', diag:['C','Am','F','G','G7','C7','Dm','Em'], frappes:['hula','marche'], chansons:['ia orana','papa'] },
+    intermediaire: { nom:'Intermédiaire', ico:'🎶', diag:['A','A7','D','D7','Bm','Gm','Bb','A#','Fm','E','E7'], frappes:[], chansons:[] },
+    confirme:      { nom:'Confirmé',      ico:'🎸', diag:null, frappes:null, chansons:null /* tout */ }
   };
-  var ORDRE = ['debutant','intermediaire','avance'];
-  function niveau(){ try { var n = localStorage.getItem('mfTestNiveau'); return ORDRE.indexOf(n) >= 0 ? n : 'debutant'; } catch(e){ return 'debutant'; } }
-  function permis(nom){
+  var vue = 'menu';
+  function norm(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9#]+/g,' ').trim(); }
+  function niveau(){ try { var n = localStorage.getItem('mfTestNiveau'); if (n === 'avance') n = 'confirme'; return ORDRE.indexOf(n) >= 0 ? n : 'debutant'; } catch(e){ return 'debutant'; } }
+  function setNiveau(n){ try { localStorage.setItem('mfTestNiveau', n); } catch(e){} var sel = document.getElementById('mf-test-niv'); if (sel) sel.value = n; }
+  function permis(cle, nom){
     var n = ORDRE.indexOf(niveau()); if (n === 2) return true;
-    for (var i = 0; i <= n; i++) if (NIVEAUX[ORDRE[i]].diag && NIVEAUX[ORDRE[i]].diag.indexOf(nom) >= 0) return true;
+    var x = cle === 'diag' ? String(nom) : norm(nom);
+    for (var i = 0; i <= n; i++) { var l = NIV[ORDRE[i]][cle]; if (l && l.some(function(y){ return (cle === 'diag' ? y : norm(y)) === x; })) return true; }
     return false;
   }
   function appliquer(){
     document.querySelectorAll('.acc-dict-card').forEach(function(card){
       var nm = card.querySelector('.acc-dict-name'); if (!nm) return;
-      var ok = permis(nm.textContent.trim());
-      card.classList.toggle('mf-verrou', !ok);
+      card.classList.toggle('mf-verrou', !permis('diag', nm.textContent.trim()));
     });
   }
+  // ── Bandeau test ──
   var b = document.createElement('div'); b.id = 'mf-test-bandeau';
   b.innerHTML = '🧪 VERSION TEST — pour les élèves rien ne change &nbsp; Niveau : <select id="mf-test-niv">'
-    + ORDRE.map(function(k){ return '<option value="'+k+'">'+NIVEAUX[k].nom+'</option>'; }).join('') + '</select>';
+    + ORDRE.map(function(k){ return '<option value="'+k+'">'+NIV[k].nom+'</option>'; }).join('') + '</select>';
   document.body.insertBefore(b, document.body.firstChild);
   var sel = document.getElementById('mf-test-niv'); sel.value = niveau();
-  sel.onchange = function(){ try { localStorage.setItem('mfTestNiveau', sel.value); } catch(e){} appliquer(); };
+  sel.onchange = function(){ setNiveau(sel.value); appliquer(); if (vue !== null && document.getElementById('page-apprentissage') && document.getElementById('page-apprentissage').classList.contains('on')) render(); };
   document.title = '🧪 TEST — ' + document.title;
+  // ── Page Apprentissage ──
+  var host = document.querySelector('.app-content');
+  var pg = document.createElement('div'); pg.id = 'page-apprentissage'; pg.className = 'page';
+  if (host) host.appendChild(pg);
+  function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function entete(titre){ return '<div class="card-title">' + titre + '</div>'; }
+  function retour(v, txt){ return '<button class="ap-retour" onclick="mfApprVue(\'' + v + '\')">‹ ' + txt + '</button>'; }
+  function patterns(){ try { return (JSON.parse(localStorage.getItem('mfhi5_patterns_rythme') || '[]') || []).filter(function(p){ return p && p.rythme && p.pattern && p.pattern.length; }); } catch(e){ return []; } }
+  function chansons(){ try { return LS.getArr('chansons') || []; } catch(e){ return []; } }
+  function render(){
+    var n = niveau(), N = NIV[n], h = '';
+    if (vue === 'menu') {
+      h = entete('🌱 Apprentissage')
+        + '<div class="ap-niv">' + ORDRE.map(function(k){ return '<button class="' + (k === n ? 'on' : '') + '" onclick="mfApprNiveau(\'' + k + '\')">' + NIV[k].ico + '<br>' + NIV[k].nom + '</button>'; }).join('') + '</div>'
+        + bloc('🎸', 'Accorder son ukulélé', 'L\'accordeur', 'mfApprVue(\'accordeur\')')
+        + bloc('🎼', 'Les différents accords', 'Tous les accords, avec le placement des doigts', 'mfApprVue(\'accords\')')
+        + bloc('🥁', 'La frappe', 'Hula, Marche…', 'mfApprVue(\'frappes\')')
+        + bloc('👣', 'Mes premiers pas', 'Les premières chansons', 'mfApprVue(\'pas\')');
+    } else if (vue === 'accords') {
+      var dict = {}; try { dict = getAccordsEleveDict(); } catch(e){}
+      var noms = Object.keys(dict).filter(function(x){ var m = x.match(/^([A-G]b)(.*)$/); return !m; });
+      h = retour('menu', 'Apprentissage') + entete('🎼 Les accords — ' + N.nom)
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;">'
+        + noms.map(function(nom){ return '<div class="acc-dict-card" onclick="jouerNote(\'' + nom.replace(/'/g,"\\'") + '\')"><div class="acc-dict-name">' + esc(nom) + '</div><div style="display:flex;justify-content:center;margin-top:4px;">' + genDiagEleve(nom) + '</div></div>'; }).join('')
+        + '</div>';
+    } else if (vue === 'frappes') {
+      var ps = patterns();
+      h = retour('menu', 'Apprentissage') + entete('🥁 La frappe — ' + N.nom)
+        + (ps.length ? ps.map(function(p, i){ return '<div class="ap-bloc' + (permis('frappes', p.rythme) ? '' : ' mf-verrou') + '" onclick="mfApprFrappe(' + ps.indexOf(p) + ')"><div class="ap-i">🥁</div><div><div class="ap-t">' + esc(p.rythme) + '</div></div></div>'; }).join('') : '<p style="color:var(--muted);">Aucune frappe disponible pour ta formule.</p>');
+    } else if (vue === 'frappe') {
+      var ps2 = patterns(), p = ps2[window._apprI];
+      h = retour('frappes', 'La frappe') + entete('🥁 ' + (p ? esc(p.rythme) : ''))
+        + (p ? genPatternCardEleve(p, 'apprpat', null, true) : '')
+        + '<div class="ap-vit"><b>Vitesse :</b><button>Lent</button><button>Normal</button><button>Bringue</button></div>'
+        + '<div class="ap-vit"><button>−</button><button style="flex:1;">Manuel</button><button>+</button></div>'
+        + '<p style="font-size:11px;color:var(--muted);">(Les boutons de vitesse ne sont pas encore branchés — on les règle ensemble.)</p>';
+    } else if (vue === 'pas') {
+      var cs = chansons().filter(function(c){ return c && c.titre && permis('chansons', c.titre); });
+      h = retour('menu', 'Apprentissage') + entete('👣 Mes premiers pas — ' + N.nom)
+        + (cs.length ? cs.map(function(c){ return '<div class="ap-bloc" onclick="mfApprChanson(\'' + String(c.id).replace(/'/g,"\\'") + '\')"><div class="ap-i">🎵</div><div><div class="ap-t">' + esc(c.titre) + '</div></div></div>'; }).join('') : '<p style="color:var(--muted);">Aucune chanson choisie pour ce niveau : à définir ensemble.</p>');
+    }
+    pg.innerHTML = '<div class="card card-or">' + h + '</div>';
+    appliquer();
+  }
+  function bloc(ico, t, d, act){ return '<div class="ap-bloc" onclick="' + act + '"><div class="ap-i">' + ico + '</div><div style="flex:1;"><div class="ap-t">' + t + '</div><div class="ap-d">' + d + '</div></div><div style="color:var(--muted);font-size:20px;">›</div></div>'; }
+  window.mfApprOuvrir = function(){ vue = 'menu'; showPage('apprentissage'); render(); };
+  window.mfApprNiveau = function(k){ setNiveau(k); render(); };
+  window.mfApprFrappe = function(i){ window._apprI = i; vue = 'frappe'; render(); window.scrollTo(0, 0); };
+  window.mfApprChanson = function(id){ window._biblioMode = 'starter'; try { ouvrirChansonDepuisApercu(id); } catch(e){ ouvrirFormule('starter'); } };
+  window.mfApprVue = function(v){
+    if (v === 'accordeur') { showPage('outils'); setTimeout(function(){ showTool('accordeur', document.querySelector('#tool-tabs-all .tool-tab[data-outil="accordeur"]')); }, 50); return; }
+    vue = v; render(); window.scrollTo(0, 0);
+  };
+  // ── Tuile « Apprentissage » en haut de l'accueil (formule Starter et au-dessus) ──
+  function tuile(){
+    var cont = document.getElementById('accueil-contenu'); if (!cont || cont.querySelector('[data-appr]')) return;
+    var ok = false; try { ok = droit('videoTuto') || droit('patterns') || droit('accords'); } catch(e){}
+    if (!ok || !cont.querySelector('.accueil-tuile')) return;
+    var d = document.createElement('div'); d.className = 'accueil-tuile'; d.setAttribute('data-appr', '1'); d.setAttribute('onclick', 'mfApprOuvrir()');
+    d.innerHTML = '<div class="at-ico">🌱</div><div style="flex:1;"><div class="at-nom">Apprentissage</div><div class="at-desc">Débutant, Intermédiaire, Confirmé : accordeur, accords, frappes, premiers pas.</div></div><div style="color:var(--muted);font-size:20px;">›</div>';
+    cont.insertBefore(d, cont.querySelector('.accueil-tuile'));
+  }
   var t = null;
-  new MutationObserver(function(){ clearTimeout(t); t = setTimeout(appliquer, 150); }).observe(document.body, { childList:true, subtree:true });
-  appliquer();
+  new MutationObserver(function(){ clearTimeout(t); t = setTimeout(function(){ appliquer(); tuile(); }, 150); }).observe(document.body, { childList:true, subtree:true });
+  appliquer(); tuile();
 })();
 </script>
 </body>
