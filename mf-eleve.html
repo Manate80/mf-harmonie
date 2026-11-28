@@ -4280,7 +4280,9 @@ async function demarrerSession(identifiant, fiche) {
     sid = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     try { localStorage.setItem('mfhi5_sessid', JSON.stringify({ identifiant: identifiant, id: sid })); } catch(e) {}
   }
-  const maxSessions = fiche.foyerType === 'famille' ? (fiche.maxSessions || 2) : 1;
+  // 28 nov. 2026 : les comptes de test ELE_SAMSUNG et ELE_APPLE s'ouvrent sur plusieurs appareils à la fois (jamais bloqués)
+  const _estCompteTest = ['ELE_SAMSUNG','ELE_APPLE'].indexOf(String(identifiant||'').toUpperCase()) >= 0;
+  const maxSessions = _estCompteTest ? 10 : (fiche.foyerType === 'famille' ? (fiche.maxSessions || 2) : 1);
   const ok = await window.enregistrerSessionFirestore(identifiant, sid, maxSessions);
   if (!ok) return false;
   _sessionId = sid;
