@@ -4580,12 +4580,18 @@ function chargerAccueil() {
   const aOutils = key !== 'basique';
   const aSuivi = key === 'coaching' || key === 'domicile';
   const aCoach = !!window._aCoaching;
+  // 28 nov. 2026 (test) : 4 cartes dans cet ordre — Basique, Immersion Chant, Starter Ukulélé, Coaching.
+  // Une carte est cadenassée si elle n'est pas dans l'abonnement ; au clic, un message explique l'offre. Premium débloque les 3.
+  const aBasique = !(key === 'immersion' || key === 'starter');
+  const msgBasique = "toast('🔒 Basique (2000 XPF) : toutes les paroles, les accords et les diagrammes, avec recherche. Inclus dans Premium (6000 XPF).')";
+  const msgImmersion = "toast('🔒 Immersion Chant (3000 XPF) : paroles en reo māʼohi, traduction mot à mot, karaoké vidéo. Inclus dans Premium (6000 XPF).')";
+  const msgStarter = "toast('🔒 Starter Ukulélé (4000 XPF) : le parcours par niveaux, les outils, les accords et les patterns. Inclus dans Premium (6000 XPF).')";
   const tuiles = [
-    { ico:'📘', nom:'Basique', desc:'Tous les chants, en clé de C, avec recherche et filtres.', act:"showPage('basique')" },
-    { ico:'🌺', nom:'Immersion Chant', desc:'Paroles en reo māʼohi, traduction mot à mot, karaoké.', act:aImmersion ? "ouvrirFormule('immersion')" : "toast('🔒 Disponible avec la formule Immersion — me contacter')", verrou:!aImmersion },
-    { ico:'🎸', nom:'Starter Ukulélé', desc:'Vidéo tutoriel, console audio, accords, diagrammes et patterns.', act:aStarter ? "ouvrirFormule('starter')" : "toast('🔒 Disponible avec la formule Starter — me contacter')", verrou:!aStarter }
+    { ico:'📘', nom:'Basique', desc:'Toutes les paroles, les accords et les diagrammes, avec recherche.', act:aBasique ? "showPage('basique')" : msgBasique, verrou:!aBasique },
+    { ico:'🌺', nom:'Immersion Chant', desc:'Paroles en reo māʼohi, traduction mot à mot, karaoké.', act:aImmersion ? "ouvrirFormule('immersion')" : msgImmersion, verrou:!aImmersion },
+    { ico:'🎸', nom:'Starter Ukulélé', desc:'Le parcours par niveaux, les outils, les accords et les patterns.', act:aStarter ? "ouvrirFormule('starter')" : msgStarter, verrou:!aStarter },
+    { ico:'🎬', nom:'Coaching', desc:'Envoie une vidéo (10 min maximum), reçois le retour du professeur. 1000 XPF la vidéo.', act:"try{renderCoachingHistorique();}catch(e){} showPage('coaching')" }
   ];
-  if (aCoach) tuiles.push({ ico:'🎬', nom:'Coaching', desc:'Envoyez votre travail, recevez le retour du professeur.', act:"showPage('coaching')" });
   tuiles.push({ ico:'💬', nom:'Messages', desc:'Écrire au professeur, joindre un fichier.', act:"showPage('messages')", badge:true });
   if (aSuivi) tuiles.push({ ico:'📊', nom:'Mon Suivi', desc:'Cours de la semaine, chansons à travailler, progression.', act:"showPage('suivi')" });
 
@@ -8565,10 +8571,9 @@ body{padding-top:34px;}
     return false;
   }
   function appliquer(){
-    document.querySelectorAll('.acc-dict-card').forEach(function(card){
-      var nm = card.querySelector('.acc-dict-name'); if (!nm) return;
-      card.classList.toggle('mf-verrou', !permis('diag', nm.textContent.trim()));
-    });
+    // 28 nov. 2026 : l'Outils général n'est jamais bloqué (décision Manate). Le tri par niveau se fait
+    // dans les pages de niveau du Starter Ukulélé, qui n'affichent que leurs accords. On retire tout cadenas.
+    document.querySelectorAll('.acc-dict-card.mf-verrou').forEach(function(card){ card.classList.remove('mf-verrou'); });
   }
   // ── Bandeau test ──
   var b = document.createElement('div'); b.id = 'mf-test-bandeau';
@@ -8695,16 +8700,28 @@ body{padding-top:34px;}
   var timer = null, tick = 0, actx = null;
   var ACC = {
     pas:[['C','Le plus simple pour commencer'],['Am','Presque pareil, un doigt'],['F','Un peu plus de doigts'],['G7','Pour bien tourner']],
-    debutant:[['C','Vu en premiers pas, ici on le maîtrise'],['Am','Vu en premiers pas, ici on le maîtrise'],['F','Vu en premiers pas, ici on le maîtrise'],['G7','Vu en premiers pas, ici on le maîtrise'],['Em','Nouveau'],['Dm','Nouveau'],['E7','Nouveau'],['G','Nouveau'],['A','Nouveau']],
+    debutant:[['C','Vu en premiers pas, ici on le maîtrise'],['Am','Vu en premiers pas, ici on le maîtrise'],['F','Vu en premiers pas, ici on le maîtrise'],['G7','Vu en premiers pas, ici on le maîtrise'],['Em','Nouveau'],['Dm','Nouveau'],['E7','Nouveau'],['G','Nouveau'],['A','Nouveau'],['D','Nouveau']],
     intermediaire:[['D','Tonalité de D'],['E','Tonalité de E'],['F','Tonalité de F'],['G','Tonalité de G'],['A','Tonalité de A'],['B','Tonalité de B']],
     confirme:[]
   };
   var NIVD = {
-    pas:{ nom:'Les premiers pas', crit:['Posture : bien tenir l’ukulélé, doigts à l’arrière du manche, sans crispation','Repères : les mesures, les tempos et les explications de base','Premiers accords : commencer à placer et passer C, Am, F, G7','Métronome et flèches : tenir bas, bas, bas… puis bas, haut, bas, haut…'], note:'Quand ces bases sont posées, tu passes au Débutant.' },
-    debutant:{ nom:'Débutant', crit:['Perfectionner : le maintien, les doigts, le temps et les mesures','Tout se joue en tonalité de C : maîtriser C, Am, F, G7, puis apprendre Em, Dm, E7, G et A, avec la frappe','Jouer et chanter simplement : une frappe simple, les premiers essais de voix, les premiers chants avec plaisir','Aborder les rythmes du niveau : boléro, marche, hula, valse à la tahitienne'], note:'Si la marche ou le placement des doigts n’est pas encore à 100 %, ce n’est pas bloquant : tu les verrouilles en début d’Intermédiaire.', ry:[['Boléro','environ 10 chants, en cours'],['Hula','environ 10 chants, en cours'],['Valse','environ 10 chants, en cours'],['Marche','on la découvre, sans pression']] },
-    intermediaire:{ nom:'Intermédiaire', crit:['Verrouiller la marche, le maintien et le placement des doigts','Vraie entrée de la voix sur le morceau','Jouer dans toutes les tonalités : D, E, F, G, A, B, à l’oreille, et s’enrichir en nouveaux accords','Premiers pas : intros, petits solos et fins','Premiers essais du kaïna, sans pression'], note:'Le swing est un mélange bossa et zouk love, plus posé et nuancé.', ry:[['Slow','environ 10 chants, en cours'],['Slow rock','environ 10 chants, en cours'],['Reggae','environ 10 chants, en cours'],['Swing','environ 10 chants, en cours'],['Marche (maîtrisée)','on la verrouille'],['Kaïna (découverte)','premiers essais, sans exigence']] },
-    confirme:{ nom:'Confirmé', crit:['Peu de nouveaux accords','Gros travail sur les solos, intros et fins de chaque chant','Arrangements personnels à l’oreille, pour te faire plaisir','Tous les rythmes précédents bien en main','Cap : les chants maîtrisés par cœur à la fin du niveau'], note:'Tu arrives avec beaucoup de chants déjà commencés. Ici on se concentre sur le kaïna et quelques chants de tāmure, ʻūte et pātaʻutaʻu.', ry:[['Kaïna et kaïna haki','cap : environ 10 chants'],['Tāmure','cap : 3 à 5 chants'],['ʻŪte','cap : 3 à 5 chants'],['Pātaʻutaʻu','cap : 3 à 5 chants']] }
+    pas:{ nom:'Les premiers pas', crit:['Posture : bien tenir l’ukulélé, doigts à l’arrière du manche, sans crispation','Repères : les mesures, les tempos et les explications de base','Premiers accords : placer et passer C, Am, F, G7','Métronome et flèches : tenir bas, bas, bas… C’est la phase la plus importante : elle donne l’oreille pour tenir un temps et une mesure réguliers','Premiers changements d’accord : par exemple C puis G7, 2 mesures chacun (8 temps), en boucle : on compte 1-2-3-4, 1-2-3-4 et on apprend la différence entre le temps et la mesure'],
+      note:'Il y a peu de choses ici, mais c’est le plus important : ça débloque tout le reste. Quand ces bases sont posées, tu passes au Débutant.',
+      ex:['C ↔ G7 : 2 mesures (8 temps) chacun, en boucle','C ↔ F','F ↔ G7','C, F, G7 en boucle'] },
+    debutant:{ nom:'Débutant', crit:['Perfectionner : le maintien, les doigts, le temps et les mesures','Tout se joue en tonalité de C : maîtriser C, Am, F, G7, puis apprendre Em, Dm, E7, G, A et D, avec la frappe','Rien n’est bloqué : si un chant demande un autre accord, tu peux l’apprendre, et il apparaît tout seul quand tu ouvres le chant','Jouer et chanter simplement : une frappe simple, les premiers essais de voix, les premiers chants avec plaisir','Aborder les rythmes du niveau : boléro, hula, valse à la tahitienne, et la marche en découverte','À savoir : plus tard (Intermédiaire, puis Confirmé), tu devras apprendre des chants par cœur. Commence dès maintenant à retenir les premiers'],
+      note:'Si la marche ou le placement des doigts n’est pas encore à 100 %, ce n’est pas bloquant : tu les verrouilles en début d’Intermédiaire.',
+      ry:[['Boléro','6 chants',6],['Hula','6 chants',6],['Valse','6 chants',6],['Marche','4 chants : on la découvre, sans pression',4]],
+      ex:['Exercices à venir'] },
+    intermediaire:{ nom:'Intermédiaire', crit:['Verrouiller la marche, le maintien et le placement des doigts','Vraie base du chant : la voix entre sur le morceau','Jouer dans les tonalités D, E, F, G, A, B et comprendre la logique de la transposition. Pas besoin de tout maîtriser pour passer en Confirmé : B et E, plus difficiles, se travaillent aussi en Confirmé','Premiers pas vers les intros, petits solos et fins','Le par cœur commence : avec les premiers chants de hula du Débutant, pour travailler l’oreille','Découvrir le kaïna, sans pression'],
+      note:'Le nom « Swing » est provisoire : il regroupera des rythmes plus posés (bossa, zouk love, marches lentes), à préciser.',
+      ry:[['Slow rock','6 chants',6],['Reggae','6 chants',6],['Swing (provisoire)','à définir',3],['Marche','+2 chants, soit 6 au total : on la consolide',2],['Kaïna','4 chants : découverte',4]],
+      ex:['Exercices à venir'] },
+    confirme:{ nom:'Confirmé', crit:['Peu de nouveaux accords','Révision des rythmes d’avant : la frappe, les mesures, pour voir que rien n’est oublié','Gros travail sur les solos, intros et fins de chaque chant','Arrangements personnels à l’oreille, pour te faire plaisir','Tonalités B et E, si elles ne sont pas encore faites','Le par cœur est obligatoire : cap, les chants maîtrisés par cœur à la fin du niveau'],
+      note:'Tu arrives avec beaucoup de chants déjà commencés. Ici on complète tous les rythmes jusqu’à 10 chants, on acquiert le kaïna et on ajoute quelques chants de tāmure, ʻūte et pātaʻutaʻu.',
+      ry:[['Boléro','complété jusqu’à 10 chants',4],['Hula','complété jusqu’à 10 chants',4],['Valse','complété jusqu’à 10 chants',4],['Marche','complétée jusqu’à 10 chants',4],['Slow rock','complété jusqu’à 10 chants',4],['Reggae','complété jusqu’à 10 chants',4],['Kaïna','acquis : 10 chants au total (+6)',6],['Tāmure','2 à 3 chants',3],['ʻŪte','2 à 3 chants',3],['Pātaʻutaʻu','2 à 3 chants',3]],
+      ex:['Exercices à venir'] }
   };
+  var NOTE_DIESES = '<div class="sh-note">Ici les accords sont écrits avec des dièses. Attention : A# s’appelle aussi <b>Bb</b>, et D# s’appelle aussi <b>Eb</b>. Tu les verras sous ce nom si tu cherches des paroles sur internet.</div>';
   var ICO = { debutant:'🌱', intermediaire:'🌿', confirme:'🌴' };
   function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   var host = document.querySelector('.app-content');
@@ -8744,7 +8761,7 @@ body{padding-top:34px;}
     return (N.ry || []).map(function(x, i){
       var k = 'r' + N.nom + i, o = !!S.ouv[k];
       return '<div class="ap-bloc" onclick="mfShOuv(\'' + k + '\')"><div class="ap-i">🎶</div><div style="flex:1;"><div class="ap-t">' + esc(x[0]) + '</div><div class="ap-d">' + esc(x[1]) + '</div></div><div style="color:var(--muted);font-size:20px;">' + (o ? '⌃' : '⌄') + '</div></div>'
-        + (o ? [1,2,3].map(function(n){ return '<div class="sh-chant"><span class="pl">▶</span>Chant ' + n + ' (à ajouter)<span class="en">en cours</span></div>'; }).join('') : '');
+        + (o ? Array.apply(null,Array(x[2]||3)).map(function(_,n0){ var n=n0+1; return '<div class="sh-chant"><span class="pl">▶</span>Chant ' + n + ' (à ajouter)<span class="en">en cours</span></div>'; }).join('') : '');
     }).join('');
   }
   function onglets(){
@@ -8767,13 +8784,16 @@ body{padding-top:34px;}
       var P = NIVD.pas;
       h = '<div class="card-title">👣 ' + P.nom + '</div>' + '<div class="sh-sec">Ce qu\'on pose avant le Débutant</div>' + liste(P.crit)
         + '<div class="sh-sec">Mes premiers accords, un par un</div>' + accords('pas')
-        + '<div class="sh-sec">Métronome</div>' + metroHtml() + '<div class="sh-note">' + esc(P.note) + '</div>';
+        + '<div class="sh-sec">Métronome</div>' + metroHtml()
+        + '<div class="sh-sec">Exercices</div>' + liste(P.ex) + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Exemples d’enchaînements, d’autres viendront.</p>'
+        + '<div class="sh-note">' + esc(P.note) + '</div>';
     } else if (/^niv:/.test(S.tab)) {
       var k2 = S.tab.slice(4), N = NIVD[k2];
       h = '<div class="card-title">' + ICO[k2] + ' ' + N.nom + '</div>'
         + '<div class="sh-sec">Ce que tu travailles</div>' + liste(N.crit)
-        + ((ACC[k2] || []).length ? '<div class="sh-sec">Les accords, un par un</div>' + accords(k2) : '')
+        + ((ACC[k2] || []).length ? '<div class="sh-sec">Les accords, un par un</div>' + accords(k2) + NOTE_DIESES : '')
         + '<div class="sh-sec">Rythmes et chants</div>' + '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Les chants déjà vus restent là : on les reprend souvent, et ils sont maîtrisés par cœur à la fin du Confirmé.</p>' + rythmes(N)
+        + '<div class="sh-sec">Exercices</div>' + liste(N.ex)
         + '<div class="sh-note" style="margin-top:12px;">' + esc(N.note) + '</div>';
     }
     pg.innerHTML = onglets() + '<div class="card card-or">' + h + '</div>';
