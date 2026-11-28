@@ -1735,7 +1735,7 @@ body{background:var(--bg);color:var(--blanc);font-family:'Segoe UI',sans-serif;f
 <!-- ═══ VUE 4 : FACTURES ═══ -->
 <div class="oc-view" id="oc-view-facture">
   <div class="oc-card" style="border:2px solid var(--oc-orL)">
-    <div class="oc-card-title">📅 Mois des cours / absences <span class="sub">la facture affiche le mois suivant (EBP : même mois)</span></div>
+    <div class="oc-card-title">📅 Mois de la facture <span class="sub">décembre = factures de décembre (EBP : fin du mois précédent)</span></div>
     <div class="oc-grid2">
       <div><label class="oc-label">Mois</label>
         <select class="oc-select" id="oc-fact-mois">
@@ -2380,7 +2380,17 @@ function ocNomFichierFacture(numero, annee, _ancienStatut, nomClient){
 }
 /* ══ V12 — outils : numéro sans séquence, mois affiché, absences, comptabilité ══ */
 function ocNorm(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
-// Mois affiché sur la facture = mois suivant celui des cours/absences (sauf EBP : même mois)
+// Mois affiché sur la facture = mois suivant celui des cours/absences (sauf EBP : même mois que les cours). Les arguments sont le mois des cours (voir ocMoisCoursChoisi)
+// Le sélecteur du haut = MOIS DE LA FACTURE (décembre = factures de décembre). En interne, le « mois des cours »
+// (absences, EBP) = le mois précédent : EBP suit la fin du mois (pour décembre : novembre).
+function ocMoisCoursChoisi(){
+  const mSel = parseInt(document.getElementById('oc-fact-mois').value,10);
+  const aRaw = (document.getElementById('oc-fact-annee').value||'').padStart(2,'0');
+  let a = parseInt(aRaw,10);
+  if(!(mSel>=1 && mSel<=12) || isNaN(a)) return { mois:String(document.getElementById('oc-fact-mois').value||''), annee:aRaw };
+  let m = mSel - 1; if(m<1){ m = 12; a--; }
+  return { mois:String(m).padStart(2,'0'), annee:String(a).padStart(2,'0') };
+}
 function ocMoisAffiche(mois, anneeCourte, estEBP){
   let m = parseInt(mois,10), a = 2000 + parseInt(anneeCourte,10);
   if(!estEBP){ m++; if(m>12){ m=1; a++; } }
@@ -2629,11 +2639,10 @@ window.ocViderHistorique = function(){
 };
 function ocMajMoisAffiche(){
   const el = document.getElementById('oc-fact-mois-affiche'); if(!el) return;
-  const m = document.getElementById('oc-fact-mois').value;
-  const a = (document.getElementById('oc-fact-annee').value||'').padStart(2,'0');
-  if(!/^\d{2}$/.test(a)){ el.textContent=''; return; }
+  const mc = ocMoisCoursChoisi(); const m = mc.mois, a = mc.annee;
+  if(!/^\d{2}$/.test(a) || !MOIS_NOMS[m]){ el.textContent=''; return; }
   const aff = ocMoisAffiche(m, a, false);
-  el.innerHTML = '📄 Les factures afficheront <b>' + MOIS_NOMS[aff.mois] + ' ' + aff.annee + '</b> (absences non encore déduites, jusqu\u2019à fin ' + MOIS_NOMS[aff.mois] + ') · <b>EBP</b> : ' + MOIS_NOMS[m] + ' 20' + a + ', sans décalage.';
+  el.innerHTML = '📄 Les factures afficheront <b>' + MOIS_NOMS[aff.mois] + ' ' + aff.annee + '</b> (absences non encore déduites, jusqu\u2019à fin ' + MOIS_NOMS[aff.mois] + ') · <b>EBP</b> : ' + MOIS_NOMS[m] + ' 20' + a + ' (fin du mois).';
 }
 const OC_ABS = { mode:'abs', y:null, m:null, ref:'', sel:new Set(), jours:{} };
 const OC_JOURS_NOMS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -2690,8 +2699,7 @@ function ocRenderAbsencesMois(){
   document.getElementById('oc-abs-mode-abs').style.opacity = modeAbs ? '1' : '.5';
   document.getElementById('oc-abs-mode-conge').style.opacity = modeAbs ? '.5' : '1';
   // Le calendrier suit le mois choisi en haut de page
-  const mC = document.getElementById('oc-fact-mois').value;
-  const aC = (document.getElementById('oc-fact-annee').value||'').padStart(2,'0');
+  const _mcA = ocMoisCoursChoisi(); const mC = _mcA.mois, aC = _mcA.annee;
   const ref = aC + '-' + mC;
   if(OC_ABS.y===null || OC_ABS.ref!==ref){ OC_ABS.ref = ref; OC_ABS.y = 2000 + (parseInt(aC,10)||26); OC_ABS.m = (parseInt(mC,10)||1) - 1; OC_ABS.sel = new Set(); }
   const abs = ocGetAbsencesMois();
@@ -4215,8 +4223,7 @@ window.ocGenererFacturesGroupe = async function(idx){
   const groupes = ocGetGroupes(); const g = groupes[idx];
   if(!g || !g.membres.length){ ocToast('⚠ Aucun membre dans ce dossier'); return; }
   const ent = ocGetEntreprise(), rib = ocGetRib();
-  const moisC = document.getElementById('oc-fact-mois').value;
-  const anneeC = document.getElementById('oc-fact-annee').value.padStart(2,'0');
+  const _mc = ocMoisCoursChoisi(); const moisC = _mc.mois, anneeC = _mc.annee;
   const moisKeyAbs = '20' + anneeC + '-' + moisC;
   const afficherTampon = document.getElementById('oc-fact-tampon-switch').classList.contains('on');
   const observation = document.getElementById('oc-fact-observation').value.trim();
@@ -4283,8 +4290,8 @@ function ocInitFacture(){
       partitions.map(p=>`<option value="${p.value}">${p.label}</option>`).join('') +
     '</optgroup>' : '') +
     '<option value="custom">Autre / nouveau client…</option>';
-  // Par défaut : le mois précédent (mois des cours/absences) — la facture affichera le mois en cours
-  const dRef = new Date(); dRef.setDate(1); dRef.setMonth(dRef.getMonth()-1);
+  // Par défaut : le mois de la facture = mois en cours (à partir du 27 : le mois suivant, car on génère les factures le 27/28)
+  const dRef = new Date(); const _j = dRef.getDate(); dRef.setDate(1); if(_j>=27) dRef.setMonth(dRef.getMonth()+1);
   document.getElementById('oc-fact-annee').value = String(dRef.getFullYear()).slice(-2);
   document.getElementById('oc-fact-mois').value = String(dRef.getMonth()+1).padStart(2,'0');
   document.getElementById('oc-fact-lignes').innerHTML = '';
@@ -4358,8 +4365,8 @@ window.ocAutoRemplirLigneClient = function(){
   ocAjouterLigneFacture();
   let ligne = wrap.lastElementChild;
   let inputs = ligne.querySelectorAll('input');
-  const mois = document.getElementById('oc-fact-mois').value;
-  const annee = '20' + document.getElementById('oc-fact-annee').value.padStart(2,'0');
+  const _mcL = ocMoisCoursChoisi(); const mois = _mcL.mois;
+  const annee = '20' + _mcL.annee;
   const moisKey = annee + '-' + mois;
   const base = ocMontantSourceMoisBase(revenu, moisKey);
   inputs[0].value = 'Abonnement mensuel — Cours de ukulélé — ' + MOIS_NOMS[mois] + ' ' + annee;
@@ -4589,8 +4596,7 @@ window.ocAppliquerGrilleTarifaire = function(){
 window.ocRecalcNumero = function(){
   const id = document.getElementById('oc-fact-client').value;
   const client = ocClientCourant();
-  const mois = document.getElementById('oc-fact-mois').value;
-  const anneeC = document.getElementById('oc-fact-annee').value.padStart(2,'0');
+  const _mcN = ocMoisCoursChoisi(); const mois = _mcN.mois, anneeC = _mcN.annee;
   const aff = ocMoisAffiche(mois, anneeC, id==='ebp');
   const partition = ocParsePartitionId(id);
   const estGroupeManuel = document.getElementById('oc-fact-groupe-switch').classList.contains('on');
@@ -4743,8 +4749,7 @@ const OC_GROUPE_VERS_REVENU = { '002':'taero', '003':'moufouk', '008':'teammiri'
 window.ocGenererFacturesDuMois = async function(opts){
   const auto = !!(opts && opts.auto === true);
   ocImporterDepuisProf();
-  const moisC = document.getElementById('oc-fact-mois').value;
-  const anneeC = document.getElementById('oc-fact-annee').value.padStart(2,'0');
+  const _mc = ocMoisCoursChoisi(); const moisC = _mc.mois, anneeC = _mc.annee;
   const moisKeyAbs = '20' + anneeC + '-' + moisC;
   const affStd = ocMoisAffiche(moisC, anneeC, false);
   if(!auto && !confirm('Générer toutes les factures (individuels + groupes) ?\n\n• Absences : toutes celles pas encore déduites, jusqu\u2019à la fin du mois affiché\n• Factures affichées : ' + MOIS_NOMS[affStd.mois] + ' ' + affStd.annee + ' (EBP : ' + MOIS_NOMS[moisC] + ' 20' + anneeC + ')\n\nChaque facture est rangée dans Archives et enregistrée sur Firebase (aucun téléchargement).')) return;
@@ -4835,8 +4840,7 @@ window.ocGenererFacturePDF = async function(){
   ocImporterDepuisProf();
   const ent = ocGetEntreprise(); const rib = ocGetRib();
   const client = ocClientCourant();
-  const moisC = document.getElementById('oc-fact-mois').value;
-  const anneeC = document.getElementById('oc-fact-annee').value.padStart(2,'0');
+  const _mc = ocMoisCoursChoisi(); const moisC = _mc.mois, anneeC = _mc.annee;
   const id = document.getElementById('oc-fact-client').value;
   const estEBP = id === 'ebp';
   const aff = ocMoisAffiche(moisC, anneeC, estEBP);
@@ -5479,7 +5483,8 @@ function ocBandeau28(auto){
 }
 window.ocGenererAuto28 = async function(mois, ac){
   const em = document.getElementById('oc-fact-mois'), ea = document.getElementById('oc-fact-annee');
-  if(em) em.value = mois; if(ea) ea.value = ac;
+  const _affSel = ocMoisAffiche(mois, ac, false); // mois/ac = mois des cours ; le sélecteur reçoit le mois de la facture
+  if(em) em.value = _affSel.mois; if(ea) ea.value = _affSel.anneeCourte;
   if(typeof ocMajMoisAffiche === 'function') ocMajMoisAffiche();
   await ocGenererFacturesDuMois({auto:true});
   ocBandeau28();
