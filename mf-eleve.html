@@ -4381,6 +4381,8 @@ function _rafraichirPageActive() {
   else if (id === 'basique') chargerBasiqueEleve();
 }
 function lancerApp() {
+  // 28 nov. 2026 : si la page de test a renvoyé l'utilisateur ici pour se connecter, on le ramène sur la page de test (une seule fois, 10 min max)
+  try { var _tr = parseInt(localStorage.getItem('mfTestRetour') || '0', 10); if (_tr) { localStorage.removeItem('mfTestRetour'); if (Date.now() - _tr < 600000) { window.location.replace('mf-eleve-test.html'); return; } } } catch(e) {}
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').style.display = 'flex';
   // Header

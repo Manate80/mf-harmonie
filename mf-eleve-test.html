@@ -4559,6 +4559,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   // Aucune session valide : ne plus afficher le formulaire de connexion propre à cette page
   // (doublon avec l'Espace Membres du site) — redirection vers le seul écran de connexion officiel.
+  // 28 nov. 2026 : on note qu'il faut revenir sur cette page de test après la connexion.
+  try { localStorage.setItem('mfTestRetour', String(Date.now())); } catch(e) {}
   window.location.href = 'index.html';
 });
 
